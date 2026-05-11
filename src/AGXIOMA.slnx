@@ -1,0 +1,12 @@
+<Solution>
+  <Project Path="AGXIOME.CLI/AGXIOME.CLI.csproj" />
+  <Project Path="AGXIOME.Core/AGXIOME.Core.csproj" />
+  <Project Path="AGXIOME.LLMWIKY/AGXIOME.LLMWIKY.csproj" />
+  <Project Path="AGXIOME.Realtime/AGXIOME.Realtime.csproj" />
+  <Project Path="AGXIOME.Security/AGXIOME.Security.csproj" />
+  <Project Path="AGXIOME.Shared/AGXIOME.Shared.csproj" />
+  <Project Path="AGXIOME.Storage/AGXIOME.Storage.csproj" />
+  <Project Path="AGXIOME.Telemetry/AGXIOME.Telemetry.csproj" />
+  <Project Path="AGXIOME.Tests/AGXIOME.Tests.csproj" />
+  <Project Path="AGXIOME.XLink/AGXIOME.XLink.csproj" />
+</Solution>

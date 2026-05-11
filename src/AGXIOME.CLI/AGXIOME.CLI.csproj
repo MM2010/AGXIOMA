@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\AGXIOME.Core\AGXIOME.Core.csproj" />
+    <ProjectReference Include="..\AGXIOME.LLMWIKY\AGXIOME.LLMWIKY.csproj" />
+    <ProjectReference Include="..\AGXIOME.Storage\AGXIOME.Storage.csproj" />
+    <ProjectReference Include="..\AGXIOME.XLink\AGXIOME.XLink.csproj" />
+    <ProjectReference Include="..\AGXIOME.Realtime\AGXIOME.Realtime.csproj" />
+    <ProjectReference Include="..\AGXIOME.Security\AGXIOME.Security.csproj" />
+    <ProjectReference Include="..\AGXIOME.Telemetry\AGXIOME.Telemetry.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

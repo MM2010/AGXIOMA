@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="FsCheck" Version="3.1.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="NSubstitute" Version="5.3.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.3.0" />
+    <PackageReference Include="Testcontainers.Redis" Version="4.3.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AGXIOME.Shared\AGXIOME.Shared.csproj" />
+    <ProjectReference Include="..\AGXIOME.Core\AGXIOME.Core.csproj" />
+    <ProjectReference Include="..\AGXIOME.LLMWIKY\AGXIOME.LLMWIKY.csproj" />
+    <ProjectReference Include="..\AGXIOME.Storage\AGXIOME.Storage.csproj" />
+    <ProjectReference Include="..\AGXIOME.XLink\AGXIOME.XLink.csproj" />
+    <ProjectReference Include="..\AGXIOME.Realtime\AGXIOME.Realtime.csproj" />
+    <ProjectReference Include="..\AGXIOME.Security\AGXIOME.Security.csproj" />
+    <ProjectReference Include="..\AGXIOME.Telemetry\AGXIOME.Telemetry.csproj" />
+  </ItemGroup>
+
+</Project>
