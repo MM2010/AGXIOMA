@@ -96,9 +96,9 @@ public class PropertyBasedTests
         var rng = new Random(99);
         var sb = new StringBuilder();
         for (int i = 0; i < 5000; i++) sb.Append((char)('a' + rng.Next(26)));
-        var chunks = new Storage.Chunkers.FixedSizeChunker(50, 5).Chunk(sb.ToString(), DocumentType.PlainText);
+        var chunks = new Storage.Chunkers.FixedSizeChunker().Chunk(sb.ToString(), 50, 5);
         Assert.NotEmpty(chunks);
-        Assert.All(chunks, c => Assert.NotNull(c.Text));
+        Assert.All(chunks, c => Assert.NotNull(c.Content));
     }
 
     [Fact]

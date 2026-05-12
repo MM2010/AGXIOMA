@@ -23,7 +23,11 @@ public record HITLRequirement(
     object Payload,
     HITLRequirementType Type,
     HITLStatus Status = HITLStatus.Pending,
-    string? MemberAgentName = null
+    string? MemberAgentName = null,
+    // Optional orchestration context — populated when HITL is triggered from an orchestrated plan task.
+    // Enables HITLManager.Resolve() to resume the paused orchestrator task via IHitlCompletionSource.
+    Guid? OrchestratorTaskId = null,
+    Guid? OrchestratorPlanId = null
 );
 
 public record ApprovalRequest(
@@ -138,11 +142,8 @@ public record CultureEntry(
     DateTime? UpdatedAt = null
 );
 
-public record SkillReference(
-    string SkillId,
-    string? Source = null,
-    Dictionary<string, object>? Params = null
-);
+/// <summary>Reference to a skill for agent configuration.</summary>
+public record SkillRef(string SkillId, string? Source = null, Dictionary<string, object>? Params = null);
 
 public record Schedule(
     string Id,
@@ -158,7 +159,9 @@ public record Schedule(
 
 public record SchedulePayload(
     Dictionary<string, object>? Input = null,
-    string? SessionId = null
+    string? SessionId = null,
+    // P17: when set, the schedule triggers IPlanOrchestrator.StartAsync with this request string
+    string? PlanRequest = null
 );
 
 public record ScheduleRun(

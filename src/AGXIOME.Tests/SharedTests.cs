@@ -47,7 +47,7 @@ public class SharedRecordTests
         var cfg = new AgentConfig();
         Assert.Equal(20, cfg.MaxIterations);
         Assert.Equal(TimeSpan.FromSeconds(30), cfg.Timeout);
-        Assert.Equal("OpenAI", cfg.ReasoningEngine.Provider);
+        Assert.Equal(LLMProviderType.OpenAI, cfg.ReasoningEngine.Provider);
     }
 
     [Fact] public void LLMWIKYConfig_HasDefaults()

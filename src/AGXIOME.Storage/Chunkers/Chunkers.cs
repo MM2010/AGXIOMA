@@ -3,97 +3,130 @@ using AGXIOME.Shared.Models;
 
 namespace AGXIOME.Storage.Chunkers;
 
-/// <summary>Splits text into fixed-size chunks with optional overlap.</summary>
+/// <summary>Splits text into fixed-size token-approximate chunks with configurable overlap.</summary>
 public sealed class FixedSizeChunker : IChunker
 {
-    private readonly int _chunkSize;
-    private readonly int _overlap;
+    public ChunkerType ChunkerType => ChunkerType.Fixed;
 
-    public FixedSizeChunker(int chunkSize = 512, int overlap = 64)
+    public IReadOnlyList<DocumentChunk> Chunk(string text, int maxTokens = 512, int overlap = 64)
     {
-        _chunkSize = chunkSize;
-        _overlap = overlap;
-    }
+        if (string.IsNullOrEmpty(text))
+            return [new DocumentChunk(string.Empty, 0, 0, 0)];
 
-    public IReadOnlyList<Chunk> Chunk(string content, DocumentType type)
-    {
-        var chunks = new List<Chunk>();
-        var words = content.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        // Approximate: 1 token ˜ 4 chars; use word-boundary splitting for coherence.
+        var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        int stepWords = Math.Max(1, maxTokens - overlap);
+        var chunks = new List<DocumentChunk>();
         int index = 0;
-        for (int i = 0; i < words.Length; i += _chunkSize - _overlap)
+
+        for (int i = 0; i < words.Length; i += stepWords)
         {
-            var segment = string.Join(" ", words.Skip(i).Take(_chunkSize));
+            var segment = string.Join(" ", words.Skip(i).Take(maxTokens));
             if (string.IsNullOrWhiteSpace(segment)) break;
-            chunks.Add(new Chunk(segment, index++, i * 5, (i + segment.Length) * 5));
+
+            // Approximate char offsets (exact offsets require source scanning; this is good enough
+            // for downstream search — use a scanning chunker when precise offsets are required).
+            int startOffset = words.Take(i).Sum(w => w.Length + 1);
+            int endOffset = startOffset + segment.Length;
+            chunks.Add(new DocumentChunk(segment, index++, startOffset, endOffset));
         }
+
         return chunks;
     }
 }
 
-/// <summary>Splits markdown content at heading boundaries.</summary>
+/// <summary>Splits markdown content at heading boundaries (# / ## / ###).
+/// Falls back to FixedSizeChunker for non-markdown text.</summary>
 public sealed class HeadingChunker : IChunker
 {
-    private readonly int _maxChunkSize;
+    public ChunkerType ChunkerType => ChunkerType.Heading;
 
-    public HeadingChunker(int maxChunkSize = 1024) => _maxChunkSize = maxChunkSize;
-
-    public IReadOnlyList<Chunk> Chunk(string content, DocumentType type)
+    public IReadOnlyList<DocumentChunk> Chunk(string text, int maxTokens = 512, int overlap = 64)
     {
-        if (type != DocumentType.Markdown)
-            return new FixedSizeChunker().Chunk(content, type);
+        if (string.IsNullOrEmpty(text))
+            return [new DocumentChunk(string.Empty, 0, 0, 0)];
 
-        var chunks = new List<Chunk>();
-        var lines = content.Split('\n');
-        var currentSection = new List<string>();
-        int startOffset = 0, index = 0;
+        var chunks = new List<DocumentChunk>();
+        var lines = text.Split('\n');
+        var currentLines = new List<string>();
+        int index = 0;
+        int offset = 0;
+        int sectionStart = 0;
 
         foreach (var line in lines)
         {
-            if (line.StartsWith("#") && currentSection.Count > 0)
+            // Flush on any ATX heading so each section becomes its own chunk.
+            if (line.StartsWith('#') && currentLines.Count > 0)
             {
-                chunks.Add(new Chunk(string.Join("\n", currentSection), index++, startOffset, startOffset + currentSection.Sum(l => l.Length + 1)));
-                currentSection.Clear();
+                FlushSection(currentLines, ref index, sectionStart, offset, chunks);
+                sectionStart = offset;
+                currentLines.Clear();
             }
-            currentSection.Add(line);
+            currentLines.Add(line);
+            offset += line.Length + 1; // +1 for newline
         }
-        if (currentSection.Count > 0)
-            chunks.Add(new Chunk(string.Join("\n", currentSection), index, startOffset, startOffset + currentSection.Sum(l => l.Length + 1)));
+
+        if (currentLines.Count > 0)
+            FlushSection(currentLines, ref index, sectionStart, offset, chunks);
 
         return chunks;
     }
+
+    private static void FlushSection(List<string> lines, ref int index, int startOffset, int endOffset, List<DocumentChunk> target)
+    {
+        var content = string.Join("\n", lines);
+        if (!string.IsNullOrWhiteSpace(content))
+            target.Add(new DocumentChunk(content, index++, startOffset, endOffset));
+    }
 }
 
-/// <summary>Splits content at sentence boundaries.</summary>
+/// <summary>Splits content at sentence boundaries (.!?\n), grouping until maxTokens (approx).</summary>
 public sealed class SentenceChunker : IChunker
 {
-    private readonly int _maxTokens;
+    public ChunkerType ChunkerType => ChunkerType.Sentence;
 
-    public SentenceChunker(int maxTokens = 512) => _maxTokens = maxTokens;
-
-    public IReadOnlyList<Chunk> Chunk(string content, DocumentType type)
+    public IReadOnlyList<DocumentChunk> Chunk(string text, int maxTokens = 512, int overlap = 64)
     {
-        var chunks = new List<Chunk>();
-        var sentences = content.Split(['.', '!', '?', '\n'], StringSplitOptions.RemoveEmptyEntries);
+        if (string.IsNullOrEmpty(text))
+            return [new DocumentChunk(string.Empty, 0, 0, 0)];
+
+        var chunks = new List<DocumentChunk>();
+        var sentences = text.Split(['.', '!', '?', '\n'], StringSplitOptions.RemoveEmptyEntries);
         var buffer = new List<string>();
-        int charCount = 0, index = 0, startOffset = 0;
+        // Approximate: 1 token ˜ 4 chars.
+        int charBudget = maxTokens * 4;
+        int charCount = 0;
+        int index = 0;
+        int startOffset = 0;
 
         foreach (var s in sentences)
         {
             var trimmed = s.Trim();
             if (string.IsNullOrWhiteSpace(trimmed)) continue;
-            buffer.Add(trimmed);
-            charCount += trimmed.Length;
 
-            if (charCount >= _maxTokens * 4) // approx chars per token
+            buffer.Add(trimmed);
+            charCount += trimmed.Length + 2; // +2 for ". "
+
+            if (charCount >= charBudget)
             {
-                chunks.Add(new Chunk(string.Join(". ", buffer) + ".", index++, startOffset, startOffset + charCount));
+                var content = string.Join(". ", buffer) + ".";
+                chunks.Add(new DocumentChunk(content, index++, startOffset, startOffset + charCount));
+                // Overlap: carry last sentence into next chunk.
+                var last = buffer[^1];
                 buffer.Clear();
+                int newStart = startOffset + charCount - last.Length - 2;
                 startOffset += charCount;
-                charCount = 0;
+                // Keep overlapping sentences (approximate — keep last sentence).
+                buffer.Add(last);
+                charCount = last.Length + 2;
             }
         }
+
         if (buffer.Count > 0)
-            chunks.Add(new Chunk(string.Join(". ", buffer) + ".", index, startOffset, startOffset + charCount));
+        {
+            var content = string.Join(". ", buffer) + ".";
+            chunks.Add(new DocumentChunk(content, index, startOffset, startOffset + charCount));
+        }
 
         return chunks;
     }

@@ -148,11 +148,11 @@ public class SessionHITLLearningTests
     }
 
     [Fact]
-    public async Task SkillManager_Download_ThrowsNotImplemented()
+    public async Task SkillManager_Download_InvalidUrl_Throws()
     {
         var mgr = new SkillManager();
-        await Assert.ThrowsAsync<NotImplementedException>(() =>
-            mgr.DownloadSkillAsync("test", "http://example.com"));
+        await Assert.ThrowsAsync<HttpRequestException>(() =>
+            mgr.DownloadSkillAsync("test", "http://localhost:1/nonexistent"));
     }
 
     // ── Schedule ──

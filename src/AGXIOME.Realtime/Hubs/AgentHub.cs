@@ -14,6 +14,15 @@ public interface IAgentClient
     Task OnError(string runId, string error);
     Task OnStatusChange(string agentId, AgentStatus status);
     Task OnPaused(string runId, IReadOnlyList<HITLRequirement> requirements);
+
+    // P19: Orchestration plan lifecycle events — clients subscribe to a planId group.
+    Task OnPlanStarted(string planId);
+    Task OnPlanDecomposed(string planId, int taskCount);
+    Task OnTaskSpawned(string planId, string taskId, int stepIndex);
+    Task OnStepAdvanced(string planId, int oldStep, int newStep);
+    Task OnPlanWaitingForHITL(string planId, string taskId, string requirementId);
+    Task OnPlanCompleted(string planId, string summary);
+    Task OnPlanFailed(string planId, string reason);
 }
 
 public class AgentHub : Hub<IAgentClient>
@@ -35,6 +44,14 @@ public class AgentHub : Hub<IAgentClient>
 
     public async Task LeaveAgentSession(string sessionId)
         => await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"session:{sessionId}");
+
+    /// <summary>Subscribe to real-time events for a specific orchestration plan (P19).</summary>
+    public async Task JoinPlan(string planId)
+        => await Groups.AddToGroupAsync(Context.ConnectionId, $"plan:{planId}");
+
+    /// <summary>Unsubscribe from orchestration plan events.</summary>
+    public async Task LeavePlan(string planId)
+        => await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"plan:{planId}");
 }
 
 public interface INotificationClient

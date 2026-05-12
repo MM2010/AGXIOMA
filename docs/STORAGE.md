@@ -1,162 +1,191 @@
 # Storage & RAG — AGXIOME
 
-Persistenza CQRS con PostgreSQL, Redis cache, outbox pattern, RAG con pgvector.
+Persistenza multi-provider con CQRS. Tutti i database supportati come First-Class Citizen.
 
 ---
 
-## CQRS Architecture
+## Provider supportati
 
-```
-Command (write)                    Query (read)
-    │                                  │
-    ▼                                  ▼
-┌──────────┐                    ┌────────────┐
-│ Command   │                    │  Redis     │
-│ Handler   │                    │  Cache     │
-└────┬─────┘                    └──────┬─────┘
-     │                                 │
-     ▼                                 ▼
-┌──────────┐                    ┌────────────┐
-│ PostgreSQL │                    │  PostgreSQL │
-│ (canonical)│                    │  (query)    │
-└────┬──────┘                    └────────────┘
-     │
-     ▼
-┌──────────┐
-│  Outbox  │──► Event Bus
-└──────────┘
+| Database | Namespace | Classe | Uso principale | ACID |
+|----------|-----------|--------|---------------|------|
+| **PostgreSQL** | `AGXIOME.Storage.Stores` | `PostgresCommandStore` | Canonical state, pgvector, RAG | ✅ |
+| **MySQL** | `AGXIOME.Storage.Stores` | `MySqlCommandStore` | Session storage, chat history | ✅ |
+| **MariaDB** | `AGXIOME.Storage.Stores` | `MariaDbStore` | Drop-in MySQL compat | ✅ |
+| **MongoDB** | `AGXIOME.Storage.Stores` | `MongoStore` | Document store, unstructured memory | ✅ (replica) |
+| **Redis** | `AGXIOME.Storage.Stores` | `RedisCache` | Cache, pub/sub, session, rate-limit | ❌ |
+
+---
+
+## Configurazione
+
+```csharp
+var config = new StorageConfig
+{
+    DefaultProvider = "PostgreSQL",
+    Providers = new()
+    {
+        ["PostgreSQL"] = new() { ConnectionString = "Host=localhost;Database=agxiome" },
+        ["MySQL"]      = new() { ConnectionString = "Server=localhost;Database=agxiome;User=root" },
+        ["MariaDB"]    = new() { ConnectionString = "Server=localhost;Database=agxiome;User=root" },
+        ["MongoDB"]    = new() { ConnectionString = "mongodb://localhost:27017/agxiome" },
+        ["Redis"]      = new() { ConnectionString = "localhost:6379,abortConnect=false" },
+    }
+};
 ```
 
-## PostgreSQL
+---
+
+## PostgreSQL (CQRS + RAG)
+
+```csharp
+// Write
+var store = new PostgresCommandStore("Host=localhost;Database=agxiome");
+await store.SaveAsync(session, ct);
+
+// Read via Dapper
+await using var conn = new NpgsqlConnection(connStr);
+var sessions = await conn.QueryAsync<Session>("SELECT * FROM sessions WHERE user_id = @U", new { U = userId });
+
+// RAG con pgvector
+var vectorStore = new PgVectorStore(connStr);
+await vectorStore.UpsertAsync("doc-1", chunk, embedding, ct);
+var results = await vectorStore.SearchAsync(queryVec, new KnowledgeSearchOptions { TopK = 5 }, ct);
+```
+
+### Unit of Work
+
+```csharp
+await using var uow = new UnitOfWork(connStr);
+await uow.BeginAsync(ct);
+await uow.Commands.SaveAsync(entity, ct);
+await uow.CommitAsync(ct);
+```
+
+### Outbox
+
+```csharp
+var outbox = new OutboxWriter(connStr);
+await outbox.WriteAsync(domainEvent, "session.created");
+
+var poller = new OutboxPoller(connStr);
+await poller.ProcessBatchAsync(batchSize: 50);
+```
+
+---
+
+## MySQL
+
+```csharp
+var store = new MySqlCommandStore("Server=localhost;Database=agxiome;User=root;Password=secret");
+await store.SaveAsync(new AgentInteraction("agent-1", "user", "Hello"), ct);
+```
+
+### Tabella consigliata
 
 ```sql
--- Sessioni
 CREATE TABLE sessions (
     id VARCHAR(64) PRIMARY KEY,
     user_id VARCHAR(64) NOT NULL,
     component_id VARCHAR(64) NOT NULL,
     type VARCHAR(16) NOT NULL,
-    name VARCHAR(255),
-    session_state JSONB DEFAULT '{}',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+    session_state JSON DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
 
--- Messaggi cronologia
-CREATE TABLE session_messages (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_id VARCHAR(64) REFERENCES sessions(id) ON DELETE CASCADE,
-    role VARCHAR(32) NOT NULL,
-    content TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+---
 
--- Knowledge chunks (pgvector)
+## MariaDB
+
+MariaDB è **wire-compatible** con MySQL. Usa la stessa libreria `MySqlConnector`.
+
+```csharp
+var store = new MariaDbStore("Server=localhost;Database=agxiome;User=root");
+await store.SaveAsync(session, ct);
+```
+
+### Differenze da MySQL
+
+- Storage engine predefinito: `InnoDB` (consigliato) o `Aria`
+- JSON type supportato da MariaDB 10.2+
+- Sequence storage engine per performance bulk insert
+- Per pgvector-like: usare plugin `MARIADB_VEC` (MariaDB 11.7+)
+
+```sql
+-- MariaDB 11.7+ vector support
 CREATE TABLE knowledge_chunks (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    doc_id VARCHAR(64) NOT NULL,
-    chunk_index INT NOT NULL,
+    id VARCHAR(64) PRIMARY KEY,
     content TEXT NOT NULL,
     embedding VECTOR(1536),
-    metadata_json JSONB DEFAULT '{}',
-    UNIQUE (doc_id, chunk_index)
-);
-CREATE INDEX idx_chunks_embedding ON knowledge_chunks
-    USING IVFFLAT (embedding vector_cosine_ops) WITH (lists = 100);
-
--- Outbox
-CREATE TABLE outbox_messages (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_type VARCHAR(255) NOT NULL,
-    event_body_json JSONB NOT NULL,
-    processed_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    VECTOR INDEX idx_embedding (embedding) USING HNSW
 );
 ```
 
-## Redis Cache
+---
+
+## MongoDB
+
+Per document store non strutturati, memory agent, session state flessibile.
+
+```csharp
+var mongo = new MongoStore("mongodb://localhost:27017", "agxiome");
+
+// Salva documento
+await mongo.SaveAsync(new MongoSession
+{
+    Id = "session-1",
+    UserId = "user-1",
+    ComponentId = "agent-1",
+    State = new BsonDocument { ["preferences"] = "dark_mode" }
+}, ct);
+
+// Query
+var results = await mongo.QueryAsync<MongoSession>(
+    Builders<MongoSession>.Filter.Eq(s => s.UserId, "user-1"), ct);
+```
+
+### Collections
+
+| Collection | Modello C# | Scopo |
+|-----------|-----------|-------|
+| `sessions` | `MongoSession` | Sessioni con stato JSON flessibile |
+| `messages` | `BsonDocument` | Chat history (schema-less) |
+| `memory` | `BsonDocument` | Learning machine store |
+
+---
+
+## Redis (Cache)
 
 ```csharp
 var cache = new RedisCache("localhost:6379,abortConnect=false");
 
-await cache.SetAsync("agent:config:123", config, TimeSpan.FromMinutes(5));
-var cached = await cache.GetAsync<AgentConfig>("agent:config:123");
-await cache.InvalidateAsync("agent:config:*");
+await cache.SetAsync("agent:session:123", sessionData, TimeSpan.FromMinutes(5));
+var cached = await cache.GetAsync<SessionData>("agent:session:123");
+await cache.InvalidateAsync("agent:session:*");
 ```
 
-## Unit of Work
+### Pattern cache
 
-```csharp
-using var uow = new UnitOfWork(connectionString);
-await uow.BeginAsync(ct);
-try
-{
-    await uow.Commands.SaveAsync(entity, ct);
-    await uow.CommitAsync(ct);
-}
-catch
-{
-    await uow.RollbackAsync(ct);
-    throw;
-}
-```
+| Pattern | Comportamento |
+|---------|--------------|
+| Read-through | Cache miss → carica da PostgreSQL → popola Redis |
+| Write-through | Scrittura → aggiorna DB + cache |
+| TTL | Default 5 minuti, override per tipo |
+| Invalidation | Event-driven su domain events |
 
-## Outbox Pattern
+---
 
-```csharp
-var outbox = new OutboxWriter(connectionString);
+## Confronto provider
 
-// In una transazione:
-await uow.Commands.SaveAsync(aggregate, ct);
-await outbox.WriteAsync(domainEvent, "agent.run.completed", ct);
-await uow.CommitAsync(ct);
-
-// Poller in background:
-var poller = new OutboxPoller(connectionString);
-var processed = await poller.ProcessBatchAsync(batchSize: 50, ct);
-```
-
-## RAG — Knowledge Base
-
-### Ingest
-
-```csharp
-var knowledge = new KnowledgeBase(
-    new HeadingChunker(),
-    llmwikiyEngine,       // o qualsiasi IEmbedder
-    new PgVectorStore(connectionString)
-);
-
-await knowledge.IngestAsync(new Document(
-    "doc-1",
-    "# AI Introduction\nArtificial intelligence is...",
-    DocumentType.Markdown
-));
-```
-
-### Search
-
-```csharp
-var results = await knowledge.SearchAsync(
-    "What is artificial intelligence?",
-    new KnowledgeSearchOptions { TopK = 5, MinScore = 0.65 }
-);
-
-foreach (var chunk in results)
-    Console.WriteLine($"[{chunk.Score:P1}] {chunk.Content}");
-```
-
-### Chunker disponibili
-
-| Chunker | Descrizione |
-|---------|-------------|
-| `FixedSizeChunker(512, 64)` | Split per conteggio parole + overlap |
-| `HeadingChunker(1024)` | Split per heading markdown `#`/`##` |
-| `SentenceChunker(512)` | Split per frase `. ! ?` |
-
-### Vector store
-
-- **PgVectorStore**: ANN search su PostgreSQL 16+ con pgvector
-- Indice IVFFlat configurable (`lists = 100`)
-- Search types: `Vector` (default), `Keyword`, `Hybrid`
-- Metadata filtering push-down
-- Score = cosine similarity (1.0 = identico, 0.0 = ortogonale)
+| Feature | PostgreSQL | MySQL | MariaDB | MongoDB | Redis |
+|---------|-----------|-------|---------|---------|-------|
+| CQRS Command Store | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Unit of Work | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Outbox Pattern | ✅ | ✅ | ✅ | ✅ (Change Streams) | ❌ |
+| RAG / pgvector | ✅ | ❌ | ✅ (11.7+) | ✅ (Atlas Vector Search) | ❌ |
+| Session Cache | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Rate Limiting | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Pub/Sub | ❌ | ❌ | ❌ | ❌ | ✅ |
+| JSON Document | ✅ (JSONB) | ✅ (JSON) | ✅ (JSON) | ✅ (BSON) | ❌ |
+| ACID Transactions | ✅ | ✅ (InnoDB) | ✅ | ✅ (Replica Set) | ❌ |

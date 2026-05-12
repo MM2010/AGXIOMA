@@ -2,17 +2,15 @@ using AGXIOME.Shared.Models;
 
 namespace AGXIOME.Shared.Interfaces;
 
-public interface ISkillManager
-{
-    void RegisterSkill(IAgxiomeSkill skill);
-    void UnregisterSkill(string skillId);
-    IAgxiomeSkill? GetSkill(string skillId);
-    IReadOnlyList<IAgxiomeSkill> ListSkills(string? category = null);
-    Task<IAgxiomeSkill> DownloadSkillAsync(string skillId, string source, CancellationToken ct = default);
-    void ApplySkillToAgent(IAgxiomeAgent agent, string skillId);
-    void RemoveSkillFromAgent(IAgxiomeAgent agent, string skillId);
-}
+// ═══════════════════ SKILLS SYSTEM ═══════════════════
 
+/// <summary>
+/// A skill is a self-contained package an Agent can use to extend its capabilities.
+/// Follows Agno/Anthropic Agent Skills specification:
+/// - SKILL.md: instructions with YAML frontmatter
+/// - scripts/: optional executable code templates
+/// - references/: optional supporting docs
+/// </summary>
 public interface IAgxiomeSkill
 {
     string Id { get; }
@@ -22,21 +20,94 @@ public interface IAgxiomeSkill
     string? Category { get; }
     string? BaseSkillId { get; }
     IReadOnlyList<string> ToolIds { get; }
+    IReadOnlyList<string> RequiredSkills { get; }
     string? SystemPromptExtension { get; }
     string? KnowledgeBaseId { get; }
     Dictionary<string, object> DefaultConfig { get; }
+    IReadOnlyList<SkillScript> Scripts { get; }
+    IReadOnlyList<SkillDocRef> References { get; }
 }
 
-public interface IChunker
+/// <summary>An executable script within a skill (Python, shell, C#).</summary>
+public record SkillScript(string Name, string Path, string Language, string? Description = null);
+
+/// <summary>A reference document within a skill (guide, cheatsheet, example).</summary>
+public record SkillDocRef(string Name, string Path, string? Description = null);
+
+/// <summary>Manifest for remote skill registry (skills.sh style).</summary>
+public record SkillManifest(
+    string Id,
+    string Name,
+    string Description,
+    string Version,
+    string? Category,
+    string? Author,
+    Uri? DownloadUrl,
+    IReadOnlyList<string> Tags,
+    IReadOnlyList<string> RequiredSkills
+);
+
+/// <summary>Skill package on disk (from LocalSkills or downloaded).</summary>
+public record SkillPackage(
+    string Id,
+    string Name,
+    string Description,
+    string Version,
+    string? Category,
+    string? Author,
+    string ManifestPath,       // Path to SKILL.md
+    string? ScriptsDir,        // Optional: scripts/ dir
+    string? ReferencesDir,     // Optional: references/ dir
+    IReadOnlyList<string> Tags,
+    IReadOnlyList<string> RequiredSkills
+);
+
+/// <summary>Skill orchestrator: manages multiple loaders and agent-to-skill binding.</summary>
+public interface ISkillManager
 {
-    IReadOnlyList<Chunk> Chunk(string content, DocumentType type);
+    void RegisterSkill(IAgxiomeSkill skill);
+    void RegisterFromPackage(SkillPackage package);
+    void UnregisterSkill(string skillId);
+    IAgxiomeSkill? GetSkill(string skillId);
+    IReadOnlyList<IAgxiomeSkill> ListSkills(string? category = null);
+
+    // Remote registry (skills.sh style)
+    Task<IAgxiomeSkill> DownloadSkillAsync(string skillId, string registryUrl, CancellationToken ct = default);
+    Task<IReadOnlyList<SkillManifest>> ListRemoteAsync(string registryUrl, CancellationToken ct = default);
+
+    // Agent binding
+    void ApplySkillToAgent(IAgxiomeAgent agent, string skillId);
+    void RemoveSkillFromAgent(IAgxiomeAgent agent, string skillId);
+    IReadOnlyList<string> GetAgentSkillIds(string agentId);
+
+    // Loaders
+    void AddLoader(ISkillLoader loader);
 }
 
-public interface IEmbedder
+/// <summary>Skill loader: discovers skills from a source (local dir, remote, custom).</summary>
+public interface ISkillLoader
 {
-    int Dimensions { get; }
-    Task<float[]> EmbedAsync(string text, CancellationToken ct = default);
-    Task<float[][]> EmbedBatchAsync(IReadOnlyList<string> texts, CancellationToken ct = default);
+    string Name { get; }
+    Task<IReadOnlyList<SkillPackage>> DiscoverAsync(CancellationToken ct = default);
+    Task<SkillPackage?> LoadAsync(string skillId, CancellationToken ct = default);
+}
+
+// IChunker  → see IProviderInterfaces.cs (full typed contract with ChunkerType enum)
+// IEmbedder → see IProviderInterfaces.cs (full typed contract with EmbedderType enum)
+
+/// <summary>
+/// Decoupled notification contract for HITL resolution events.
+/// Defined in Shared so AGXIOME.Core (HITLManager) can call it without referencing AGXIOME.Orchestration.
+/// Implemented by ICompletionNotifier providers (InMemory, SignalR, XLink).
+/// </summary>
+public interface IHitlCompletionSource
+{
+    /// <summary>
+    /// Notifies the orchestration layer that a paused HITL requirement has been resolved.
+    /// The orchestrator uses this to publish a synthetic TaskResult so the polling loop can continue.
+    /// </summary>
+    Task NotifyResolvedAsync(Guid taskId, Guid planId, string requirementId, bool approved,
+        CancellationToken ct = default);
 }
 
 public interface IAuditLogger
@@ -62,13 +133,7 @@ public interface IXLinkRouter
     void Subscribe<T>(string topic, Func<T, Task> handler);
 }
 
-/// <summary>Vector store for RAG: upsert embeddings, ANN search, delete.</summary>
-public interface IVectorStore
-{
-    Task UpsertAsync(string docId, Chunk chunk, float[] embedding, CancellationToken ct = default);
-    Task<IReadOnlyList<KnowledgeChunk>> SearchAsync(float[] queryVec, KnowledgeSearchOptions options, CancellationToken ct = default);
-    Task DeleteAsync(string docId, CancellationToken ct = default);
-}
+// IVectorStore → see IProviderInterfaces.cs (full typed contract with VectorDbProviderType enum)
 
 public interface IAgentContext
 {

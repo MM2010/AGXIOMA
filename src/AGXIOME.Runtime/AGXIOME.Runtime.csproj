@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AGXIOME.Runtime</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AGXIOME.Shared\AGXIOME.Shared.csproj" />
+    <ProjectReference Include="..\AGXIOME.Core\AGXIOME.Core.csproj" />
+    <ProjectReference Include="..\AGXIOME.LLMWIKY\AGXIOME.LLMWIKY.csproj" />
+    <ProjectReference Include="..\AGXIOME.Storage\AGXIOME.Storage.csproj" />
+    <ProjectReference Include="..\AGXIOME.Security\AGXIOME.Security.csproj" />
+    <ProjectReference Include="..\AGXIOME.Telemetry\AGXIOME.Telemetry.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.2.0" />
+    <PackageReference Include="StackExchange.Redis" Version="2.8.37" />
+  </ItemGroup>
+
+</Project>

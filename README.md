@@ -107,7 +107,7 @@ cfg.ReasoningEngine = new LLMWIKYConfig
 | **LLM** | 8 provider con fallback chain, cost tracking | ✅ |
 | **Teams** | 4 modalità: Coordinate, Route, Broadcast, Tasks | ✅ |
 | **Workflows** | DAG engine, Condition, Loop, Parallel, Router, CEL expressions | ✅ |
-| **Storage** | PostgreSQL (query + pgvector), Redis cache, CQRS, UoW, Outbox | ✅ |
+| **Storage** | PostgreSQL, MySQL, MariaDB, MongoDB, Redis — CQRS, UoW, Outbox, RAG | ✅ |
 | **RAG** | KnowledgeBase, 3 chunker, ANN search, metadata filtering | ✅ |
 | **Session** | Lifecycle, mutable state, chat history, summary | ✅ |
 | **Context** | System prompt, instructions, few-shot, dependency injection | ✅ |
@@ -239,8 +239,9 @@ factory.Configure(config);
 | [LLM Providers](docs/PROVIDERS.md) | Provider, configurazione, costi |
 | [Error Handling](docs/ERROR_HANDLING.md) | Codici errore, resilience, circuit breaker |
 | [Logging](docs/LOGGING.md) | Provider logger, per-modulo, configurazione |
-| [Storage & RAG](docs/STORAGE.md) | PostgreSQL, CQRS, RAG, outbox |
+| [Storage & RAG](docs/STORAGE.md) | PostgreSQL, MySQL, MariaDB, MongoDB, Redis — CQRS, RAG |
 | [Realtime](docs/REALTIME.md) | SignalR hub, backplane, reconnect |
+| [Interfaces](docs/INTERFACES.md) | Slack, Telegram, WhatsApp, Discord, AG-UI, A2A, MCP |
 | [Security](docs/SECURITY.md) | Crypto, HMAC, JWT, audit |
 | [Testing](docs/TESTING.md) | Strategia, copertura, 164 test |
 
@@ -262,7 +263,7 @@ src/
 ├── AGXIOME.Shared/      → Records, enum, interfacce, error codes, resilience
 ├── AGXIOME.Core/        → Agent, tools, teams, workflows, session, hooks, guardrails, HITL, learning
 ├── AGXIOME.LLMWIKY/     → Engine, factory, 8 provider, cost tracker
-├── AGXIOME.Storage/     → PostgreSQL, Redis, CQRS, UoW, outbox, RAG, chunker, vector store
+├── AGXIOME.Storage/     → PostgreSQL, MySQL, MariaDB, MongoDB, Redis, CQRS, RAG
 ├── AGXIOME.XLink/       → Trasporto checksum, compressione, MCP adapter
 ├── AGXIOME.Realtime/    → SignalR hub (Agent, Notification, Presence)
 ├── AGXIOME.Security/    → ECDsa, HMAC, audit logger

@@ -8,9 +8,26 @@ public sealed class HITLManager
 {
     private readonly ConcurrentDictionary<string, HITLRequirement> _pending = new();
 
-    public HITLRequirement CreateRequirement(string runId, string agentId, string toolName, object payload, HITLRequirementType type, string? memberName = null)
+    /// <summary>
+    /// Optional orchestration bridge (P15): when set, Resolve() notifies the orchestrator
+    /// so the paused task resumes without polling or timeout.
+    /// Injected at runtime — null is valid (standalone HITL without orchestration).
+    /// </summary>
+    private readonly IHitlCompletionSource? _orchestrationBridge;
+
+    public HITLManager(IHitlCompletionSource? orchestrationBridge = null)
     {
-        var req = new HITLRequirement(Guid.NewGuid().ToString(), runId, agentId, toolName, payload, type, HITLStatus.Pending, memberName);
+        _orchestrationBridge = orchestrationBridge;
+    }
+
+    public HITLRequirement CreateRequirement(string runId, string agentId, string toolName, object payload,
+        HITLRequirementType type, string? memberName = null,
+        Guid? orchestratorTaskId = null, Guid? orchestratorPlanId = null)
+    {
+        var req = new HITLRequirement(Guid.NewGuid().ToString(), runId, agentId, toolName, payload, type,
+            HITLStatus.Pending, memberName,
+            OrchestratorTaskId: orchestratorTaskId,
+            OrchestratorPlanId: orchestratorPlanId);
         _pending[req.Id] = req;
         return req;
     }
@@ -23,6 +40,18 @@ public sealed class HITLManager
         {
             var newReq = req with { Status = approved ? HITLStatus.Approved : HITLStatus.Rejected };
             _pending.TryUpdate(id, newReq, req);
+
+            // P15: notify orchestration layer if this requirement was triggered by an orchestrated task.
+            // Fire-and-forget — orchestration failure must not block HITL resolution.
+            if (_orchestrationBridge is not null
+                && req.OrchestratorTaskId.HasValue
+                && req.OrchestratorPlanId.HasValue)
+            {
+                _ = _orchestrationBridge.NotifyResolvedAsync(
+                    req.OrchestratorTaskId.Value,
+                    req.OrchestratorPlanId.Value,
+                    id, approved);
+            }
         }
     }
 

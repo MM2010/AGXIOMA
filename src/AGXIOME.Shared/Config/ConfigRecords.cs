@@ -16,13 +16,15 @@ public record AgentConfig
     public bool EnableStreaming { get; init; } = false;
     public bool EnableRetry { get; init; } = true;
     public List<ToolRegistration> Tools { get; init; } = new();
-    public List<SkillReference> Skills { get; init; } = new();
+    public List<SkillRef> Skills { get; init; } = new();
     public string? AgentTemplate { get; init; }
 }
 
 public record LLMWIKYConfig
 {
-    public string Provider { get; init; } = "OpenAI";
+    /// <summary>Typed provider — avoids hardcoded strings in routing.
+    /// Serialize as enum name string for config files; compare by value in code.</summary>
+    public LLMProviderType Provider { get; init; } = LLMProviderType.OpenAI;
     public string Model { get; init; } = "gpt-4o";
     public string? ApiKey { get; init; }
     public string? Endpoint { get; init; }
@@ -43,7 +45,8 @@ public record LLMWIKYConfig
 
 public record StorageConfig
 {
-    public string DefaultProvider { get; init; } = "PostgreSQL";
+    /// <summary>Typed default storage provider.</summary>
+    public StorageProviderType DefaultProvider { get; init; } = StorageProviderType.PostgreSQL;
     public Dictionary<string, ProviderConfig> Providers { get; init; } = new();
 }
 

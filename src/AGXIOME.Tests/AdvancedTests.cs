@@ -110,13 +110,13 @@ public class AdvancedTests
     [Fact]
     public void FixedSizeChunker_SplitsText()
     {
-        var chunker = new FixedSizeChunker(chunkSize: 10, overlap: 2);
+        var chunker = new FixedSizeChunker();
         var text = "one two three four five six seven eight nine ten";
 
-        var chunks = chunker.Chunk(text, DocumentType.PlainText);
+        var chunks = chunker.Chunk(text, 10, 2);
 
         Assert.True(chunks.Count >= 2);
-        Assert.Contains("one", chunks[0].Text);
+        Assert.Contains("one", chunks[0].Content);
     }
 
     [Fact]
@@ -125,7 +125,7 @@ public class AdvancedTests
         var chunker = new HeadingChunker();
         var text = "# Title\ncontent1\n## Subtitle\ncontent2";
 
-        var chunks = chunker.Chunk(text, DocumentType.Markdown);
+        var chunks = chunker.Chunk(text);
 
         Assert.True(chunks.Count >= 1);
     }
@@ -235,9 +235,12 @@ public sealed class TestSkill : IAgxiomeSkill
     public string? Category { get; }
     public string? BaseSkillId => null;
     public IReadOnlyList<string> ToolIds => Array.Empty<string>();
+    public IReadOnlyList<string> RequiredSkills => Array.Empty<string>();
     public string? SystemPromptExtension => null;
     public string? KnowledgeBaseId => null;
     public Dictionary<string, object> DefaultConfig => new();
+    public IReadOnlyList<SkillScript> Scripts => Array.Empty<SkillScript>();
+    public IReadOnlyList<SkillDocRef> References => Array.Empty<SkillDocRef>();
 
     public TestSkill(string id, string name, string description, string? category = null)
     {

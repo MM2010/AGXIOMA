@@ -145,17 +145,17 @@ public class ProviderXLinkSecurityChunkTests
     [Fact]
     public void FixedSizeChunker_SmallerThanChunk_OneChunk()
     {
-        var chunker = new FixedSizeChunker(chunkSize: 1000, overlap: 0);
-        var chunks = chunker.Chunk("hello world", DocumentType.PlainText);
+        var chunker = new FixedSizeChunker();
+        var chunks = chunker.Chunk("hello world", 1000, 0);
         Assert.Single(chunks);
     }
 
     [Fact]
     public void FixedSizeChunker_LargerThanChunk_MultipleChunks()
     {
-        var chunker = new FixedSizeChunker(chunkSize: 3, overlap: 1);
+        var chunker = new FixedSizeChunker();
         var text = string.Join(" ", Enumerable.Range(0, 20).Select(i => $"word{i}"));
-        var chunks = chunker.Chunk(text, DocumentType.PlainText);
+        var chunks = chunker.Chunk(text, 3, 1);
         Assert.True(chunks.Count > 1, $"Expected multiple chunks, got {chunks.Count}");
     }
 
@@ -165,7 +165,7 @@ public class ProviderXLinkSecurityChunkTests
         var chunker = new HeadingChunker();
         var md = "# Header1\ncontent here\n## Header2\nmore content\n### Header3\nfinal";
 
-        var chunks = chunker.Chunk(md, DocumentType.Markdown);
+        var chunks = chunker.Chunk(md);
 
         Assert.True(chunks.Count >= 2);
     }
@@ -174,17 +174,17 @@ public class ProviderXLinkSecurityChunkTests
     public void HeadingChunker_PlainText_FallsBack()
     {
         var chunker = new HeadingChunker();
-        var chunks = chunker.Chunk("just some text without headings", DocumentType.PlainText);
+        var chunks = chunker.Chunk("just some text without headings");
         Assert.NotEmpty(chunks);
     }
 
     [Fact]
     public void SentenceChunker_SplitsAtSentenceBoundaries()
     {
-        var chunker = new SentenceChunker(maxTokens: 5);
+        var chunker = new SentenceChunker();
         var text = "First sentence. Second sentence. Third sentence. Fourth sentence.";
 
-        var chunks = chunker.Chunk(text, DocumentType.PlainText);
+        var chunks = chunker.Chunk(text, 5);
 
         Assert.True(chunks.Count >= 2);
     }

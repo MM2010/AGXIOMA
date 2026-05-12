@@ -3,6 +3,8 @@
   <ItemGroup>
     <ProjectReference Include="..\AGXIOME.Shared\AGXIOME.Shared.csproj" />
     <ProjectReference Include="..\AGXIOME.Core\AGXIOME.Core.csproj" />
+    <!-- P19: SignalRCompletionNotifier bridges AGXIOME.Orchestration and SignalR -->
+    <ProjectReference Include="..\AGXIOME.Orchestration\AGXIOME.Orchestration.csproj" />
   </ItemGroup>
 
   <ItemGroup>
