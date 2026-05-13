@@ -14,6 +14,7 @@
     <ProjectReference Include="..\AGXIOME.Storage\AGXIOME.Storage.csproj" />
     <ProjectReference Include="..\AGXIOME.Security\AGXIOME.Security.csproj" />
     <ProjectReference Include="..\AGXIOME.Telemetry\AGXIOME.Telemetry.csproj" />
+    <ProjectReference Include="..\AGXIOME.DynamicRuntime\AGXIOME.DynamicRuntime.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -15,4 +15,5 @@
   <Project Path="AGXIOME.Toolkits/AGXIOME.Toolkits.csproj" />
   <Project Path="AGXIOME.Runtime/AGXIOME.Runtime.csproj" />
   <Project Path="AGXIOME.Orchestration/AGXIOME.Orchestration.csproj" />
+  <Project Path="AGXIOME.DynamicRuntime/AGXIOME.DynamicRuntime.csproj" />
 </Solution>
