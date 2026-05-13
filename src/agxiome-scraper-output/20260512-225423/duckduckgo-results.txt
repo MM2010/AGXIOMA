@@ -1,0 +1,31 @@
+﻿# AGXIOME Web Scraper — DuckDuckGo
+# Query     : artificial intelligence 2025
+# Source URL: https://html.duckduckgo.com/html/?q=artificial%20intelligence%202025
+# Scraped   : 2026-05-12T22:54:24.1053633Z
+# Results   : 10
+# HTML tags : 0 (stripped)
+
+[1] artificial intelligence 2025 at DuckDuckGo
+
+[2] The 2025 AI Index Report | Stanford HAI
+
+[3] hai.stanford.edu/ai-index/2025-ai-index-report
+
+[4] The AI Index offers one of the most comprehensive, data-driven views of artificial intelligence . Recognized as a truste
+    The AI Index offers one of the most comprehensive, data-driven views of artificial intelligence . Recognized as a trusted resource by global media, governments, and leading companies, the AI Index equips policymakers, business leaders, and the public with rigorous, objective insights into AI's technical progress, economic influence, and ...
+
+[5] PDF The state of AI in 2025 - McKinsey & Company
+
+[6] www.mckinsey.com/~/media/mckinsey/business functions/quantumblack/our insights/the state of ai/november 2025/the-state-o
+    www.mckinsey.com/~/media/mckinsey/business functions/quantumblack/our insights/the state of ai/november 2025/the-state-of-ai-2025-agents-innovation_cmyk-v1.pdf
+
+[7] Three years since the introduction of gen AI tools triggered a new era of artificial intelligence , nearly nine out of t
+    Three years since the introduction of gen AI tools triggered a new era of artificial intelligence , nearly nine out of ten survey respondents say their organizations are regularly using AI—but the pace of progress remains uneven. While AI tools are now commonplace, most organizations have not yet embedded them deeply enough into their workflows and processes to realize material enterprise ...
+
+[8] PDF Artificial Intelligence Index Report 2025
+
+[9] hai-production.s3.amazonaws.com/files/hai_ai_index_report_2025.pdf
+
+[10] Introduction to the AI Index Report 2025 Welcome to the eighth edition of the AI Index report. The 2025 Index is our mos
+    Introduction to the AI Index Report 2025 Welcome to the eighth edition of the AI Index report. The 2025 Index is our most comprehensive to date and arrives at an important moment, as AI's influence across society, the economy, and global governance continues to intensify. New in this year's report are in-depth analyses of the evolving landscape of AI hardware, novel estimates of inference ...
+

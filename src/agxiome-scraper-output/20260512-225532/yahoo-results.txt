@@ -1,0 +1,34 @@
+﻿# AGXIOME Web Scraper — Yahoo
+# Query     : quantum computing 2025
+# Source URL: https://search.yahoo.com/search?p=quantum%20computing%202025&n=10
+# Scraped   : 2026-05-12T22:55:33.4298336Z
+# Results   : 10
+# HTML tags : 0 (stripped)
+
+[1] quantum computing 2025 - Yahoo Search Results
+    URL: https://s.yimg.com/zz/combo?pv/static/lib/srp-header-css-scout_78cd9e66005fb8e03b0a2e6f98b93a66_1466b.css&pv/static/lib/srp-core-css-scout_afe89e438e38ffcd4d0baec5239e9877_151bb.css&pv/static/lib/master-atomic-desktop_d9da1ad1a5fd64d76ccb130a099b5b22_16d5f.css
+
+[2] Waiting for permission
+    URL: https://s.yimg.com/pv/static/lib/uds-srp_259c162b557bff99e2f318d17553be43_afaa4.css
+
+[3] Allow microphone access to enable voice search
+    URL: https://s.yimg.com/pv/static/img/y_icon_iphone_76.min.png
+
+[4] MIT Sloan https://mitsloan.mit.edu › ideas-made-to-matter › new-mit
+    URL: https://s.yimg.com/pv/static/img/y_icon_iphone_114.min.png
+
+[5] New MIT report captures state of quantum computing
+    URL: https://s.yimg.com/pv/static/img/y_icon_iphone_120.min.png
+
+[6] Aug 19, 2025 · Quantum computing is evolving into a tangible technology that holds significant business and commercial p
+    Aug 19, 2025 · Quantum computing is evolving into a tangible technology that holds significant business and commercial promise, although the exact timing of when it will impact those areas remains unclear, according to a new report led by researchers at the MIT Initiative on the Digital Economy.
+
+[7] McKinsey & Company https://www.mckinsey.com › capabilities › tech-and-ai
+
+[8] Quantum Technology Monitor 2025 | McKinsey
+
+[9] Jun 23, 2025 · Explore the latest advancements in quantum computing, sensing, and communication with our comprehensive Q
+    Jun 23, 2025 · Explore the latest advancements in quantum computing, sensing, and communication with our comprehensive Quantum Technology Monitor 2025 .
+
+[10] Searches related to quantum computing 2025
+

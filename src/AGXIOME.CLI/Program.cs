@@ -1,9 +1,10 @@
 // AGXIOME.CLI — Command dispatcher for the AGXIOME framework.
 // Usage: agxiome <command> [args...]
-// Commands: run | list | session | admin | config
+// Commands: run | list | session | admin | config | demo
 // The runtime server URL is read from AGXIOME_API_URL env var (default: http://localhost:5250).
 
 using AGXIOME.CLI.Commands;
+using AGXIOME.CLI.Demo;
 
 namespace AGXIOME.CLI;
 
@@ -36,6 +37,23 @@ public static class Program
         ];
 
         var verb = args[0].ToLowerInvariant();
+
+        // ── demo subcommand: direct LLM session (no Runtime server needed) ──
+        if (verb == "demo")
+        {
+            var provider = args.Length > 1 ? args[1].ToLowerInvariant() : "deepseek";
+            var demoArgs = args.Length > 2 ? args[2..] : [];
+            using var demoCts = new CancellationTokenSource();
+            Console.CancelKeyPress += (_, e) => { e.Cancel = true; demoCts.Cancel(); };
+            return provider switch
+            {
+                "deepseek"    => await DeepSeekDemo.RunAsync(demoArgs, demoCts.Token),
+                "scraper"     => await WebScraperOrchestrationDemo.RunAsync(demoArgs, demoCts.Token),
+                "orchestrator"=> await DynamicOrchestratorDemo.RunAsync(demoArgs, demoCts.Token),
+                _ => PrintUnknownDemo(provider)
+            };
+        }
+
         var cmd  = Array.Find(commands, c => c.Name == verb);
         if (cmd is null)
         {
@@ -72,16 +90,33 @@ public static class Program
         Console.WriteLine("  session  Create, delete, or inspect sessions");
         Console.WriteLine("  admin    Health check, metrics, and log access");
         Console.WriteLine("  config   Get or set runtime configuration");
+        Console.WriteLine("  demo     Interactive LLM session (no server needed)");
+        Console.WriteLine();
+        Console.WriteLine("Demo providers:");
+        Console.WriteLine("  agxiome demo deepseek              DeepSeek chat (DEEPSEEK_API_KEY required)");
+        Console.WriteLine("  agxiome demo deepseek --stream     Streaming mode");
+        Console.WriteLine("  agxiome demo deepseek --model deepseek-reasoner");
+        Console.WriteLine("  agxiome demo scraper               Multi-agent web scraper orchestration");
+        Console.WriteLine("  agxiome demo scraper --query \"...\" Custom search query (default: AI 2025)");
+        Console.WriteLine("  agxiome demo orchestrator          Dynamic agent planner (Redis required)");
+        Console.WriteLine("  agxiome demo orchestrator --redis localhost:6379  Custom Redis endpoint");
         Console.WriteLine();
         Console.WriteLine("Environment:");
-        Console.WriteLine("  AGXIOME_API_URL   Runtime base URL (default: http://localhost:5250)");
+        Console.WriteLine("  AGXIOME_API_URL     Runtime base URL (default: http://localhost:5250)");
+        Console.WriteLine("  DEEPSEEK_API_KEY    DeepSeek API key for demo mode");
+        Console.WriteLine("  DEEPSEEK_MODEL      Override model for demo mode");
         Console.WriteLine();
         Console.WriteLine("Examples:");
+        Console.WriteLine("  agxiome demo deepseek");
         Console.WriteLine("  agxiome run --type agent --id my-agent --input \"Hello\"");
         Console.WriteLine("  agxiome list agents");
-        Console.WriteLine("  agxiome session --action create --agent my-agent");
         Console.WriteLine("  agxiome admin --action health");
-        Console.WriteLine("  agxiome config --action set --key log_level --value Warning");
+    }
+
+    private static int PrintUnknownDemo(string provider)
+    {
+        Console.Error.WriteLine($"Unknown demo provider '{provider}'. Supported: deepseek, scraper, orchestrator");
+        return 1;
     }
 }
 

@@ -35,6 +35,16 @@ public static class AgentFactory
         return new AgxiomeAgent(name, engine, new AgentConfig(), log);
     }
 
+    /// <summary>
+    /// Create agent with a pre-built engine instance.
+    /// Use this when the caller owns the engine (e.g. CLI demo wiring LLMWIKY directly).
+    /// </summary>
+    public static IAgxiomeAgent CreateWithEngine(AgentConfig config, ILLMWIKYEngine engine)
+    {
+        var log = _loggerFactory?.CreateLogger<AgxiomeAgent>() ?? NullLogger<AgxiomeAgent>.Instance;
+        return new AgxiomeAgent(config.Id, engine, config, log);
+    }
+
     private static ILLMWIKYEngine CreateEngine(LLMWIKYConfig llmConfig)
     {
         throw new NotImplementedException("LLMWIKYEngine not yet configured. Install AGXIOME.LLMWIKY and wire via AgentFactory.Configure().");

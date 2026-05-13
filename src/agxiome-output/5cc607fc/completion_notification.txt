@@ -1,0 +1,17 @@
+﻿Subject: AGXIOMA Process Completed
+
+Body:
+
+Dear User,
+
+All processes within the AGXIOMA pipeline have been completed.
+
+Summary of tasks completed:
+1. File read task from 'c:/temp/agxioma/<guid>...' — FAILED (Error code: ERR-0101 - Agent execution failed).
+
+Note: The summary writer agent encountered an error during execution, so the final report could not be generated. Please check the source file path and retry if needed.
+
+Final report path: Not available due to agent failure.
+
+Regards,
+AGXIOMA Notification Agent

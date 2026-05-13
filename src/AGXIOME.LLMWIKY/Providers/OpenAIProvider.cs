@@ -45,11 +45,26 @@ public sealed class OpenAIProvider : ILLMProvider
         var body = BuildChatBody(request);
         var result = await _resilient.ExecuteAsync("chat.completions", async token =>
         {
-            var resp = await _http.PostAsJsonAsync("chat/completions", body, _json, token);
+            // Use JsonObject's native serialisation to avoid PostAsJsonAsync<JsonObject>
+            // interacting with the SnakeCaseLower naming policy (which could mutate keys).
+            var json    = body.ToJsonString();
+            using var sc = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+            var resp = await _http.PostAsync("chat/completions", sc, token);
+
             // Handle 429 explicitly for rate-limit message
             if (resp.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                 throw new HttpRequestException("Rate limited", null, System.Net.HttpStatusCode.TooManyRequests);
-            resp.EnsureSuccessStatusCode();
+
+            // On non-success, include the actual API error body in the exception so
+            // we know exactly what the provider is complaining about.
+            if (!resp.IsSuccessStatusCode)
+            {
+                var errBody = await resp.Content.ReadAsStringAsync(token);
+                throw new HttpRequestException(
+                    $"{(int)resp.StatusCode} {resp.ReasonPhrase}: {errBody}",
+                    null, resp.StatusCode);
+            }
+
             return await resp.Content.ReadAsStreamAsync(token);
         }, ct: ct);
 
@@ -147,13 +162,58 @@ public sealed class OpenAIProvider : ILLMProvider
         // System prompt
         messages.Add(new JsonObject { ["role"] = "system", ["content"] = req.SystemPrompt });
 
-        // History
+        // History — OpenAI/DeepSeek multi-turn tool protocol:
+        //   user → assistant(tool_calls) → tool(result, tool_call_id) → assistant → …
+        // We reconstruct both the assistant wrapper and the tool result correctly.
         if (req.History != null)
+        {
             foreach (var m in req.History)
-                messages.Add(new JsonObject { ["role"] = m.Role, ["content"] = m.Content });
+            {
+                if (m.Role == "assistant" && m.ToolName != null && m.ToolCallId != null)
+                {
+                    // Assistant message that issued a tool call — must carry tool_calls array
+                    var toolCallNode = new JsonObject
+                    {
+                        ["id"]   = m.ToolCallId,
+                        ["type"] = "function",
+                        ["function"] = new JsonObject
+                        {
+                            ["name"]      = m.ToolName,
+                            ["arguments"] = m.ToolArguments ?? "{}"
+                        }
+                    };
+                    messages.Add(new JsonObject
+                    {
+                        ["role"]       = "assistant",
+                        ["content"]    = (JsonNode?)null,
+                        ["tool_calls"] = new JsonArray(toolCallNode)
+                    });
+                }
+                else if (m.Role == "tool")
+                {
+                    // Tool result — must include tool_call_id so the LLM can pair it
+                    var toolMsg = new JsonObject
+                    {
+                        ["role"]         = "tool",
+                        ["content"]      = m.Content,
+                        ["tool_call_id"] = m.ToolCallId ?? ""
+                    };
+                    messages.Add(toolMsg);
+                }
+                else
+                {
+                    messages.Add(new JsonObject { ["role"] = m.Role, ["content"] = m.Content });
+                }
+            }
+        }
 
-        // User message
-        messages.Add(new JsonObject { ["role"] = "user", ["content"] = req.UserPrompt });
+        // Add the user message only when we are starting a new turn.
+        // When the last history message is a tool result, the LLM continues the tool
+        // chain and should produce its final answer directly — re-adding the user
+        // message here would create an invalid sequence (tool → user instead of tool → assistant).
+        var lastHistoryRole = req.History?.LastOrDefault()?.Role;
+        if (lastHistoryRole != "tool")
+            messages.Add(new JsonObject { ["role"] = "user", ["content"] = req.UserPrompt });
 
         var body = new JsonObject
         {
@@ -163,11 +223,19 @@ public sealed class OpenAIProvider : ILLMProvider
             ["max_tokens"] = req.MaxTokens ?? 4096
         };
 
-        // Tools
+        // Tools — wrap each schema in the OpenAI {type:function, function:{...}} envelope.
+        // DeepClone() prevents JsonNode parent-adoption conflicts when the same schema
+        // instances are reused across multiple InferAsync iterations.
         if (req.Tools?.Count > 0)
         {
-            body["tools"] = new JsonArray(req.Tools.Select(t =>
-                new JsonObject { ["type"] = "function", ["function"] = t }).ToArray());
+            body["tools"] = new JsonArray(
+                req.Tools.Select(t => (JsonNode)new JsonObject
+                {
+                    ["type"]     = "function",
+                    ["function"] = t.DeepClone()
+                }).ToArray());
+            // Explicit tool_choice — some providers return 400 if omitted when tools are present
+            body["tool_choice"] = "auto";
         }
 
         return body;

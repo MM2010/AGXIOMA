@@ -1,0 +1,13 @@
+﻿# AGXIOME Web Scraper — Bing
+# Query     : artificial intelligence 2025
+# Source URL: https://www.bing.com/search?q=artificial%20intelligence%202025&count=10
+# Scraped   : 2026-05-12T22:54:23.4788917Z
+# Results   : 3
+# HTML tags : 0 (stripped)
+
+[1] artificial intelligence 2025 - Search
+
+[2] Accessibility Feedback
+
+[3] Please solve the challenge below to continue
+

@@ -48,6 +48,12 @@ public interface IApiKeyStore
     Task<ApiKeyValidationResult> ValidateAsync(string rawKey, CancellationToken ct = default);
     Task<bool> RevokeAsync(string keyId, CancellationToken ct = default);
     Task<IReadOnlyList<ApiKeyRecord>> ListByOwnerAsync(string ownerSubjectHash, CancellationToken ct = default);
+
+    /// <summary>
+    /// Seeds a pre-known raw key (e.g. from env var) as a full-admin key.
+    /// For dev/smoke-test bootstrap only — never call in production without a secrets vault.
+    /// </summary>
+    Task SeedBootstrapKeyAsync(string rawKey, Action<string>? log = null, CancellationToken ct = default);
 }
 
 // ─── Implementation ───────────────────────────────────────────────────────────
@@ -129,6 +135,27 @@ public sealed class InMemoryApiKeyStore : IApiKeyStore
             .Where(r => r.OwnerSubjectHash == ownerSubjectHash)
             .ToList();
         return Task.FromResult(result);
+    }
+
+    public async Task SeedBootstrapKeyAsync(string rawKey, Action<string>? log = null, CancellationToken ct = default)
+    {
+        // Seeds the provided raw key as a full-admin key. Idempotent — skips if already seeded.
+        // The raw key is validated via PBKDF2 on each request; it is never stored in plaintext.
+        var (_, record) = await CreateAsync(
+            roles:           [AgxiomeRole.Admin, AgxiomeRole.Operator],
+            scopes:          ["*"],
+            ownerSubjectId:  "bootstrap",
+            expiresAt:       null,         // no expiry for bootstrap key
+            ct:              ct);
+
+        // Overwrite the generated raw key hash with the hash of the caller-supplied key,
+        // so that the caller-supplied rawKey will validate correctly.
+        var saltBytes = Convert.FromBase64String(record.Salt);
+        var correctHash = Convert.ToHexString(DeriveHash(rawKey, saltBytes));
+        var corrected = record with { KeyHash = correctHash };
+        _store[record.KeyId] = corrected;
+
+        log?.Invoke($"[AGXIOME] Bootstrap API key seeded (keyId={record.KeyId}). Remove AGXIOME_BOOTSTRAP_KEY before production.");
     }
 
     private static byte[] DeriveHash(string rawKey, byte[] salt) =>

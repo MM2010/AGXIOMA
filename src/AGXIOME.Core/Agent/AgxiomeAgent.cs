@@ -135,7 +135,10 @@ public sealed class AgxiomeAgent : IAgxiomeAgent, IAsyncDisposable
     private async Task<AgentResponse> ExecuteLLMLoopAsync(AgentRequest request, CancellationToken ct)
     {
         int iter = 0; string? last = null;
+        int totalPromptTokens = 0, totalCompletionTokens = 0;
         var history = new List<AgentMessage>(request.History ?? []);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        string? lastToolResult = null; // fallback when max-iters hit mid tool-chain
 
         while (iter < _config.MaxIterations && !ct.IsCancellationRequested)
         {
@@ -144,27 +147,95 @@ public sealed class AgxiomeAgent : IAgxiomeAgent, IAsyncDisposable
             try { llm = await _engine.InferAsync(MapRequest(request with { History = history.AsReadOnly() }), ct); }
             catch (Exception ex) { _axiomeLog.Exception(ex, "LLM fail iter {I}", iter); throw; }
 
+            // Accumulate token usage across all LLM calls in this run
+            totalPromptTokens     += llm.Usage.PromptTokens;
+            totalCompletionTokens += llm.Usage.CompletionTokens;
+
             if (llm.ToolName != null)
             {
+                // OpenAI/DeepSeek requires: user → assistant(tool_calls) → tool(result)
+                // The user prompt is always the last message added by BuildChatBody on iter 1,
+                // but it is NOT in history. Insert it once so iter 2+ sees a proper user turn
+                // before the assistant(tool_calls) message — otherwise the API returns 400.
+                if (!history.Any(m => m.Role == "user"))
+                    history.Insert(0, new("user", request.Prompt));
+
                 var tool = _tools.GetTool(llm.ToolName);
-                if (tool == null) { history.Add(new("tool", $"Unknown {llm.ToolName}")); continue; }
-                var tc = new ToolContext(Id, Guid.NewGuid().ToString());
+                if (tool == null)
+                {
+                    // Tool unknown — still need assistant(tool_calls) + tool pair so history stays valid
+                    var missingCallId = llm.ToolCallId ?? Guid.NewGuid().ToString("N");
+                    history.Add(new("assistant", string.Empty,
+                        ToolCallId: missingCallId, ToolName: llm.ToolName, ToolArguments: llm.ToolArguments));
+                    history.Add(new("tool", $"Tool '{llm.ToolName}' not found.",
+                        ToolCallId: missingCallId, ToolName: llm.ToolName));
+                    continue;
+                }
+
+                // Deserialise the LLM-provided JSON arguments into a string→object dict
+                // and inject them into ToolContext.Parameters so the tool can read them.
+                Dictionary<string, object>? parameters = null;
+                if (!string.IsNullOrWhiteSpace(llm.ToolArguments))
+                {
+                    try
+                    {
+                        using var argsDoc = System.Text.Json.JsonDocument.Parse(llm.ToolArguments);
+                        parameters = argsDoc.RootElement
+                            .EnumerateObject()
+                            .ToDictionary(
+                                p => p.Name,
+                                p => (object)(p.Value.ValueKind == System.Text.Json.JsonValueKind.String
+                                    ? p.Value.GetString()!
+                                    : p.Value.GetRawText()));
+                    }
+                    catch { parameters = new() { ["raw"] = llm.ToolArguments }; }
+                }
+
+                var callId = llm.ToolCallId ?? Guid.NewGuid().ToString("N");
+
+                // OpenAI/DeepSeek protocol requires: assistant(tool_calls) → tool(result)
+                // Without the assistant message the next InferAsync sees malformed history → 400.
+                history.Add(new("assistant", string.Empty,
+                    ToolCallId: callId,
+                    ToolName: llm.ToolName,
+                    ToolArguments: llm.ToolArguments));
+
+                var tc = new ToolContext(Id, callId, Parameters: parameters);
                 foreach (var h in _toolHooks) await h.BeforeExecuteAsync(tc, ct);
                 if (tool is IAgxiomeExecutableTool et)
                 {
                     try
                     {
                         var r = await et.ExecuteAsync(tc, ct);
-                        history.Add(new("tool", r.Data?.ToString() ?? "", ToolName: llm.ToolName));
+                        var toolOutput = r.Data?.ToString() ?? "";
+                        lastToolResult = toolOutput; // track last tool output as fallback
+                        history.Add(new("tool", toolOutput,
+                            ToolCallId: callId, ToolName: llm.ToolName));
                         foreach (var h in _toolHooks) await h.AfterExecuteAsync(tc, r, ct);
                     }
-                    catch (Exception ex) { _axiomeLog.Exception(ex, "Tool '{N}' threw", llm.ToolName); history.Add(new("tool", $"Error: {ex.Message}")); }
+                    catch (Exception ex)
+                    {
+                        _axiomeLog.Exception(ex, "Tool '{N}' threw", llm.ToolName);
+                        history.Add(new("tool", $"Tool error: {ex.Message}",
+                            ToolCallId: callId, ToolName: llm.ToolName));
+                    }
                 }
             }
             else { last = llm.Content; break; }
         }
-        if (iter >= _config.MaxIterations && last == null) _axiomeLog.Warning("Max iterations ({M}) reached", _config.MaxIterations);
-        return new(last ?? "No response", iter >= _config.MaxIterations ? AgentStatus.Error : AgentStatus.Completed, Metadata: new(iter, iter, TimeSpan.Zero));
+        sw.Stop();
+        // When max iterations is hit while still in tool-call chain (last==null),
+        // use the last tool result rather than returning an empty "No response".
+        var finalResponse = last ?? lastToolResult;
+        if (iter >= _config.MaxIterations && finalResponse == null)
+            _axiomeLog.Warning("Max iterations ({M}) reached with no output", _config.MaxIterations);
+        else if (iter >= _config.MaxIterations && last == null)
+            _axiomeLog.Warning("Max iterations ({M}) reached — returning last tool result", _config.MaxIterations);
+        var totalTokens = totalPromptTokens + totalCompletionTokens;
+        return new(
+            finalResponse ?? "No response",
+            iter >= _config.MaxIterations && last == null ? AgentStatus.Error : AgentStatus.Completed,
+            Metadata: new(iter, 0, sw.Elapsed, TotalTokens: totalTokens > 0 ? totalTokens : null));
     }
 
     private async Task ExecuteGuardrailsAsync(string c, GuardrailType t, CancellationToken ct)
@@ -188,10 +259,24 @@ public sealed class AgxiomeAgent : IAgxiomeAgent, IAsyncDisposable
         return Task.CompletedTask;
     }
 
-    private static LLMWIKYRequest MapRequest(AgentRequest req)
+    private LLMWIKYRequest MapRequest(AgentRequest req)
     {
-        var sp = "You are a helpful assistant.";
-        if (req.Context?.AdditionalData?.TryGetValue("systemPrompt", out var v) == true) sp = v?.ToString() ?? sp;
+        // Priority: request context override > AgentConfig.SystemPrompt > default
+        var sp = _config.SystemPrompt ?? "You are a helpful assistant.";
+        if (req.Context?.AdditionalData?.TryGetValue("systemPrompt", out var v) == true && v is not null)
+            sp = v.ToString()!;
+
+        // Pass tool schemas from the registry so the LLM knows what it can call.
+        // Schemas are in OpenAI function-calling format (JsonObject per tool).
+        var toolSchemas = _tools.GetAllTools()
+            .OfType<IAgxiomeExecutableTool>()
+            .Select(t => t.ToJsonSchema())
+            .ToList();
+
+        // Sync schemas to the engine so InferAsync sends them in the API payload
+        if (toolSchemas.Count > 0)
+            _engine.RegisterTools(toolSchemas);
+
         return new(sp, req.Prompt, req.History);
     }
 

@@ -54,6 +54,17 @@ builder.Services.AddCors(opts => opts.AddPolicy("AgxiomeDefault", policy => {
 
 var app = builder.Build();
 
+// ── Bootstrap API Key (dev/smoke-test) ────────────────────────────────────────
+// If AGXIOME_BOOTSTRAP_KEY is set, pre-seed an admin key with all roles/scopes.
+// NEVER set this in production — use a secrets vault instead.
+var bootstrapKey = app.Configuration["AGXIOME_BOOTSTRAP_KEY"]
+                   ?? Environment.GetEnvironmentVariable("AGXIOME_BOOTSTRAP_KEY");
+if (!string.IsNullOrWhiteSpace(bootstrapKey))
+{
+    var keyStore = app.Services.GetRequiredService<IApiKeyStore>();
+    await keyStore.SeedBootstrapKeyAsync(bootstrapKey, msg => app.Logger.LogWarning("{Msg}", msg));
+}
+
 // ── Middleware Pipeline ───────────────────────────────────────────────────────
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<ErrorHandlerMiddleware>();
