@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using AGXIOME.DynamicRuntime.Bridge;
 using AGXIOME.DynamicRuntime.Compilation;
 using AGXIOME.DynamicRuntime.Generation;
 using AGXIOME.DynamicRuntime.HotFolder;
@@ -44,6 +45,10 @@ public static class DynamicRuntimeServiceExtensions
         configure?.Invoke(opts);
 
         services.AddSingleton(opts);
+
+        // Initialize AgentServices static locator (needed by runtime-compiled code)
+        services.AddSingleton<AgentServicesInitializer>();
+        services.AddHostedService<AgentServicesInitializer>();
 
         // Core registry
         services.AddSingleton<DynamicAgentRegistry>();

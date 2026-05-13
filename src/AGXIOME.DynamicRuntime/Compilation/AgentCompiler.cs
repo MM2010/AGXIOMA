@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using AGXIOME.DynamicRuntime.Isolation;
+using AGXIOME.Shared.Interfaces;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
@@ -41,7 +42,8 @@ public sealed class AgentCompiler
             typeof(System.Text.Json.JsonDocument).Assembly,
             typeof(System.Net.Http.HttpClient).Assembly,
             typeof(System.Linq.Enumerable).Assembly,
-            typeof(Interfaces.ISimpleDynamicAgent).Assembly, // AGXIOME.DynamicRuntime
+            typeof(Interfaces.ISimpleDynamicAgent).Assembly, // AGXIOME.DynamicRuntime (includes AgentServices)
+            typeof(ILLMProvider).Assembly, // AGXIOME.Shared
         };
 
         foreach (var asm in allowedAssemblies)

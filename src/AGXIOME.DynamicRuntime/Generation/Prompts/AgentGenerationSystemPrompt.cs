@@ -19,7 +19,9 @@ public static class AgentGenerationSystemPrompt
     [
         "System", "System.Collections.Generic", "System.Linq",
         "System.Text", "System.Text.Json", "System.Threading", "System.Threading.Tasks",
-        "AGXIOME.DynamicRuntime.Attributes", "AGXIOME.DynamicRuntime.Interfaces"
+        "System.Net.Http",
+        "AGXIOME.DynamicRuntime.Attributes", "AGXIOME.DynamicRuntime.Interfaces",
+        "AGXIOME.DynamicRuntime.Bridge" // AgentServices.AskAsync(), .GetAsync(), .PostJsonAsync()
     ];
 
     public static string Build(string[]? additionalAllowed = null)
@@ -55,6 +57,12 @@ public static class AgentGenerationSystemPrompt
             blockedList + "\n\n" +
             "## Examples\n\n" +
             examples + "\n\n" +
+            "## AgentServices — built-in capabilities\n" +
+            "Use `AgentServices` (static, namespace `AGXIOME.DynamicRuntime.Bridge`) for AI and HTTP:\n" +
+            "- `await AgentServices.AskAsync(prompt)` → calls the LLM, returns string\n" +
+            "- `await AgentServices.AskAsync(prompt, systemPrompt, temperature, maxTokens, ct)` → full overload\n" +
+            "- `await AgentServices.GetAsync(url, ct)` → HTTP GET, returns body string\n" +
+            "- `await AgentServices.PostJsonAsync(url, payload, ct)` → HTTP POST JSON, returns body string\n\n" +
             "## Rules\n" +
             "1. Respond with ONLY a single ```csharp code block. No explanations, no markdown outside the block.\n" +
             "2. The class MUST have [AgxiomeAgent(\"id\", \"description\")] attribute.\n" +
