@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using AGXIOME.LLMWIKY.Http;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
@@ -20,13 +21,24 @@ public sealed class AnthropicProvider : ILLMProvider
     private readonly HttpClient _http;
     private readonly LLMWIKYConfig _config;
 
-    public AnthropicProvider(LLMWIKYConfig config)
+    public AnthropicProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
     {
         _config = config;
-        _http = new HttpClient();
-        _http.DefaultRequestHeaders.Add("x-api-key", config.ApiKey ?? throw new ArgumentException("Anthropic ApiKey required"));
-        _http.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
-        _http.BaseAddress = new Uri("https://api.anthropic.com/v1");
+
+        if (httpClientFactory is not null)
+        {
+            _http = httpClientFactory.CreateClient(AgxiomeHttpClientDefaults.ClientName(LLMProviderType.Anthropic));
+        }
+        else
+        {
+            _http = new HttpClient();
+            _http.BaseAddress = new Uri("https://api.anthropic.com/v1");
+        }
+
+        // Auth headers are always set per-instance
+        _http.DefaultRequestHeaders.TryAddWithoutValidation("x-api-key",
+            config.ApiKey ?? throw new ArgumentException("Anthropic ApiKey required"));
+        _http.DefaultRequestHeaders.TryAddWithoutValidation("anthropic-version", "2023-06-01");
     }
 
     public async Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest request, CancellationToken ct = default)

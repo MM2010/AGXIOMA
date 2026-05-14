@@ -21,8 +21,8 @@ public sealed class OpenRouterProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public OpenRouterProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://openrouter.ai/api/v1" });
+    public OpenRouterProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://openrouter.ai/api/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -47,8 +47,8 @@ public sealed class LiteLLMProvider : ILLMProvider
     public int EmbeddingDimensions => 1536;
 
     private readonly OpenAIProvider _inner;
-    public LiteLLMProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config);
+    public LiteLLMProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -72,8 +72,8 @@ public sealed class AIMLApiProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public AIMLApiProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.aimlapi.com/v1" });
+    public AIMLApiProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.aimlapi.com/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -97,8 +97,8 @@ public sealed class NovitaAIProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public NovitaAIProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.novita.ai/v3/openai" });
+    public NovitaAIProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.novita.ai/v3/openai" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -122,8 +122,8 @@ public sealed class DeepInfraProvider : ILLMProvider
     public int EmbeddingDimensions => 1024;
 
     private readonly OpenAIProvider _inner;
-    public DeepInfraProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.deepinfra.com/v1/openai" });
+    public DeepInfraProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.deepinfra.com/v1/openai" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -147,8 +147,8 @@ public sealed class ReplicateProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public ReplicateProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.replicate.com/v1" });
+    public ReplicateProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.replicate.com/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -172,8 +172,8 @@ public sealed class RekaAIProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public RekaAIProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.reka.ai/v1" });
+    public RekaAIProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.reka.ai/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -197,8 +197,8 @@ public sealed class ModalProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public ModalProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config);
+    public ModalProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);

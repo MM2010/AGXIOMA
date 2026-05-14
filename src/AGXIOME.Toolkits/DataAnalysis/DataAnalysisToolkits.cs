@@ -175,7 +175,7 @@ public sealed class ExcelToolkit(ToolkitConfig? config=null):ToolkitBase(config)
         };
     }
     private Task<ToolkitResult> ReadExcel(string file,string? sheetName,int maxRows){
-        using var wb=ClosedXML.Excel.XLWorkbook.OpenAndUseShared(file);
+        using var wb=new ClosedXML.Excel.XLWorkbook(file);
         var ws=sheetName!=null?wb.Worksheet(sheetName):wb.Worksheets.First();
         var range=ws.RangeUsed();
         if(range==null)return Task.FromResult(ToolkitResult.Success(new{file,sheet=ws.Name,columns=Array.Empty<string>(),rows=Array.Empty<object>()}));
@@ -186,7 +186,7 @@ public sealed class ExcelToolkit(ToolkitConfig? config=null):ToolkitBase(config)
         return Task.FromResult(ToolkitResult.Success(new{file,sheet=ws.Name,columns=headers,rows,rowCount=rows.Length}));
     }
     private Task<ToolkitResult> ListSheets(string file){
-        using var wb=ClosedXML.Excel.XLWorkbook.OpenAndUseShared(file);
+        using var wb=new ClosedXML.Excel.XLWorkbook(file);
         return Task.FromResult(ToolkitResult.Success(new{file,sheets=wb.Worksheets.Select(w=>w.Name).ToArray()}));
     }
 }

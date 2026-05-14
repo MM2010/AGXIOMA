@@ -3,8 +3,9 @@
     AGXIOME Directory.Build.props — applies to all projects in src/
     - NU1603: benign version resolution warning (nuget resolves to available version)
     - NU1510: suppress package deprecation noise
+    - NETSDK1057: using .NET preview SDK — intentional for net10.0 target
   -->
   <PropertyGroup>
-    <NoWarn>$(NoWarn);NU1603;NU1510</NoWarn>
+    <NoWarn>$(NoWarn);NU1603;NU1510;NETSDK1057</NoWarn>
   </PropertyGroup>
 </Project>

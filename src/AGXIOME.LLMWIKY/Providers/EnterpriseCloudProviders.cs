@@ -21,8 +21,8 @@ public sealed class AWSBedrockProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public AWSBedrockProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config);
+    public AWSBedrockProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -47,8 +47,8 @@ public sealed class AzureAIFoundryProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly AzureOpenAIProvider _inner;
-    public AzureAIFoundryProvider(LLMWIKYConfig config)
-        => _inner = new AzureOpenAIProvider(config);
+    public AzureAIFoundryProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new AzureOpenAIProvider(config, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -73,8 +73,8 @@ public sealed class IBMWatsonXProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public IBMWatsonXProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config);
+    public IBMWatsonXProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -98,8 +98,8 @@ public sealed class SambaNovaProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public SambaNovaProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.sambanova.ai/v1" });
+    public SambaNovaProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.sambanova.ai/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);

@@ -1,4 +1,5 @@
 using AGXIOME.Core;
+using AGXIOME.Core.DependencyInjection;
 using AGXIOME.Core.Patterns;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
@@ -12,26 +13,10 @@ var cfg = builder.Configuration.GetSection("Agent").Get<AgentSettings>() ?? new 
 // Build the HeavySwarm
 builder.Services.AddSingleton<HeavySwarm>(sp =>
 {
-    var provider  = cfg.Provider switch
-    {
-        "anthropic" => LLMProviderType.Anthropic,
-        "ollama"    => LLMProviderType.Ollama,
-        "deepseek"  => LLMProviderType.DeepSeek,
-        _           => LLMProviderType.OpenAI
-    };
-    var orchModel = cfg.OrchestratorModel ?? "gpt-4o";
-    var wrkModel  = cfg.WorkerModel       ?? "gpt-4o-mini";
-
-    // Resolve API key for the chosen provider
-    var apiKey = provider switch
-    {
-        LLMProviderType.DeepSeek  => builder.Configuration["LLMProvider:DeepSeek:ApiKey"]
-                                     ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY"),
-        LLMProviderType.Anthropic => builder.Configuration["LLMProvider:Anthropic:ApiKey"]
-                                     ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY"),
-        _                         => builder.Configuration["LLMProvider:OpenAI:ApiKey"]
-                                     ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY")
-    };
+    var (provider, defaultModel, _) = AgxiomeProviderResolver.Resolve(cfg.Provider, builder.Configuration);
+    var orchModel = cfg.OrchestratorModel ?? defaultModel;
+    var wrkModel  = cfg.WorkerModel       ?? defaultModel;
+    var apiKey    = AgxiomeProviderResolver.ResolveApiKey(provider, builder.Configuration);
 
     // Question agent: generates the research question from raw input
     var questionAgent = AgxiomeBuilder.Agent("question-agent")

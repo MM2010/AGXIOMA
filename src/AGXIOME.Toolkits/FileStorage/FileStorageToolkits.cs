@@ -6,7 +6,7 @@
 //                               add_entry/gzip_compress/gzip_decompress
 // PdfToolkit          (T-141) : UglyToad.PdfPig — extract_text/page_count/
 //                               extract_page/metadata/search_text
-// ImageProcessingToolkit(T-140): SixLabors.ImageSharp — resize/convert/info/
+// ImageProcessingToolkit(T-140): SkiaSharp — resize/convert/info/
 //                               crop/grayscale/rotate/flip/thumbnail
 // FtpSftpToolkit      (T-133) : requires FluentFTP + SSH.NET packages (stub)
 // Cloud toolkits      (T-134..T-138): require vendor SDKs (stubs)
@@ -15,12 +15,7 @@
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.Formats.Webp;
-using SixLabors.ImageSharp.Processing;
+using SkiaSharp;
 using UglyToad.PdfPig;
 
 namespace AGXIOME.Toolkits.FileStorage;
@@ -554,7 +549,7 @@ public sealed class CompressionToolkit(ToolkitConfig? cfg = null) : ToolkitBase(
 // ─── T-140: Image Processing ──────────────────────────────────────────────────
 
 /// <summary>
-/// Image processing via SixLabors.ImageSharp (cross-platform, no GDI+).
+/// Image processing via SkiaSharp (cross-platform, no GDI+, no CVE).
 /// Actions: info, resize, crop, convert, grayscale, rotate, flip, thumbnail
 /// </summary>
 [Toolkit("image_processing", "Image Processing", ToolkitCategory.FileStorage)]
@@ -569,13 +564,13 @@ public sealed class ImageProcessingToolkit(ToolkitConfig? cfg = null) : ToolkitB
         string action, Dictionary<string, object?> p, CancellationToken ct) => action switch
     {
         "info"       => Task.FromResult(ImageInfo(p)),
-        "resize"     => ResizeAsync(p, ct),
-        "crop"       => CropAsync(p, ct),
-        "convert"    => ConvertAsync(p, ct),
-        "grayscale"  => GrayscaleAsync(p, ct),
-        "rotate"     => RotateAsync(p, ct),
-        "flip"       => FlipAsync(p, ct),
-        "thumbnail"  => ThumbnailAsync(p, ct),
+        "resize"     => Task.Run(() => ResizeImage(p), ct),
+        "crop"       => Task.Run(() => CropImage(p), ct),
+        "convert"    => Task.Run(() => ConvertImage(p), ct),
+        "grayscale"  => Task.Run(() => GrayscaleImage(p), ct),
+        "rotate"     => Task.Run(() => RotateImage(p), ct),
+        "flip"       => Task.Run(() => FlipImage(p), ct),
+        "thumbnail"  => Task.Run(() => ThumbnailImage(p), ct),
         _ => Task.FromResult(ToolkitResult.Fail(
             $"Unknown action '{action}'. Valid: info, resize, crop, convert, grayscale, rotate, flip, thumbnail"))
     };
@@ -584,20 +579,21 @@ public sealed class ImageProcessingToolkit(ToolkitConfig? cfg = null) : ToolkitB
     {
         var path = GetParam<string>(p, "path") ?? "";
         if (!File.Exists(path)) return ToolkitResult.Fail($"File not found: {path}");
-        var info = SixLabors.ImageSharp.Image.Identify(path);
-        if (info is null) return ToolkitResult.Fail($"Cannot identify image: {path}");
+        using var codec = SKCodec.Create(path);
+        if (codec is null) return ToolkitResult.Fail($"Cannot identify image: {path}");
+        var info = codec.Info;
         return ToolkitResult.Success(new
         {
             path,
             width = info.Width,
             height = info.Height,
-            format = info.Metadata.DecodedImageFormat?.Name ?? "unknown",
-            frameCount = info.FrameMetadataCollection.Count,
+            format = codec.EncodedFormat.ToString().ToLowerInvariant(),
+            colorType = info.ColorType.ToString(),
             fileSize = new FileInfo(path).Length
         });
     }
 
-    private static async Task<ToolkitResult> ResizeAsync(Dictionary<string, object?> p, CancellationToken ct)
+    private static ToolkitResult ResizeImage(Dictionary<string, object?> p)
     {
         var path = GetParam<string>(p, "path") ?? "";
         var dest = GetParam<string>(p, "destination") ?? path;
@@ -605,14 +601,16 @@ public sealed class ImageProcessingToolkit(ToolkitConfig? cfg = null) : ToolkitB
         var height = GetParam<int?>(p, "height") ?? 0;
         if (width == 0 && height == 0) return ToolkitResult.Fail("'width' or 'height' required");
         if (!File.Exists(path)) return ToolkitResult.Fail($"File not found: {path}");
-        using var img = await SixLabors.ImageSharp.Image.LoadAsync(path, ct).ConfigureAwait(false);
-        var options = new ResizeOptions { Mode = ResizeMode.Max, Size = new Size(width > 0 ? width : img.Width, height > 0 ? height : img.Height) };
-        img.Mutate(x => x.Resize(options));
-        await img.SaveAsync(dest, ct).ConfigureAwait(false);
-        return ToolkitResult.Success(new { source = path, destination = dest, width = img.Width, height = img.Height });
+        using var original = SKBitmap.Decode(path);
+        if (original is null) return ToolkitResult.Fail($"Cannot decode image: {path}");
+        // Preserve aspect ratio (like ResizeMode.Max)
+        var (tw, th) = ComputeMaxSize(original.Width, original.Height, width, height);
+        using var resized = original.Resize(new SKImageInfo(tw, th), SKSamplingOptions.Default);
+        SaveBitmap(resized, dest, GetParam<int?>(p, "quality") ?? 85);
+        return ToolkitResult.Success(new { source = path, destination = dest, width = tw, height = th });
     }
 
-    private static async Task<ToolkitResult> CropAsync(Dictionary<string, object?> p, CancellationToken ct)
+    private static ToolkitResult CropImage(Dictionary<string, object?> p)
     {
         var path = GetParam<string>(p, "path") ?? "";
         var dest = GetParam<string>(p, "destination") ?? path;
@@ -622,76 +620,150 @@ public sealed class ImageProcessingToolkit(ToolkitConfig? cfg = null) : ToolkitB
         var h = GetParam<int?>(p, "height") ?? 0;
         if (w == 0 || h == 0) return ToolkitResult.Fail("'width' and 'height' required for crop");
         if (!File.Exists(path)) return ToolkitResult.Fail($"File not found: {path}");
-        using var img = await SixLabors.ImageSharp.Image.LoadAsync(path, ct).ConfigureAwait(false);
-        img.Mutate(i => i.Crop(new Rectangle(x, y, w, h)));
-        await img.SaveAsync(dest, ct).ConfigureAwait(false);
+        using var original = SKBitmap.Decode(path);
+        if (original is null) return ToolkitResult.Fail($"Cannot decode image: {path}");
+        using var cropped = new SKBitmap(w, h);
+        using var canvas = new SKCanvas(cropped);
+        canvas.DrawBitmap(original, new SKRect(x, y, x + w, y + h), new SKRect(0, 0, w, h));
+        SaveBitmap(cropped, dest, GetParam<int?>(p, "quality") ?? 85);
         return ToolkitResult.Success(new { source = path, destination = dest, cropX = x, cropY = y, width = w, height = h });
     }
 
-    private static async Task<ToolkitResult> ConvertAsync(Dictionary<string, object?> p, CancellationToken ct)
+    private static ToolkitResult ConvertImage(Dictionary<string, object?> p)
     {
         var path = GetParam<string>(p, "path") ?? "";
         var dest = GetParam<string>(p, "destination") ?? "";
         var format = GetParam<string>(p, "format")?.ToLowerInvariant() ?? "jpeg";
         if (string.IsNullOrEmpty(dest)) return ToolkitResult.Fail("'destination' required");
         if (!File.Exists(path)) return ToolkitResult.Fail($"File not found: {path}");
-        using var img = await SixLabors.ImageSharp.Image.LoadAsync(path, ct).ConfigureAwait(false);
-        IImageEncoder encoder = format switch
+        using var bitmap = SKBitmap.Decode(path);
+        if (bitmap is null) return ToolkitResult.Fail($"Cannot decode image: {path}");
+        var encFormat = format switch
         {
-            "png"  => new PngEncoder(),
-            "webp" => new WebpEncoder(),
-            _      => new JpegEncoder { Quality = GetParam<int?>(p, "quality") ?? 85 }
+            "png"  => SKEncodedImageFormat.Png,
+            "webp" => SKEncodedImageFormat.Webp,
+            _      => SKEncodedImageFormat.Jpeg
         };
-        await img.SaveAsync(dest, encoder, ct).ConfigureAwait(false);
+        var quality = GetParam<int?>(p, "quality") ?? 85;
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(encFormat, quality);
+        using var fs = File.OpenWrite(dest);
+        data.SaveTo(fs);
         return ToolkitResult.Success(new { source = path, destination = dest, format, size = new FileInfo(dest).Length });
     }
 
-    private static async Task<ToolkitResult> GrayscaleAsync(Dictionary<string, object?> p, CancellationToken ct)
+    private static ToolkitResult GrayscaleImage(Dictionary<string, object?> p)
     {
         var path = GetParam<string>(p, "path") ?? "";
         var dest = GetParam<string>(p, "destination") ?? path;
         if (!File.Exists(path)) return ToolkitResult.Fail($"File not found: {path}");
-        using var img = await SixLabors.ImageSharp.Image.LoadAsync(path, ct).ConfigureAwait(false);
-        img.Mutate(x => x.Grayscale());
-        await img.SaveAsync(dest, ct).ConfigureAwait(false);
+        using var original = SKBitmap.Decode(path);
+        if (original is null) return ToolkitResult.Fail($"Cannot decode image: {path}");
+        using var gray = new SKBitmap(original.Width, original.Height, SKColorType.Gray8, SKAlphaType.Opaque);
+        using var canvas = new SKCanvas(gray);
+        using var paint = new SKPaint { ColorFilter = SKColorFilter.CreateColorMatrix(GrayscaleMatrix) };
+        canvas.DrawBitmap(original, 0, 0, paint);
+        SaveBitmap(gray, dest, 90);
         return ToolkitResult.Success(new { source = path, destination = dest, grayscale = true });
     }
 
-    private static async Task<ToolkitResult> RotateAsync(Dictionary<string, object?> p, CancellationToken ct)
+    private static ToolkitResult RotateImage(Dictionary<string, object?> p)
     {
         var path = GetParam<string>(p, "path") ?? "";
         var dest = GetParam<string>(p, "destination") ?? path;
         var degrees = GetParam<float?>(p, "degrees") ?? 90f;
         if (!File.Exists(path)) return ToolkitResult.Fail($"File not found: {path}");
-        using var img = await SixLabors.ImageSharp.Image.LoadAsync(path, ct).ConfigureAwait(false);
-        img.Mutate(x => x.Rotate(degrees));
-        await img.SaveAsync(dest, ct).ConfigureAwait(false);
+        using var original = SKBitmap.Decode(path);
+        if (original is null) return ToolkitResult.Fail($"Cannot decode image: {path}");
+        // For 90/270 rotation, swap width/height
+        bool swap = Math.Abs(degrees % 180) == 90;
+        int tw = swap ? original.Height : original.Width;
+        int th = swap ? original.Width : original.Height;
+        using var rotated = new SKBitmap(tw, th);
+        using var canvas = new SKCanvas(rotated);
+        canvas.Translate(tw / 2f, th / 2f);
+        canvas.RotateDegrees(degrees);
+        canvas.Translate(-original.Width / 2f, -original.Height / 2f);
+        canvas.DrawBitmap(original, 0, 0);
+        SaveBitmap(rotated, dest, GetParam<int?>(p, "quality") ?? 85);
         return ToolkitResult.Success(new { source = path, destination = dest, degrees });
     }
 
-    private static async Task<ToolkitResult> FlipAsync(Dictionary<string, object?> p, CancellationToken ct)
+    private static ToolkitResult FlipImage(Dictionary<string, object?> p)
     {
         var path = GetParam<string>(p, "path") ?? "";
         var dest = GetParam<string>(p, "destination") ?? path;
         var mode = GetParam<string>(p, "mode")?.ToLowerInvariant() ?? "horizontal";
         if (!File.Exists(path)) return ToolkitResult.Fail($"File not found: {path}");
-        using var img = await SixLabors.ImageSharp.Image.LoadAsync(path, ct).ConfigureAwait(false);
-        var flipMode = mode == "vertical" ? FlipMode.Vertical : FlipMode.Horizontal;
-        img.Mutate(x => x.Flip(flipMode));
-        await img.SaveAsync(dest, ct).ConfigureAwait(false);
+        using var original = SKBitmap.Decode(path);
+        if (original is null) return ToolkitResult.Fail($"Cannot decode image: {path}");
+        using var flipped = new SKBitmap(original.Width, original.Height);
+        using var canvas = new SKCanvas(flipped);
+        if (mode == "vertical")
+        {
+            canvas.Scale(1, -1, 0, original.Height / 2f);
+        }
+        else
+        {
+            canvas.Scale(-1, 1, original.Width / 2f, 0);
+        }
+        canvas.DrawBitmap(original, 0, 0);
+        SaveBitmap(flipped, dest, GetParam<int?>(p, "quality") ?? 85);
         return ToolkitResult.Success(new { source = path, destination = dest, mode });
     }
 
-    private static async Task<ToolkitResult> ThumbnailAsync(Dictionary<string, object?> p, CancellationToken ct)
+    private static ToolkitResult ThumbnailImage(Dictionary<string, object?> p)
     {
         var path = GetParam<string>(p, "path") ?? "";
-        var dest = GetParam<string>(p, "destination") ?? Path.Combine(Path.GetDirectoryName(path) ?? ".", "thumb_" + Path.GetFileName(path));
+        var dest = GetParam<string>(p, "destination") ?? Path.Combine(
+            Path.GetDirectoryName(path) ?? ".", "thumb_" + Path.GetFileName(path));
         var size = GetParam<int?>(p, "size") ?? 128;
         if (!File.Exists(path)) return ToolkitResult.Fail($"File not found: {path}");
-        using var img = await SixLabors.ImageSharp.Image.LoadAsync(path, ct).ConfigureAwait(false);
-        img.Mutate(x => x.Resize(new ResizeOptions { Size = new Size(size, size), Mode = ResizeMode.Crop }));
-        await img.SaveAsync(dest, ct).ConfigureAwait(false);
-        return ToolkitResult.Success(new { source = path, destination = dest, size, width = img.Width, height = img.Height });
+        using var original = SKBitmap.Decode(path);
+        if (original is null) return ToolkitResult.Fail($"Cannot decode image: {path}");
+        // Crop-center to square, then resize
+        int minSide = Math.Min(original.Width, original.Height);
+        int ox = (original.Width - minSide) / 2;
+        int oy = (original.Height - minSide) / 2;
+        using var cropped = new SKBitmap(minSide, minSide);
+        using var cCanvas = new SKCanvas(cropped);
+        cCanvas.DrawBitmap(original, new SKRect(ox, oy, ox + minSide, oy + minSide), new SKRect(0, 0, minSide, minSide));
+        using var thumb = cropped.Resize(new SKImageInfo(size, size), SKSamplingOptions.Default);
+        SaveBitmap(thumb, dest, 85);
+        return ToolkitResult.Success(new { source = path, destination = dest, size, width = size, height = size });
+    }
+
+    // ─── helpers ──────────────────────────────────────────────────────────────
+
+    private static readonly float[] GrayscaleMatrix =
+    [
+        0.2126f, 0.7152f, 0.0722f, 0, 0,
+        0.2126f, 0.7152f, 0.0722f, 0, 0,
+        0.2126f, 0.7152f, 0.0722f, 0, 0,
+        0,       0,       0,       1, 0
+    ];
+
+    private static (int w, int h) ComputeMaxSize(int srcW, int srcH, int maxW, int maxH)
+    {
+        if (maxW == 0) return (srcW, maxH);
+        if (maxH == 0) return (maxW, srcH);
+        double ratio = Math.Min((double)maxW / srcW, (double)maxH / srcH);
+        return ((int)(srcW * ratio), (int)(srcH * ratio));
+    }
+
+    private static void SaveBitmap(SKBitmap bitmap, string dest, int quality)
+    {
+        var ext = Path.GetExtension(dest).ToLowerInvariant();
+        var fmt = ext switch
+        {
+            ".png"  => SKEncodedImageFormat.Png,
+            ".webp" => SKEncodedImageFormat.Webp,
+            _       => SKEncodedImageFormat.Jpeg
+        };
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(fmt, quality);
+        using var fs = File.OpenWrite(dest);
+        data.SaveTo(fs);
     }
 }
 

@@ -21,8 +21,8 @@ public sealed class GroqProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public GroqProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.groq.com/openai/v1" });
+    public GroqProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.groq.com/openai/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -46,8 +46,8 @@ public sealed class MistralAIProvider : ILLMProvider
     public int EmbeddingDimensions => 1024;
 
     private readonly OpenAIProvider _inner;
-    public MistralAIProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.mistral.ai/v1" });
+    public MistralAIProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.mistral.ai/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -70,8 +70,8 @@ public sealed class XAIGrokProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public XAIGrokProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.x.ai/v1" });
+    public XAIGrokProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.x.ai/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -95,8 +95,8 @@ public sealed class CohereProvider : ILLMProvider
     public int EmbeddingDimensions => 1024;
 
     private readonly OpenAIProvider _inner;
-    public CohereProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.cohere.com/compatibility/v1" });
+    public CohereProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.cohere.com/compatibility/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -120,8 +120,8 @@ public sealed class PerplexityProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public PerplexityProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.perplexity.ai" });
+    public PerplexityProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.perplexity.ai" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -145,8 +145,8 @@ public sealed class TogetherAIProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public TogetherAIProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.together.xyz/v1" });
+    public TogetherAIProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.together.xyz/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -170,8 +170,8 @@ public sealed class FireworksAIProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public FireworksAIProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.fireworks.ai/inference/v1" });
+    public FireworksAIProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.fireworks.ai/inference/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -195,8 +195,8 @@ public sealed class CerebrasProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public CerebrasProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.cerebras.ai/v1" });
+    public CerebrasProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.cerebras.ai/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);

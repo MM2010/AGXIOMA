@@ -215,3 +215,193 @@ public sealed class ConfigCommand(IAgxiomeApiClient client, ICliOutput output) :
         return dict;
     }
 }
+
+// ── MU-06 — CLI `agxiome doctor` ─────────────────────────────────────────────
+
+/// <summary>
+/// MU-06: doctor command — verifies runtime server, API keys, and Redis connectivity.
+/// <example>agxiome doctor</example>
+/// </summary>
+public sealed class DoctorCommand(IAgxiomeApiClient client, ICliOutput output) : ICliCommand
+{
+    public string Name        => "doctor";
+    public string Description => "Verify runtime server, API keys, and connectivity.";
+
+    private static readonly (string EnvVar, string Provider)[] _apiKeys =
+    [
+        ("OPENAI_API_KEY",    "OpenAI"),
+        ("ANTHROPIC_API_KEY", "Anthropic"),
+        ("DEEPSEEK_API_KEY",  "DeepSeek"),
+        ("GEMINI_API_KEY",    "Gemini"),
+        ("GROQ_API_KEY",      "Groq"),
+        ("MISTRAL_API_KEY",   "Mistral"),
+        ("COHERE_API_KEY",    "Cohere"),
+        ("XAI_API_KEY",       "xAI Grok"),
+        ("TOGETHER_API_KEY",  "Together AI"),
+        ("FIREWORKS_API_KEY", "Fireworks AI"),
+    ];
+
+    public async ValueTask<CliResult> ExecuteAsync(string[] args, CancellationToken ct = default)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("AGXIOME Doctor — System Check");
+        sb.AppendLine(new string('─', 40));
+
+        // 1. Runtime server
+        sb.Append($"  Runtime server ({client.BaseUrl})  ");
+        string serverStatus;
+        if (client.IsReachable)
+        {
+            try   { await client.GetAsync("api/health", ct); }
+            catch { /* no health endpoint — still reachable */ }
+            sb.AppendLine("✅  reachable");
+            serverStatus = "ok";
+        }
+        else
+        {
+            sb.AppendLine("❌  unreachable  →  start AGXIOME.Runtime first");
+            serverStatus = "fail";
+        }
+
+        // 2. API keys
+        sb.AppendLine();
+        sb.AppendLine("  API Keys:");
+        int keysFound = 0;
+        foreach (var (envVar, provider) in _apiKeys)
+        {
+            var val = Environment.GetEnvironmentVariable(envVar);
+            if (val is { Length: > 8 })
+            {
+                sb.AppendLine($"    ✅  {provider,-15} {envVar} = {val[..4]}...{val[^4..]}");
+                keysFound++;
+            }
+            else
+            {
+                sb.AppendLine($"    ℹ️  {provider,-15} {envVar} not set");
+            }
+        }
+        if (keysFound == 0)
+            sb.AppendLine("    ⚠️  No LLM API keys found. Set at least one to use cloud providers.");
+
+        // 3. Ollama (local — no key needed)
+        sb.AppendLine();
+        sb.Append("  Ollama (local, http://localhost:11434)  ");
+        try
+        {
+            using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+            var resp = await http.GetAsync("http://localhost:11434/api/tags", ct);
+            sb.AppendLine(resp.IsSuccessStatusCode ? "✅  running" : "⚠️  unreachable");
+        }
+        catch
+        {
+            sb.AppendLine("ℹ️  not running (optional)");
+        }
+
+        // 4. Summary
+        sb.AppendLine();
+        sb.AppendLine(serverStatus == "ok" && keysFound > 0
+            ? "✅  All checks passed."
+            : "⚠️  Some checks failed — see above.");
+
+        var report = sb.ToString();
+        output.WriteLine(report);
+        return serverStatus == "ok" ? CliResult.Ok(report) : CliResult.Fail(report, 1);
+    }
+}
+
+// ── MU-07 — CLI `agxiome benchmark` ──────────────────────────────────────────
+
+/// <summary>
+/// MU-07: benchmark command — measures runtime agent throughput and latency.
+/// <example>agxiome benchmark</example>
+/// <example>agxiome benchmark --requests 20 --agent my-agent --input "Hello"</example>
+/// </summary>
+public sealed class BenchmarkCommand(IAgxiomeApiClient client, ICliOutput output) : ICliCommand
+{
+    public string Name        => "benchmark";
+    public string Description => "Measure agent throughput and latency (p50/p95/p99).";
+
+    public async ValueTask<CliResult> ExecuteAsync(string[] args, CancellationToken ct = default)
+    {
+        var opts      = ParseBenchArgs(args);
+        int n         = int.TryParse(opts.GetValueOrDefault("requests", "10"), out var r) ? r : 10;
+        var agentId   = opts.GetValueOrDefault("agent", "default");
+        var input     = opts.GetValueOrDefault("input", "Hello, how are you?");
+        int parallel  = int.TryParse(opts.GetValueOrDefault("parallel", "1"), out var p) ? p : 1;
+
+        if (!client.IsReachable)
+            return CliResult.Fail("Runtime server unreachable. Start AGXIOME.Runtime first.", 2);
+
+        output.WriteLine($"Benchmarking agent '{agentId}': {n} requests (parallel={parallel})");
+        output.WriteLine(new string('─', 50));
+
+        var latencies = new List<double>(n);
+        var errors    = 0;
+        var sw        = System.Diagnostics.Stopwatch.StartNew();
+        var semaphore = new SemaphoreSlim(parallel);
+
+        var tasks = Enumerable.Range(0, n).Select(async i =>
+        {
+            await semaphore.WaitAsync(ct);
+            var reqSw = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                await client.PostAsync($"api/agents/{agentId}/run",
+                    new { Input = input, SessionId = $"bench-{i}" }, ct);
+                lock (latencies) latencies.Add(reqSw.Elapsed.TotalMilliseconds);
+            }
+            catch
+            {
+                Interlocked.Increment(ref errors);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        await Task.WhenAll(tasks);
+        sw.Stop();
+
+        if (latencies.Count == 0)
+            return CliResult.Fail($"All {n} requests failed. Is the agent '{agentId}' registered?");
+
+        var sorted     = latencies.OrderBy(x => x).ToArray();
+        var p50        = Percentile(sorted, 0.50);
+        var p95        = Percentile(sorted, 0.95);
+        var p99        = Percentile(sorted, 0.99);
+        var throughput = latencies.Count / sw.Elapsed.TotalSeconds;
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"Results ({latencies.Count}/{n} succeeded, {errors} errors):");
+        sb.AppendLine($"  Mean       {latencies.Average(),8:F1} ms");
+        sb.AppendLine($"  p50        {p50,8:F1} ms");
+        sb.AppendLine($"  p95        {p95,8:F1} ms");
+        sb.AppendLine($"  p99        {p99,8:F1} ms");
+        sb.AppendLine($"  Total      {sw.Elapsed.TotalSeconds,8:F2} s");
+        sb.AppendLine($"  Throughput {throughput:F2} req/s");
+
+        var report = sb.ToString();
+        output.WriteLine(report);
+        return CliResult.Ok(report);
+    }
+
+    private static double Percentile(double[] sorted, double p)
+    {
+        if (sorted.Length == 0) return 0;
+        var idx = (int)Math.Ceiling(p * sorted.Length) - 1;
+        return sorted[Math.Clamp(idx, 0, sorted.Length - 1)];
+    }
+
+    private static Dictionary<string, string> ParseBenchArgs(string[] args)
+    {
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < args.Length; i++)
+            if (args[i].StartsWith("--"))
+            {
+                var key = args[i][2..];
+                dict[key] = (i + 1 < args.Length && !args[i + 1].StartsWith("--")) ? args[++i] : "true";
+            }
+        return dict;
+    }
+}

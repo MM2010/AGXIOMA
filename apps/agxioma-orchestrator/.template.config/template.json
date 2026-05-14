@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "AGXIOME",
+  "classifications": ["AI", "Orchestrator", "HeavySwarm", "AGXIOME"],
+  "identity": "AGXIOME.OrchestratorTemplate.CSharp",
+  "name": "AGXIOME Orchestrator (HeavySwarm)",
+  "shortName": "agxioma-orchestrator",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sourceName": "AgxiomaOrchestrator",
+  "preferNameDirectory": true,
+  "symbols": {
+    "provider": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "deepseek",
+      "choices": [
+        { "choice": "deepseek",  "description": "DeepSeek API" },
+        { "choice": "openai",    "description": "OpenAI API" },
+        { "choice": "anthropic", "description": "Anthropic API" },
+        { "choice": "gemini",    "description": "Google Gemini API" },
+        { "choice": "ollama",    "description": "Ollama (local)" }
+      ],
+      "replaces": "PROVIDER_PLACEHOLDER"
+    },
+    "model": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "",
+      "replaces": "MODEL_PLACEHOLDER"
+    },
+    "workers": {
+      "type": "parameter",
+      "datatype": "integer",
+      "defaultValue": "3",
+      "replaces": "WORKERS_PLACEHOLDER"
+    },
+    "port": {
+      "type": "parameter",
+      "datatype": "integer",
+      "defaultValue": "5010",
+      "replaces": "PORT_PLACEHOLDER"
+    }
+  }
+}

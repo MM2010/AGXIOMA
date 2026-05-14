@@ -20,8 +20,8 @@ public sealed class AI21JambaProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public AI21JambaProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.ai21.com/studio/v1" });
+    public AI21JambaProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.ai21.com/studio/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -45,8 +45,8 @@ public sealed class SnowflakeArcticProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public SnowflakeArcticProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config);
+    public SnowflakeArcticProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -70,8 +70,8 @@ public sealed class PhindProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public PhindProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.phind.com/agent/" });
+    public PhindProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.phind.com/agent/" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -95,8 +95,8 @@ public sealed class YouComProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public YouComProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://chat-api.you.com/v1" });
+    public YouComProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://chat-api.you.com/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -120,8 +120,8 @@ public sealed class HyperbolicProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public HyperbolicProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.hyperbolic.xyz/v1" });
+    public HyperbolicProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.hyperbolic.xyz/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -145,8 +145,8 @@ public sealed class FeatherlessProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public FeatherlessProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.featherless.ai/v1" });
+    public FeatherlessProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = "https://api.featherless.ai/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);

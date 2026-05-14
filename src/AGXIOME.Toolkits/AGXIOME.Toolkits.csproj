@@ -15,7 +15,7 @@
     <!-- PDF text extraction -->
     <PackageReference Include="UglyToad.PdfPig" Version="0.1.9-alpha001-patch1" />
     <!-- Image processing (resize, convert, info) -->
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.7" />
+    <PackageReference Include="SkiaSharp" Version="3.*" />
     <!-- DataAnalysis: CSV, Excel, SQLite -->
     <PackageReference Include="CsvHelper" Version="33.*" />
     <PackageReference Include="ClosedXML" Version="0.105.*" />

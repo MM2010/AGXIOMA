@@ -353,11 +353,11 @@ public sealed class PubMedToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
         var result=summaryJson.TryGetProperty("result",out var res)?res:default;
         var articles=ids.Select(id=>{
             if(result.ValueKind==JsonValueKind.Object&&result.TryGetProperty(id,out var art))
-                return new{pmid=id,title=art.TryGetProperty("title",out var t)?t.GetString():"",
-                    source=art.TryGetProperty("source",out var s)?s.GetString():"",
-                    pubdate=art.TryGetProperty("pubdate",out var d)?d.GetString():"",
+                return new{pmid=id,title=art.TryGetProperty("title",out var t)?t.GetString()??"":"",
+                    source=art.TryGetProperty("source",out var s)?s.GetString()??"":"",
+                    pubdate=art.TryGetProperty("pubdate",out var d)?d.GetString()??"":"",
                     authors=art.TryGetProperty("authors",out var au)?au.EnumerateArray()
-                        .Select(a=>a.TryGetProperty("name",out var n)?n.GetString():"").Take(5).ToArray():[]};
+                        .Select(a=>a.TryGetProperty("name",out var n)?n.GetString()??"":"").Take(5).ToArray():[]};
             return new{pmid=id,title="",source="",pubdate="",authors=Array.Empty<string>()};
         }).ToArray();
         return ToolkitResult.Success(new{query,articles,count=articles.Length});

@@ -1,4 +1,5 @@
 using AGXIOME.Core;
+using AGXIOME.Core.DependencyInjection;
 using AGXIOME.Core.Patterns;
 using AGXIOME.Shared.Models;
 using AgxiomaMultiAgentTeam;
@@ -10,25 +11,9 @@ var cfg = builder.Configuration.GetSection("Agent").Get<AgentSettings>() ?? new 
 
 builder.Services.AddSingleton<ForestSwarm>(_ =>
 {
-    var provider = cfg.Provider switch
-    {
-        "anthropic" => LLMProviderType.Anthropic,
-        "ollama"    => LLMProviderType.Ollama,
-        "deepseek"  => LLMProviderType.DeepSeek,
-        _           => LLMProviderType.OpenAI
-    };
-    var model    = cfg.Model ?? "gpt-4o";
-
-    // Resolve API key
-    var apiKey = provider switch
-    {
-        LLMProviderType.DeepSeek  => builder.Configuration["LLMProvider:DeepSeek:ApiKey"]
-                                     ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY"),
-        LLMProviderType.Anthropic => builder.Configuration["LLMProvider:Anthropic:ApiKey"]
-                                     ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY"),
-        _                         => builder.Configuration["LLMProvider:OpenAI:ApiKey"]
-                                     ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY")
-    };
+    var (provider, defaultModel, _) = AgxiomeProviderResolver.Resolve(cfg.Provider, builder.Configuration);
+    var model  = cfg.Model ?? defaultModel;
+    var apiKey = AgxiomeProviderResolver.ResolveApiKey(provider, builder.Configuration);
 
     // ── Build specialist agents ───────────────────────────────────────────────
 

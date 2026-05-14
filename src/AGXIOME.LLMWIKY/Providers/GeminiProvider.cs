@@ -1,3 +1,4 @@
+using AGXIOME.LLMWIKY.Http;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -19,11 +20,16 @@ public sealed class GeminiProvider : ILLMProvider
     private readonly HttpClient _http;
     private readonly LLMWIKYConfig _config;
 
-    public GeminiProvider(LLMWIKYConfig config)
+    public GeminiProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
     {
         _config = config;
-        _http = new HttpClient();
-        _http.BaseAddress = new Uri("https://generativelanguage.googleapis.com/v1beta");
+        if (httpClientFactory is not null)
+            _http = httpClientFactory.CreateClient(AgxiomeHttpClientDefaults.ClientName(LLMProviderType.Gemini));
+        else
+        {
+            _http = new HttpClient();
+            _http.BaseAddress = new Uri("https://generativelanguage.googleapis.com/v1beta");
+        }
     }
 
     public async Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest request, CancellationToken ct = default)

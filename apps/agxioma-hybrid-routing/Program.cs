@@ -1,4 +1,5 @@
 using AGXIOME.Core;
+using AGXIOME.Core.DependencyInjection;
 using AGXIOME.Shared.Models;
 using AgxiomaHybridRouting.AgentServices;
 using AgxiomaHybridRouting.Routing;
@@ -18,24 +19,9 @@ var agentCfg  = builder.Configuration.GetSection("Agent").Get<AgentSettings>()  
 var routingCfg = builder.Configuration.GetSection("HybridRouting");
 
 // ── Resolve provider ──────────────────────────────────────────────────────────
-var provider = agentCfg.Provider switch
-{
-    "anthropic" => LLMProviderType.Anthropic,
-    "ollama"    => LLMProviderType.Ollama,
-    "deepseek"  => LLMProviderType.DeepSeek,
-    _           => LLMProviderType.OpenAI
-};
-var model = agentCfg.Model ?? "gpt-4o";
-
-var apiKey = provider switch
-{
-    LLMProviderType.DeepSeek  => builder.Configuration["LLMProvider:DeepSeek:ApiKey"]
-                                 ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY"),
-    LLMProviderType.Anthropic => builder.Configuration["LLMProvider:Anthropic:ApiKey"]
-                                 ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY"),
-    _                         => builder.Configuration["LLMProvider:OpenAI:ApiKey"]
-                                 ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY")
-};
+var (provider, defaultModel, _) = AgxiomeProviderResolver.Resolve(agentCfg.Provider, builder.Configuration);
+var model  = agentCfg.Model ?? defaultModel;
+var apiKey = AgxiomeProviderResolver.ResolveApiKey(provider, builder.Configuration);
 
 // ── Build specialist agents (identical prompts to T6 for consistency) ─────────
 

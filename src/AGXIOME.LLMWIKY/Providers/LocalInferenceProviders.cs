@@ -1,3 +1,4 @@
+using AGXIOME.LLMWIKY.Http;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
@@ -27,10 +28,10 @@ public sealed class LlamaCppProvider : ILLMProvider
     private readonly OpenAIProvider _inner;
     private readonly LLMWIKYConfig _config;
 
-    public LlamaCppProvider(LLMWIKYConfig config)
+    public LlamaCppProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
     {
         _config = config;
-        _inner = new OpenAIProvider(config with { Endpoint = config.Endpoint ?? "http://localhost:8080/v1" });
+        _inner = new OpenAIProvider(config with { Endpoint = config.Endpoint ?? "http://localhost:8080/v1" }, httpClientFactory);
     }
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
@@ -59,10 +60,10 @@ public sealed class LMStudioProvider : ILLMProvider
     private readonly OpenAIProvider _inner;
     private readonly LLMWIKYConfig _config;
 
-    public LMStudioProvider(LLMWIKYConfig config)
+    public LMStudioProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
     {
         _config = config;
-        _inner = new OpenAIProvider(config with { Endpoint = config.Endpoint ?? "http://localhost:1234/v1" });
+        _inner = new OpenAIProvider(config with { Endpoint = config.Endpoint ?? "http://localhost:1234/v1" }, httpClientFactory);
     }
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
@@ -91,10 +92,13 @@ public sealed class OllamaResponsesProvider : ILLMProvider
     private readonly LLMWIKYConfig _config;
     private static readonly JsonSerializerOptions _json = new() { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
 
-    public OllamaResponsesProvider(LLMWIKYConfig config)
+    public OllamaResponsesProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
     {
         _config = config;
-        _http = new HttpClient { BaseAddress = new Uri(config.Endpoint ?? "http://localhost:11434") };
+        if (httpClientFactory is not null)
+            _http = httpClientFactory.CreateClient(AgxiomeHttpClientDefaults.ClientName(LLMProviderType.Ollama));
+        else
+            _http = new HttpClient { BaseAddress = new Uri(config.Endpoint ?? "http://localhost:11434") };
     }
 
     public async Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default)
@@ -176,10 +180,10 @@ public sealed class LocalAIProvider : ILLMProvider
     private readonly OpenAIProvider _inner;
     private readonly LLMWIKYConfig _config;
 
-    public LocalAIProvider(LLMWIKYConfig config)
+    public LocalAIProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
     {
         _config = config;
-        _inner = new OpenAIProvider(config with { Endpoint = config.Endpoint ?? "http://localhost:8080/v1" });
+        _inner = new OpenAIProvider(config with { Endpoint = config.Endpoint ?? "http://localhost:8080/v1" }, httpClientFactory);
     }
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
@@ -204,8 +208,8 @@ public sealed class GPT4AllProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public GPT4AllProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = config.Endpoint ?? "http://localhost:4891/v1" });
+    public GPT4AllProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = config.Endpoint ?? "http://localhost:4891/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -229,8 +233,8 @@ public sealed class TextGenWebUIProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public TextGenWebUIProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = config.Endpoint ?? "http://localhost:5000/v1" });
+    public TextGenWebUIProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = config.Endpoint ?? "http://localhost:5000/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);
@@ -254,8 +258,8 @@ public sealed class KoboldCPPProvider : ILLMProvider
     public int EmbeddingDimensions => 0;
 
     private readonly OpenAIProvider _inner;
-    public KoboldCPPProvider(LLMWIKYConfig config)
-        => _inner = new OpenAIProvider(config with { Endpoint = config.Endpoint ?? "http://localhost:5001/v1" });
+    public KoboldCPPProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
+        => _inner = new OpenAIProvider(config with { Endpoint = config.Endpoint ?? "http://localhost:5001/v1" }, httpClientFactory);
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteAsync(r, ct);
     public IAsyncEnumerable<LLMWIKYChunk> CompleteStreamAsync(LLMCompletionRequest r, CancellationToken ct = default) => _inner.CompleteStreamAsync(r, ct);

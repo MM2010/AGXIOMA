@@ -34,6 +34,8 @@ public static class Program
             new SessionCommand(client, output),
             new AdminCommand(client, output),
             new ConfigCommand(client, output),
+            new DoctorCommand(client, output),
+            new BenchmarkCommand(client, output),
         ];
 
         var verb = args[0].ToLowerInvariant();
@@ -90,6 +92,8 @@ public static class Program
         Console.WriteLine("  session  Create, delete, or inspect sessions");
         Console.WriteLine("  admin    Health check, metrics, and log access");
         Console.WriteLine("  config   Get or set runtime configuration");
+        Console.WriteLine("  doctor   Verify runtime server, API keys, and connectivity");
+        Console.WriteLine("  benchmark  Measure agent throughput and latency (p50/p95/p99)");
         Console.WriteLine("  demo     Interactive LLM session (no server needed)");
         Console.WriteLine();
         Console.WriteLine("Demo providers:");

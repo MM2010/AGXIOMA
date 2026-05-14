@@ -1,4 +1,5 @@
 using AGXIOME.Core;
+using AGXIOME.Core.DependencyInjection;
 using AGXIOME.Core.Patterns;
 using AGXIOME.Shared.Models;
 
@@ -18,17 +19,10 @@ public sealed class SwarmBuilderService
     public SwarmBuilderService(IConfiguration configuration)
     {
         _cfg      = configuration.GetSection("Agent").Get<AgentSettings>() ?? new AgentSettings();
-        _provider = Enum.TryParse<LLMProviderType>(configuration["Agent:Provider"] ?? "OpenAI", ignoreCase: true, out var p) ? p : LLMProviderType.OpenAI;
-        _model    = _cfg.Model ?? "MODEL_PLACEHOLDER";
-        _apiKey   = _provider switch
-        {
-            LLMProviderType.DeepSeek  => configuration["LLMProvider:DeepSeek:ApiKey"]
-                                         ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY"),
-            LLMProviderType.Anthropic => configuration["LLMProvider:Anthropic:ApiKey"]
-                                         ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY"),
-            _                         => configuration["LLMProvider:OpenAI:ApiKey"]
-                                         ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY")
-        };
+        var resolved = AgxiomeProviderResolver.Resolve(configuration["Agent:Provider"] ?? "openai", configuration);
+        _provider = resolved.Provider;
+        _model    = _cfg.Model ?? resolved.DefaultModel;
+        _apiKey   = AgxiomeProviderResolver.ResolveApiKey(_provider, configuration);
     }
 
     // ── HeavySwarm — deep multi-phase research ────────────────────────────────

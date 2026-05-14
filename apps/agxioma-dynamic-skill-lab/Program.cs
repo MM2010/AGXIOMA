@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using AGXIOME.Core;
+using AGXIOME.Core.DependencyInjection;
 using AGXIOME.DynamicRuntime.Compilation;
 using AGXIOME.DynamicRuntime.Generation;
 using AGXIOME.DynamicRuntime.Generation.Prompts;
@@ -36,17 +37,9 @@ builder.Services.AddSingleton(_ => new SandboxExecutor(cfg.ExecutionTimeoutMs));
 // ── LLM Provider via AGXIOME ──────────────────────────────────────────────────
 builder.Services.AddSingleton<ILLMProvider>(sp =>
 {
-    var provider = Enum.TryParse<LLMProviderType>(builder.Configuration["Agent:Provider"] ?? "OpenAI", ignoreCase: true, out var p) ? p : LLMProviderType.OpenAI;
-    var model    = cfg.Model ?? "gpt-4o";
-    var apiKey   = provider switch
-    {
-        LLMProviderType.DeepSeek  => builder.Configuration["LLMProvider:DeepSeek:ApiKey"]
-                                     ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY"),
-        LLMProviderType.Anthropic => builder.Configuration["LLMProvider:Anthropic:ApiKey"]
-                                     ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY"),
-        _                         => builder.Configuration["LLMProvider:OpenAI:ApiKey"]
-                                     ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY")
-    };
+    var (provider, defaultModel, _) = AgxiomeProviderResolver.Resolve(builder.Configuration["Agent:Provider"] ?? "openai", builder.Configuration);
+    var model  = cfg.Model ?? defaultModel;
+    var apiKey = AgxiomeProviderResolver.ResolveApiKey(provider, builder.Configuration);
 
     return LLMProviderFactory.Create(new LLMWIKYConfig
     {
@@ -59,8 +52,8 @@ builder.Services.AddSingleton<ILLMProvider>(sp =>
 // ── Orchestrator ──────────────────────────────────────────────────────────────
 builder.Services.AddSingleton<SkillLabOrchestrator>(sp =>
 {
-    var provider = Enum.TryParse<LLMProviderType>(builder.Configuration["Agent:Provider"] ?? "OpenAI", ignoreCase: true, out var p) ? p : LLMProviderType.OpenAI;
-    var model = cfg.Model ?? "gpt-4o";
+    var (provider, defaultModel2, _) = AgxiomeProviderResolver.Resolve(builder.Configuration["Agent:Provider"] ?? "openai", builder.Configuration);
+    var model = cfg.Model ?? defaultModel2;
     return new SkillLabOrchestrator(
         sp.GetRequiredService<SkillLabStore>(),
         sp.GetRequiredService<DynamicToolBuilder>(),

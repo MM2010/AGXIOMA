@@ -15,7 +15,7 @@ public sealed class LocalProvider : ILLMProvider
 
     private readonly OpenAIProvider _openaiCompat;
 
-    public LocalProvider(LLMWIKYConfig config)
+    public LocalProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
     {
         _config = config;
         var compatConfig = config with
@@ -23,7 +23,7 @@ public sealed class LocalProvider : ILLMProvider
             Endpoint = config.Endpoint ?? "http://localhost:8080/v1",
             ApiKey = "not-needed"
         };
-        _openaiCompat = new OpenAIProvider(compatConfig);
+        _openaiCompat = new OpenAIProvider(compatConfig, httpClientFactory);
     }
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest request, CancellationToken ct = default)

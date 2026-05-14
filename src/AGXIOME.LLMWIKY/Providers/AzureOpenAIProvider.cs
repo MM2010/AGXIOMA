@@ -15,13 +15,13 @@ public sealed class AzureOpenAIProvider : ILLMProvider
 
     private readonly OpenAIProvider _openaiCompat;
 
-    public AzureOpenAIProvider(LLMWIKYConfig config)
+    public AzureOpenAIProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
     {
         _config = config;
         // Azure endpoint: {resource}.openai.azure.com
         var azureEndpoint = $"{config.Endpoint}/openai/deployments/{config.Model}/chat/completions?api-version={config.ApiVersion ?? "2024-08-01-preview"}";
         var compatConfig = config with { Endpoint = azureEndpoint };
-        _openaiCompat = new OpenAIProvider(compatConfig);
+        _openaiCompat = new OpenAIProvider(compatConfig, httpClientFactory);
     }
 
     public Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest request, CancellationToken ct = default)

@@ -1,4 +1,5 @@
-﻿using AGXIOME.Shared.Config;
+﻿using AGXIOME.LLMWIKY.Http;
+using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
@@ -8,71 +9,82 @@ namespace AGXIOME.LLMWIKY;
 /// Keys are <see cref="LLMProviderType"/> — no magic strings in routing logic.</summary>
 public sealed class LLMProviderFactory : ILLMProviderFactory
 {
-    private static readonly Dictionary<LLMProviderType, Func<LLMWIKYConfig, ILLMProvider>> _builtIn = new()
+    private static Dictionary<LLMProviderType, Func<LLMWIKYConfig, ILLMProvider>> BuildRegistry(
+        IHttpClientFactory? hcf) => new()
     {
-        [LLMProviderType.OpenAI]            = c => new Providers.OpenAIProvider(c),
-        [LLMProviderType.Anthropic]         = c => new Providers.AnthropicProvider(c),
-        [LLMProviderType.DeepSeek]          = c => new Providers.OpenAIProvider(c with { Endpoint = "https://api.deepseek.com/v1" }),
-        [LLMProviderType.Ollama]            = c => new Providers.OllamaProvider(c),
-        [LLMProviderType.OllamaResponses]   = c => new Providers.OllamaResponsesProvider(c),
-        [LLMProviderType.Local]             = c => new Providers.LocalProvider(c),
-        [LLMProviderType.AzureOpenAI]       = c => new Providers.AzureOpenAIProvider(c),
-        [LLMProviderType.Gemini]            = c => new Providers.GeminiProvider(c),
-        [LLMProviderType.Custom]            = c => new Providers.OpenAIProvider(c),
-        [LLMProviderType.Groq]                 = c => new Providers.GroqProvider(c),
-        [LLMProviderType.Mistral]              = c => new Providers.MistralAIProvider(c),
-        [LLMProviderType.XAIGrok]              = c => new Providers.XAIGrokProvider(c),
-        [LLMProviderType.Cohere]               = c => new Providers.CohereProvider(c),
-        [LLMProviderType.Perplexity]           = c => new Providers.PerplexityProvider(c),
-        [LLMProviderType.TogetherAI]           = c => new Providers.TogetherAIProvider(c),
-        [LLMProviderType.FireworksAI]          = c => new Providers.FireworksAIProvider(c),
-        [LLMProviderType.Cerebras]             = c => new Providers.CerebrasProvider(c),
-        [LLMProviderType.AWSBedrock]           = c => new Providers.AWSBedrockProvider(c),
-        [LLMProviderType.AzureAIFoundry]       = c => new Providers.AzureAIFoundryProvider(c),
-        [LLMProviderType.IBMWatsonX]           = c => new Providers.IBMWatsonXProvider(c),
-        [LLMProviderType.SambaNova]            = c => new Providers.SambaNovaProvider(c),
-        [LLMProviderType.OpenRouter]           = c => new Providers.OpenRouterProvider(c),
-        [LLMProviderType.LiteLLM]              = c => new Providers.LiteLLMProvider(c),
-        [LLMProviderType.AIMLApi]              = c => new Providers.AIMLApiProvider(c),
-        [LLMProviderType.NovitaAI]             = c => new Providers.NovitaAIProvider(c),
-        [LLMProviderType.DeepInfra]            = c => new Providers.DeepInfraProvider(c),
-        [LLMProviderType.Replicate]            = c => new Providers.ReplicateProvider(c),
-        [LLMProviderType.RekaAI]               = c => new Providers.RekaAIProvider(c),
-        [LLMProviderType.Modal]                = c => new Providers.ModalProvider(c),
-        [LLMProviderType.LlamaCpp]             = c => new Providers.LlamaCppProvider(c),
-        [LLMProviderType.LMStudio]             = c => new Providers.LMStudioProvider(c),
-        [LLMProviderType.LocalAI]              = c => new Providers.LocalAIProvider(c),
-        [LLMProviderType.GPT4All]              = c => new Providers.GPT4AllProvider(c),
-        [LLMProviderType.TextGenWebUI]         = c => new Providers.TextGenWebUIProvider(c),
-        [LLMProviderType.KoboldCPP]            = c => new Providers.KoboldCPPProvider(c),
-        [LLMProviderType.HuggingFaceInference] = c => new Providers.HuggingFaceInferenceProvider(c),
-        [LLMProviderType.HuggingFaceTGI]       = c => new Providers.HuggingFaceTGIProvider(c),
-        [LLMProviderType.AI21Labs]             = c => new Providers.AI21LabsProvider(c),
-        [LLMProviderType.Writer]               = c => new Providers.WriterProvider(c),
-        [LLMProviderType.NvidiaNIM]            = c => new Providers.NvidiaNIMProvider(c),
-        [LLMProviderType.Anyscale]             = c => new Providers.AnyscaleProvider(c),
-        [LLMProviderType.OctoAI]               = c => new Providers.OctoAIProvider(c),
-        [LLMProviderType.LeptonAI]             = c => new Providers.LeptonAIProvider(c),
-        [LLMProviderType.FriendliAI]           = c => new Providers.FriendliAIProvider(c),
-        [LLMProviderType.MoonshotKimi]         = c => new Providers.MoonshotKimiProvider(c),
-        [LLMProviderType.ZhipuGLM]             = c => new Providers.ZhipuGLMProvider(c),
-        [LLMProviderType.Baichuan]             = c => new Providers.BaichuanProvider(c),
-        [LLMProviderType.ByteDanceDoubao]      = c => new Providers.ByteDanceDoubaoProvider(c),
-        [LLMProviderType.AlibabaQwen]          = c => new Providers.AlibabaQwenProvider(c),
-        [LLMProviderType.BaiduERNIE]           = c => new Providers.BaiduERNIEProvider(c),
-        [LLMProviderType.TencentHunyuan]       = c => new Providers.TencentHunyuanProvider(c),
-        [LLMProviderType.YiAI]                 = c => new Providers.YiAIProvider(c),
-        [LLMProviderType.AI21Jamba]            = c => new Providers.AI21JambaProvider(c),
-        [LLMProviderType.SnowflakeArctic]      = c => new Providers.SnowflakeArcticProvider(c),
-        [LLMProviderType.Phind]                = c => new Providers.PhindProvider(c),
-        [LLMProviderType.YouCom]               = c => new Providers.YouComProvider(c),
-        [LLMProviderType.Hyperbolic]           = c => new Providers.HyperbolicProvider(c),
-        [LLMProviderType.Featherless]          = c => new Providers.FeatherlessProvider(c),
+        [LLMProviderType.OpenAI]            = c => new Providers.OpenAIProvider(c, hcf),
+        [LLMProviderType.Anthropic]         = c => new Providers.AnthropicProvider(c, hcf),
+        [LLMProviderType.DeepSeek]          = c => new Providers.OpenAIProvider(c with { Endpoint = "https://api.deepseek.com/v1" }, hcf),
+        [LLMProviderType.Ollama]            = c => new Providers.OllamaProvider(c, hcf),
+        [LLMProviderType.OllamaResponses]   = c => new Providers.OllamaResponsesProvider(c, hcf),
+        [LLMProviderType.Local]             = c => new Providers.LocalProvider(c, hcf),
+        [LLMProviderType.AzureOpenAI]       = c => new Providers.AzureOpenAIProvider(c, hcf),
+        [LLMProviderType.Gemini]            = c => new Providers.GeminiProvider(c, hcf),
+        [LLMProviderType.Custom]            = c => new Providers.OpenAIProvider(c, hcf),
+        [LLMProviderType.Groq]                 = c => new Providers.GroqProvider(c, hcf),
+        [LLMProviderType.Mistral]              = c => new Providers.MistralAIProvider(c, hcf),
+        [LLMProviderType.XAIGrok]              = c => new Providers.XAIGrokProvider(c, hcf),
+        [LLMProviderType.Cohere]               = c => new Providers.CohereProvider(c, hcf),
+        [LLMProviderType.Perplexity]           = c => new Providers.PerplexityProvider(c, hcf),
+        [LLMProviderType.TogetherAI]           = c => new Providers.TogetherAIProvider(c, hcf),
+        [LLMProviderType.FireworksAI]          = c => new Providers.FireworksAIProvider(c, hcf),
+        [LLMProviderType.Cerebras]             = c => new Providers.CerebrasProvider(c, hcf),
+        [LLMProviderType.AWSBedrock]           = c => new Providers.AWSBedrockProvider(c, hcf),
+        [LLMProviderType.AzureAIFoundry]       = c => new Providers.AzureAIFoundryProvider(c, hcf),
+        [LLMProviderType.IBMWatsonX]           = c => new Providers.IBMWatsonXProvider(c, hcf),
+        [LLMProviderType.SambaNova]            = c => new Providers.SambaNovaProvider(c, hcf),
+        [LLMProviderType.OpenRouter]           = c => new Providers.OpenRouterProvider(c, hcf),
+        [LLMProviderType.LiteLLM]              = c => new Providers.LiteLLMProvider(c, hcf),
+        [LLMProviderType.AIMLApi]              = c => new Providers.AIMLApiProvider(c, hcf),
+        [LLMProviderType.NovitaAI]             = c => new Providers.NovitaAIProvider(c, hcf),
+        [LLMProviderType.DeepInfra]            = c => new Providers.DeepInfraProvider(c, hcf),
+        [LLMProviderType.Replicate]            = c => new Providers.ReplicateProvider(c, hcf),
+        [LLMProviderType.RekaAI]               = c => new Providers.RekaAIProvider(c, hcf),
+        [LLMProviderType.Modal]                = c => new Providers.ModalProvider(c, hcf),
+        [LLMProviderType.LlamaCpp]             = c => new Providers.LlamaCppProvider(c, hcf),
+        [LLMProviderType.LMStudio]             = c => new Providers.LMStudioProvider(c, hcf),
+        [LLMProviderType.LocalAI]              = c => new Providers.LocalAIProvider(c, hcf),
+        [LLMProviderType.GPT4All]              = c => new Providers.GPT4AllProvider(c, hcf),
+        [LLMProviderType.TextGenWebUI]         = c => new Providers.TextGenWebUIProvider(c, hcf),
+        [LLMProviderType.KoboldCPP]            = c => new Providers.KoboldCPPProvider(c, hcf),
+        [LLMProviderType.HuggingFaceInference] = c => new Providers.HuggingFaceInferenceProvider(c, hcf),
+        [LLMProviderType.HuggingFaceTGI]       = c => new Providers.HuggingFaceTGIProvider(c, hcf),
+        [LLMProviderType.AI21Labs]             = c => new Providers.AI21LabsProvider(c, hcf),
+        [LLMProviderType.Writer]               = c => new Providers.WriterProvider(c, hcf),
+        [LLMProviderType.NvidiaNIM]            = c => new Providers.NvidiaNIMProvider(c, hcf),
+        [LLMProviderType.Anyscale]             = c => new Providers.AnyscaleProvider(c, hcf),
+        [LLMProviderType.OctoAI]               = c => new Providers.OctoAIProvider(c, hcf),
+        [LLMProviderType.LeptonAI]             = c => new Providers.LeptonAIProvider(c, hcf),
+        [LLMProviderType.FriendliAI]           = c => new Providers.FriendliAIProvider(c, hcf),
+        [LLMProviderType.MoonshotKimi]         = c => new Providers.MoonshotKimiProvider(c, hcf),
+        [LLMProviderType.ZhipuGLM]             = c => new Providers.ZhipuGLMProvider(c, hcf),
+        [LLMProviderType.Baichuan]             = c => new Providers.BaichuanProvider(c, hcf),
+        [LLMProviderType.ByteDanceDoubao]      = c => new Providers.ByteDanceDoubaoProvider(c, hcf),
+        [LLMProviderType.AlibabaQwen]          = c => new Providers.AlibabaQwenProvider(c, hcf),
+        [LLMProviderType.BaiduERNIE]           = c => new Providers.BaiduERNIEProvider(c, hcf),
+        [LLMProviderType.TencentHunyuan]       = c => new Providers.TencentHunyuanProvider(c, hcf),
+        [LLMProviderType.YiAI]                 = c => new Providers.YiAIProvider(c, hcf),
+        [LLMProviderType.AI21Jamba]            = c => new Providers.AI21JambaProvider(c, hcf),
+        [LLMProviderType.SnowflakeArctic]      = c => new Providers.SnowflakeArcticProvider(c, hcf),
+        [LLMProviderType.Phind]                = c => new Providers.PhindProvider(c, hcf),
+        [LLMProviderType.YouCom]               = c => new Providers.YouComProvider(c, hcf),
+        [LLMProviderType.Hyperbolic]           = c => new Providers.HyperbolicProvider(c, hcf),
+        [LLMProviderType.Featherless]          = c => new Providers.FeatherlessProvider(c, hcf),
     };
 
     private readonly Dictionary<LLMProviderType, Func<LLMWIKYConfig, ILLMProvider>> _registry;
 
-    public LLMProviderFactory() => _registry = new(_builtIn);
+    /// <summary>
+    /// Create a factory that uses its own <c>new HttpClient()</c> per provider (backward-compat, tests).
+    /// </summary>
+    public LLMProviderFactory() => _registry = BuildRegistry(null);
+
+    /// <summary>
+    /// Create a factory backed by ASP.NET Core's <see cref="IHttpClientFactory"/>.
+    /// All providers will receive a named, pooled HttpClient instead of <c>new HttpClient()</c>.
+    /// </summary>
+    public LLMProviderFactory(IHttpClientFactory httpClientFactory)
+        => _registry = BuildRegistry(httpClientFactory);
 
     public void RegisterProvider(LLMProviderType type, Func<LLMWIKYConfig, ILLMProvider> factory)
         => _registry[type] = factory;

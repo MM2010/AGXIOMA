@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using AGXIOME.LLMWIKY.Http;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
@@ -47,7 +48,7 @@ public sealed class OpenAICompatibleProvider : ILLMProvider
     private readonly CircuitBreaker _breaker;
     private static readonly JsonSerializerOptions _jsonOpts = new() { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
 
-    public OpenAICompatibleProvider(LLMWIKYConfig config, string? displayName = null)
+    public OpenAICompatibleProvider(LLMWIKYConfig config, string? displayName = null, IHttpClientFactory? httpClientFactory = null)
     {
         _config = config;
         Name = displayName ?? DeriveNameFromEndpoint(config.Endpoint) ?? "OpenAI-Compatible";
@@ -65,11 +66,21 @@ public sealed class OpenAICompatibleProvider : ILLMProvider
             new RetryPolicy { MaxRetries = config.MaxRetries, BaseDelay = TimeSpan.FromMilliseconds(500) },
             _breaker, Name);
 
-        _http = new HttpClient { Timeout = config.Timeout };
+        if (httpClientFactory is not null)
+        {
+            _http = httpClientFactory.CreateClient(AgxiomeHttpClientDefaults.ClientName(config.Provider));
+            // For unregistered providers BaseAddress is null — set from config.
+            if (_http.BaseAddress is null && !string.IsNullOrWhiteSpace(config.Endpoint))
+                _http.BaseAddress = new Uri(config.Endpoint.TrimEnd('/') + "/");
+        }
+        else
+        {
+            _http = new HttpClient { Timeout = config.Timeout };
+            if (!string.IsNullOrWhiteSpace(config.Endpoint))
+                _http.BaseAddress = new Uri(config.Endpoint.TrimEnd('/') + "/");
+        }
         if (!string.IsNullOrWhiteSpace(config.ApiKey))
-            _http.DefaultRequestHeaders.Add("Authorization", $"Bearer {config.ApiKey}");
-        if (!string.IsNullOrWhiteSpace(config.Endpoint))
-            _http.BaseAddress = new Uri(config.Endpoint.TrimEnd('/') + "/");
+            _http.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Bearer {config.ApiKey}");
     }
 
     // ─── Completion ──────────────────────────────────────────────────────────

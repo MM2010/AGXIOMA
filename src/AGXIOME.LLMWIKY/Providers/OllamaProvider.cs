@@ -1,3 +1,4 @@
+using AGXIOME.LLMWIKY.Http;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
@@ -18,11 +19,16 @@ public sealed class OllamaProvider : ILLMProvider
     private readonly HttpClient _http;
     private readonly LLMWIKYConfig _config;
 
-    public OllamaProvider(LLMWIKYConfig config)
+    public OllamaProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
     {
         _config = config;
-        _http = new HttpClient();
-        _http.BaseAddress = new Uri(config.Endpoint ?? "http://localhost:11434");
+        if (httpClientFactory is not null)
+            _http = httpClientFactory.CreateClient(AgxiomeHttpClientDefaults.ClientName(LLMProviderType.Ollama));
+        else
+        {
+            _http = new HttpClient();
+            _http.BaseAddress = new Uri(config.Endpoint ?? "http://localhost:11434");
+        }
     }
 
     public async Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest request, CancellationToken ct = default)

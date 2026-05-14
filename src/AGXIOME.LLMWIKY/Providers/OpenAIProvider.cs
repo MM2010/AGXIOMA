@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using AGXIOME.LLMWIKY.Http;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
@@ -28,16 +29,33 @@ public sealed class OpenAIProvider : ILLMProvider
     private readonly CircuitBreaker _breaker;
     private static readonly JsonSerializerOptions _json = new() { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
 
-    public OpenAIProvider(LLMWIKYConfig config)
+    public OpenAIProvider(LLMWIKYConfig config, IHttpClientFactory? httpClientFactory = null)
     {
         _config = config;
         _breaker = new CircuitBreaker(failureThreshold: 5);
         _resilient = new ResilientExecutor(
             new RetryPolicy { MaxRetries = config.MaxRetries, BaseDelay = TimeSpan.FromMilliseconds(500) },
             _breaker, "OpenAI");
-        _http = new HttpClient();
-        _http.DefaultRequestHeaders.Add("Authorization", $"Bearer {config.ApiKey}");
-        _http.BaseAddress = new Uri(config.Endpoint ?? "https://api.openai.com/v1");
+
+        // Prefer IHttpClientFactory when available — shared SocketsHttpHandler, no socket exhaustion.
+        // Fall back to a direct HttpClient for backward-compat (e.g. tests, manual instantiation).
+        if (httpClientFactory is not null)
+        {
+            _http = httpClientFactory.CreateClient(AgxiomeHttpClientDefaults.ClientName(config.Provider));
+            // For providers without a registered profile (e.g. Custom, AzureOpenAI) BaseAddress
+            // is null — fall back to the endpoint from config.
+            if (_http.BaseAddress is null && !string.IsNullOrWhiteSpace(config.Endpoint))
+                _http.BaseAddress = new Uri(config.Endpoint.TrimEnd('/') + "/");
+        }
+        else
+        {
+            _http = new HttpClient();
+            _http.BaseAddress = new Uri(config.Endpoint ?? "https://api.openai.com/v1");
+        }
+
+        // Auth header is always set on the specific instance (not shared via profile)
+        if (!string.IsNullOrWhiteSpace(config.ApiKey))
+            _http.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Bearer {config.ApiKey}");
     }
 
     public async Task<LLMWIKYResponse> CompleteAsync(LLMCompletionRequest request, CancellationToken ct = default)

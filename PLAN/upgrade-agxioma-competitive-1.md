@@ -4,7 +4,7 @@ version: 1.0
 date_created: 2026-05-13
 last_updated: 2026-05-13
 owner: AGXIOMA Core Team
-status: 'Planned'
+status: 'In Progress — Phase 1-3 e Phase 5 completate; Phase 4 (docs) pending'
 tags: [architecture, multi-agent, providers, onboarding, ecosystem]
 ---
 
@@ -68,14 +68,14 @@ che Swarms non può replicare facilmente (.NET enterprise, sicurezza, storage de
 
 | Task     | Description | Completed | Date |
 |---|---|---|---|
-| TASK-001 | Creare `AGXIOME.Core/Patterns/MixtureOfAgentsSwarm.cs` — N agenti paralleli per layer, final_agent aggregatore, `LayerStrategy` enum (Parallel/Sequential/Hybrid), `AggregationMode` (Vote/Merge/CriticSynth). Esporre `RunAsync`, `RunBatchedAsync`, `RunConcurrentlyAsync`. | | |
-| TASK-002 | Creare `AGXIOME.Core/Patterns/GroupChatSwarm.cs` — `SpeakerPolicy` enum (RoundRobin/Random/Priority/MentionDriven/Custom), `@mention` regex parser, `ChatTurn` record, `InteractiveMode` flag per REPL. Integrare con `AGXIOME.Realtime` SignalR hub per live streaming turni. | | |
-| TASK-003 | Refactor `AgxiomeWorkflow.cs` → `AgxiomeDagWorkflow.cs` — aggiungere `NodeType` enum, `AddParallelBranch()`, `AddConditionalEdge()`, callback `OnNodeComplete`, topological sort con parallel branch detection automatica. Mantenere backward compat. | | |
-| TASK-004 | Creare `AGXIOME.Core/Patterns/HierarchicalSwarm.cs` — Director LLM che genera piano strutturato, spawns workers per task, feedback loop (worker risponde al director che può correggere), N livelli gerarchici configurabili. | | |
-| TASK-005 | Creare `AGXIOME.Core/Routing/AgxiomeModelRouter.cs` — routing basato su `RoutingStrategy` (Cost/Latency/Capability/Hybrid), `ProviderMetrics` per track latency/cost per provider, fallback chain automatica, circuit breaker integrato da `AGXIOME.LLMWIKY.Resilience`. | | |
-| TASK-006 | Creare `AGXIOME.Core/Patterns/MajorityVotingSwarm.cs` — N agenti rispondono allo stesso task, `VotingMode` (SimpleCount/WeightedScore/LLMJudge), confidence threshold configurabile. | | |
-| TASK-007 | Creare `AGXIOME.Core/Patterns/PlannerWorkerSwarm.cs` — Planner LLM genera task list strutturata (JSON), workers eseguono in parallelo, Evaluator LLM valida output e rilancia task falliti. Ispirato a Swarms `planner_worker_swarm` ma con HITL integrato. | | |
-| TASK-008 | Aggiungere `SwarmPatternFactory` statico in `AGXIOME.Core/Patterns/` per creare pattern con 1 chiamata: `SwarmFactory.MixtureOfAgents(agents, layers)`, `SwarmFactory.GroupChat(agents)`, ecc. — abilita onboarding in 3 righe. | | |
+| TASK-001 | Creare `AGXIOME.Core/Patterns/MixtureOfAgentsSwarm.cs` — N agenti paralleli per layer, final_agent aggregatore, `LayerStrategy` enum (Parallel/Sequential/Hybrid), `AggregationMode` (Vote/Merge/CriticSynth). Esporre `RunAsync`, `RunBatchedAsync`, `RunConcurrentlyAsync`. | ✅ | 2026-05-13 |
+| TASK-002 | Creare `AGXIOME.Core/Patterns/GroupChatSwarm.cs` — `SpeakerPolicy` enum (RoundRobin/Random/Priority/MentionDriven/Custom), `@mention` regex parser, `ChatTurn` record, `InteractiveMode` flag per REPL. Integrare con `AGXIOME.Realtime` SignalR hub per live streaming turni. | ✅ | 2026-05-13 |
+| TASK-003 | Refactor `AgxiomeWorkflow.cs` → `AgxiomeDagWorkflow.cs` — aggiungere `NodeType` enum, `AddParallelBranch()`, `AddConditionalEdge()`, callback `OnNodeComplete`, topological sort con parallel branch detection automatica. Mantenere backward compat. | ✅ | 2026-05-13 |
+| TASK-004 | Creare `AGXIOME.Core/Patterns/HierarchicalSwarm.cs` — Director LLM che genera piano strutturato, spawns workers per task, feedback loop (worker risponde al director che può correggere), N livelli gerarchici configurabili. | ✅ | 2026-05-13 |
+| TASK-005 | Creare `AGXIOME.Core/Routing/AgxiomeModelRouter.cs` — routing basato su `RoutingStrategy` (Cost/Latency/Capability/Hybrid), `ProviderMetrics` per track latency/cost per provider, fallback chain automatica, circuit breaker integrato da `AGXIOME.LLMWIKY.Resilience`. | ✅ | 2026-05-13 |
+| TASK-006 | Creare `AGXIOME.Core/Patterns/MajorityVotingSwarm.cs` — N agenti rispondono allo stesso task, `VotingMode` (SimpleCount/WeightedScore/LLMJudge), confidence threshold configurabile. | ✅ | 2026-05-13 |
+| TASK-007 | Creare `AGXIOME.Core/Patterns/PlannerWorkerSwarm.cs` — Planner LLM genera task list strutturata (JSON), workers eseguono in parallelo, Evaluator LLM valida output e rilancia task falliti. Ispirato a Swarms `planner_worker_swarm` ma con HITL integrato. | ✅ | 2026-05-13 |
+| TASK-008 | Aggiungere `SwarmPatternFactory` statico in `AGXIOME.Core/Patterns/` per creare pattern con 1 chiamata: `SwarmFactory.MixtureOfAgents(agents, layers)`, `SwarmFactory.GroupChat(agents)`, ecc. — abilita onboarding in 3 righe. | ✅ | 2026-05-13 |
 
 ---
 
@@ -105,15 +105,15 @@ AGXIOMA può superarlo costruendo routing intelligente basato su `ProviderMetric
 
 | Task     | Description | Completed | Date |
 |---|---|---|---|
-| TASK-009 | Creare `AGXIOME.LLMWIKY/Providers/AnthropicProvider.cs` — Messages API v1, streaming, tool_use nativo (Anthropic ha proprio formato function calling diverso da OpenAI), vision support. | | |
-| TASK-010 | Creare `AGXIOME.LLMWIKY/Providers/GeminiProvider.cs` — Google AI Studio API + Vertex AI endpoint, `generateContent` con `functionDeclarations`, streaming via SSE, multimodal (testo+immagini). | | |
-| TASK-011 | Creare `AGXIOME.LLMWIKY/Providers/OllamaProvider.cs` — HTTP API locale (`/api/chat`), streaming, tool calling (Ollama 0.3+), modelli dinamici da `/api/tags`. Zero API key — ideale per dev locale. | | |
-| TASK-012 | Creare `AGXIOME.LLMWIKY/Providers/GroqProvider.cs` — OpenAI-compatible endpoint (`api.groq.com/openai/v1`), specializzato per inferenza ultra-rapida, rate limit handling specifico Groq. | | |
-| TASK-013 | Creare `AGXIOME.LLMWIKY/Providers/MistralProvider.cs` — `api.mistral.ai/v1`, OpenAI-compat + endpoint nativo per function calling Mistral format. | | |
-| TASK-014 | Estendere `BedrockAndAzureEmbedders.cs` → creare `BedrockProvider.cs` e `AzureOpenAIProvider.cs` in LLMWIKY per completion (non solo embedding). | | |
-| TASK-015 | Creare `AGXIOME.LLMWIKY/Providers/OpenAICompatibleProvider.cs` — provider generico per qualsiasi API OpenAI-compatible (DeepSeek, Together AI, Fireworks, Perplexity, ecc.) configurabile via `Endpoint` + `ApiKey` + `Model`. Swarms non ha questo livello di genericità. | | |
-| TASK-016 | Implementare `ProviderMetricsCollector` in `AGXIOME.LLMWIKY` — traccia latency p50/p95/p99, token cost per provider, error rate, circuit breaker status. Alimenta `AgxiomeModelRouter` (TASK-005) per routing intelligente. Differenziatore vs Swarms: routing data-driven invece che manuale. | | |
-| TASK-017 | Aggiungere `LLMWIKYConfig.Auto` builder — `LLMWIKYConfig.FromEnv()` che legge automaticamente le env vars presenti (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, ...) e configura i provider disponibili. Onboarding da 0 a multi-provider in 1 riga. | | |
+| TASK-009 | Creare `AGXIOME.LLMWIKY/Providers/AnthropicProvider.cs` — Messages API v1, streaming, tool_use nativo (Anthropic ha proprio formato function calling diverso da OpenAI), vision support. | ✅ | 2026-05-13 |
+| TASK-010 | Creare `AGXIOME.LLMWIKY/Providers/GeminiProvider.cs` — Google AI Studio API + Vertex AI endpoint, `generateContent` con `functionDeclarations`, streaming via SSE, multimodal (testo+immagini). | ✅ | 2026-05-13 |
+| TASK-011 | Creare `AGXIOME.LLMWIKY/Providers/OllamaProvider.cs` — HTTP API locale (`/api/chat`), streaming, tool calling (Ollama 0.3+), modelli dinamici da `/api/tags`. Zero API key — ideale per dev locale. | ✅ | 2026-05-13 |
+| TASK-012 | Creare `AGXIOME.LLMWIKY/Providers/GroqProvider.cs` — OpenAI-compatible endpoint (`api.groq.com/openai/v1`), specializzato per inferenza ultra-rapida, rate limit handling specifico Groq. | ✅ | 2026-05-13 |
+| TASK-013 | Creare `AGXIOME.LLMWIKY/Providers/MistralProvider.cs` — `api.mistral.ai/v1`, OpenAI-compat + endpoint nativo per function calling Mistral format. | ✅ | 2026-05-13 |
+| TASK-014 | Estendere `BedrockAndAzureEmbedders.cs` → creare `BedrockProvider.cs` e `AzureOpenAIProvider.cs` in LLMWIKY per completion (non solo embedding). | ✅ | 2026-05-13 |
+| TASK-015 | Creare `AGXIOME.LLMWIKY/Providers/OpenAICompatibleProvider.cs` — provider generico per qualsiasi API OpenAI-compatible (DeepSeek, Together AI, Fireworks, Perplexity, ecc.) configurabile via `Endpoint` + `ApiKey` + `Model`. Swarms non ha questo livello di genericità. | ✅ | 2026-05-13 |
+| TASK-016 | Implementare `ProviderMetricsCollector` in `AGXIOME.LLMWIKY` — traccia latency p50/p95/p99, token cost per provider, error rate, circuit breaker status. Alimenta `AgxiomeModelRouter` (TASK-005) per routing intelligente. Differenziatore vs Swarms: routing data-driven invece che manuale. | ✅ | 2026-05-13 |
+| TASK-017 | Aggiungere `LLMWIKYConfig.Auto` builder — `LLMWIKYConfig.FromEnv()` che legge automaticamente le env vars presenti (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, ...) e configura i provider disponibili. Onboarding da 0 a multi-provider in 1 riga. | ✅ | 2026-05-13 |
 
 ---
 
@@ -133,11 +133,11 @@ AGXIOMA: richiede `AgentFactory.Configure(loggerFactory)` + `LLMWIKYConfig` + `A
 
 | Task     | Description | Completed | Date |
 |---|---|---|---|
-| TASK-018 | Creare `AgxiomeBuilder` fluent API in `AGXIOME.Core` — `AgxiomeBuilder.Agent("name").WithModel("deepseek-chat").WithApiKey(apiKey).WithTool<HttpFetchTool>().WithMaxIterations(8).Build()` — zero boilerplate, IntelliSense-friendly. Ispirato a Swarms ma con type safety C#. | | |
-| TASK-019 | Creare .NET template `AGXIOME.Templates` — `dotnet new install AGXIOME.Templates` → `dotnet new agxiome-agent`, `dotnet new agxiome-orchestrator`, `dotnet new agxiome-team`. Ogni template produce un progetto funzionante in < 30 secondi. | | |
-| TASK-020 | Creare `AGXIOME.Extensions.DependencyInjection` — `services.AddAgxiome(o => o.UseDeepSeek(apiKey).UseRedis(connStr))` per integrazione ASP.NET Core. Swarms non ha DI nativo. | | |
-| TASK-021 | Aggiornare `AGXIOME.CLI` con comandi strutturati: `agxiome new agent`, `agxiome run <file>`, `agxiome benchmark`, `agxiome doctor` (verifica config, API keys, Redis). Prendere ispirazione da `dotnet ef` UX. | | |
-| TASK-022 | Creare `AgxiomeQuickStart` — static helper che combina TASK-017 e TASK-018: `var agent = AgxiomeQuickStart.CreateAgent("deepseek-chat")` legge API key da env, crea agent funzionante in 1 riga. Demo parity con Swarms `Agent(model_name="gpt-4")`. | | |
+| TASK-018 | Creare `AgxiomeBuilder` fluent API in `AGXIOME.Core` — `AgxiomeBuilder.Agent("name").WithModel("deepseek-chat").WithApiKey(apiKey).WithTool<HttpFetchTool>().WithMaxIterations(8).Build()` — zero boilerplate, IntelliSense-friendly. Ispirato a Swarms ma con type safety C#. | ✅ | 2026-05-13 |
+| TASK-019 | Creare .NET template `AGXIOME.Templates` — `dotnet new install AGXIOME.Templates` → `dotnet new agxiome-agent`, `dotnet new agxiome-orchestrator`, `dotnet new agxiome-team`. Ogni template produce un progetto funzionante in < 30 secondi. | ⚡ | 2026-05-13 |
+| TASK-020 | Creare `AGXIOME.Extensions.DependencyInjection` — `services.AddAgxiome(o => o.UseDeepSeek(apiKey).UseRedis(connStr))` per integrazione ASP.NET Core. Swarms non ha DI nativo. | ✅ | 2026-05-13 |
+| TASK-021 | Aggiornare `AGXIOME.CLI` con comandi strutturati: `agxiome new agent`, `agxiome run <file>`, `agxiome benchmark`, `agxiome doctor` (verifica config, API keys, Redis). Prendere ispirazione da `dotnet ef` UX. | ⚡ | 2026-05-13 |
+| TASK-022 | Creare `AgxiomeQuickStart` — static helper che combina TASK-017 e TASK-018: `var agent = AgxiomeQuickStart.CreateAgent("deepseek-chat")` legge API key da env, crea agent funzionante in 1 riga. Demo parity con Swarms `Agent(model_name="gpt-4")`. | ✅ | 2026-05-13 |
 
 ---
 
@@ -172,11 +172,11 @@ AGXIOMA non ha documentazione pubblica. Swarms ha community Discord da 3000+ dev
 
 | Task     | Description | Completed | Date |
 |---|---|---|---|
-| TASK-029 | `RealtimeGroupChat` — GroupChat con SignalR WebSocket: ogni turno agente streamma token in real-time al client. Swarms non ha WebSocket nativo. Integra `AGXIOME.Realtime` esistente. | | |
-| TASK-030 | `TransactionalSwarm` — Swarm con Outbox Pattern: ogni tool call e ogni agent result viene salvato atomicamente in DB prima di procedere. Replay esatto in caso di crash. Usa `Outbox.cs` e `UnitOfWork.cs` esistenti. Swarms perde tutti i dati in memoria se crashe. | | |
-| TASK-031 | `HITLSwarm` — Swarm con approvazione umana obbligatoria per tool call critiche (es. `file_delete`, `send_email`, `db_write`). Usa `HITLManager` esistente. Pause/resume con stato persistito in Redis. Nessun equivalente in Swarms. | | |
-| TASK-032 | `ComplianceSwarm` — Swarm con guardrail PII automatici, audit trail immutabile per ogni decisione agente, RBAC per chi può lanciare quale swarm. Usa `PIIDetectionGuardrail`, `AuditTrail`, `Rbac` esistenti. Target: settori regolamentati (finance, healthcare, legal). | | |
-| TASK-033 | `DistributedSwarm` — Swarm che distribuisce agenti su più nodi via message queue (Redis Streams / Azure Service Bus). Ogni agente gira in processo separato, risultati aggregati via `TaskStore`. Scala orizzontalmente. Swarms è single-process. | | |
+| TASK-029 | `RealtimeGroupChat` — GroupChat con SignalR WebSocket: ogni turno agente streamma token in real-time al client. Swarms non ha WebSocket nativo. Integra `AGXIOME.Realtime` esistente. | ✅ | 2026-05-13 |
+| TASK-030 | `TransactionalSwarm` — Swarm con Outbox Pattern: ogni tool call e ogni agent result viene salvato atomicamente in DB prima di procedere. Replay esatto in caso di crash. Usa `Outbox.cs` e `UnitOfWork.cs` esistenti. Swarms perde tutti i dati in memoria se crashe. | ✅ | 2026-05-13 |
+| TASK-031 | `HITLSwarm` — Swarm con approvazione umana obbligatoria per tool call critiche (es. `file_delete`, `send_email`, `db_write`). Usa `HITLManager` esistente. Pause/resume con stato persistito in Redis. Nessun equivalente in Swarms. | ✅ | 2026-05-13 |
+| TASK-032 | `ComplianceSwarm` — Swarm con guardrail PII automatici, audit trail immutabile per ogni decisione agente, RBAC per chi può lanciare quale swarm. Usa `PIIDetectionGuardrail`, `AuditTrail`, `Rbac` esistenti. Target: settori regolamentati (finance, healthcare, legal). | ✅ | 2026-05-13 |
+| TASK-033 | `DistributedSwarm` — Swarm che distribuisce agenti su più nodi via message queue (Redis Streams / Azure Service Bus). Ogni agente gira in processo separato, risultati aggregati via `TaskStore`. Scala orizzontalmente. Swarms è single-process. | ✅ | 2026-05-13 |
 
 ---
 

@@ -1,4 +1,5 @@
 using AGXIOME.Core;
+using AGXIOME.Core.DependencyInjection;
 using AGXIOME.Core.Patterns;
 using AGXIOME.Shared.Models;
 using AgxiomaStockTracker;
@@ -26,19 +27,9 @@ builder.Services.AddHttpClient<MarketDataClient>();
 // ── ForestSwarm — route by asset class (stock / crypto / etf) ────────────────
 builder.Services.AddSingleton<ForestSwarm>(_ =>
 {
-    var provider = Enum.TryParse<LLMProviderType>(builder.Configuration["Agent:Provider"] ?? "OpenAI", ignoreCase: true, out var p) ? p : LLMProviderType.OpenAI;
-    var model    = cfg.Model ?? "MODEL_PLACEHOLDER";
-
-    // Resolve API key
-    var apiKey = provider switch
-    {
-        LLMProviderType.DeepSeek  => builder.Configuration["LLMProvider:DeepSeek:ApiKey"]
-                                     ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY"),
-        LLMProviderType.Anthropic => builder.Configuration["LLMProvider:Anthropic:ApiKey"]
-                                     ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY"),
-        _                         => builder.Configuration["LLMProvider:OpenAI:ApiKey"]
-                                     ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY")
-    };
+    var (provider, defaultModel, _) = AgxiomeProviderResolver.Resolve(builder.Configuration["Agent:Provider"] ?? "openai", builder.Configuration);
+    var model  = cfg.Model ?? defaultModel;
+    var apiKey = AgxiomeProviderResolver.ResolveApiKey(provider, builder.Configuration);
 
     var stockAnalyst = AgxiomeBuilder.Agent("stock-analyst")
         .UseModel(provider, model, apiKey)
