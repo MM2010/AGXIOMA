@@ -105,7 +105,7 @@ public sealed class ElasticsearchDenseStore : IVectorStore
         VectorFilter? filter = null, CancellationToken ct = default)
     {
         var resp = await _client.SearchAsync<System.Text.Json.JsonElement>(s => s
-            .Index(collection)
+            .Indices(collection)
             .Knn(k => k
                 .Field("vector")
                 .QueryVector(queryVector)

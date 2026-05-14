@@ -5,12 +5,12 @@ namespace AGXIOME.Tests.F12;
 
 public sealed class SalesforceToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("salesforce", new SalesforceToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Salesforce", new SalesforceToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new SalesforceToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("salesforce", new SalesforceToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Salesforce", new SalesforceToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new SalesforceToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new SalesforceToolkit().ExecuteAsync("query", [], default).GetAwaiter().GetResult();
+        var r = await new SalesforceToolkit().ExecuteAsync("query", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -23,12 +23,12 @@ public sealed class SalesforceToolkitTests
 
 public sealed class HubSpotToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("hubspot", new HubSpotToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("HubSpot", new HubSpotToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new HubSpotToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("hubspot", new HubSpotToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("HubSpot", new HubSpotToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new HubSpotToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new HubSpotToolkit().ExecuteAsync("list_contacts", [], default).GetAwaiter().GetResult();
+        var r = await new HubSpotToolkit().ExecuteAsync("list_contacts", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -41,12 +41,12 @@ public sealed class HubSpotToolkitTests
 
 public sealed class ZendeskToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("zendesk", new ZendeskToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Zendesk", new ZendeskToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new ZendeskToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("zendesk", new ZendeskToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Zendesk", new ZendeskToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new ZendeskToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new ZendeskToolkit().ExecuteAsync("list_tickets", [], default).GetAwaiter().GetResult();
+        var r = await new ZendeskToolkit().ExecuteAsync("list_tickets", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -59,12 +59,12 @@ public sealed class ZendeskToolkitTests
 
 public sealed class ServiceNowToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("servicenow", new ServiceNowToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("ServiceNow", new ServiceNowToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new ServiceNowToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("servicenow", new ServiceNowToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("ServiceNow", new ServiceNowToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new ServiceNowToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new ServiceNowToolkit().ExecuteAsync("list_incidents", [], default).GetAwaiter().GetResult();
+        var r = await new ServiceNowToolkit().ExecuteAsync("list_incidents", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -77,12 +77,12 @@ public sealed class ServiceNowToolkitTests
 
 public sealed class DatadogToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("datadog", new DatadogToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Datadog", new DatadogToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new DatadogToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("datadog", new DatadogToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Datadog", new DatadogToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new DatadogToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new DatadogToolkit().ExecuteAsync("query_metrics", [], default).GetAwaiter().GetResult();
+        var r = await new DatadogToolkit().ExecuteAsync("query_metrics", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -95,12 +95,12 @@ public sealed class DatadogToolkitTests
 
 public sealed class PagerDutyToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("pagerduty", new PagerDutyToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("PagerDuty", new PagerDutyToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new PagerDutyToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("pagerduty", new PagerDutyToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("PagerDuty", new PagerDutyToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new PagerDutyToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new PagerDutyToolkit().ExecuteAsync("list_incidents", [], default).GetAwaiter().GetResult();
+        var r = await new PagerDutyToolkit().ExecuteAsync("list_incidents", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -113,12 +113,12 @@ public sealed class PagerDutyToolkitTests
 
 public sealed class SentryToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("sentry", new SentryToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Sentry", new SentryToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new SentryToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("sentry", new SentryToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Sentry", new SentryToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new SentryToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new SentryToolkit().ExecuteAsync("list_issues", [], default).GetAwaiter().GetResult();
+        var r = await new SentryToolkit().ExecuteAsync("list_issues", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -131,12 +131,12 @@ public sealed class SentryToolkitTests
 
 public sealed class GrafanaToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("grafana", new GrafanaToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Grafana", new GrafanaToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new GrafanaToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("grafana", new GrafanaToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Grafana", new GrafanaToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new GrafanaToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new GrafanaToolkit().ExecuteAsync("list_dashboards", [], default).GetAwaiter().GetResult();
+        var r = await new GrafanaToolkit().ExecuteAsync("list_dashboards", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -149,12 +149,12 @@ public sealed class GrafanaToolkitTests
 
 public sealed class NewRelicToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("newrelic", new NewRelicToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("New Relic", new NewRelicToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new NewRelicToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("newrelic", new NewRelicToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("New Relic", new NewRelicToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new NewRelicToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new NewRelicToolkit().ExecuteAsync("query_nrql", [], default).GetAwaiter().GetResult();
+        var r = await new NewRelicToolkit().ExecuteAsync("query_nrql", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -167,12 +167,12 @@ public sealed class NewRelicToolkitTests
 
 public sealed class ElasticsearchToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("elasticsearch", new ElasticsearchToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Elasticsearch", new ElasticsearchToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new ElasticsearchToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("elasticsearch", new ElasticsearchToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Elasticsearch", new ElasticsearchToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new ElasticsearchToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new ElasticsearchToolkit().ExecuteAsync("search", [], default).GetAwaiter().GetResult();
+        var r = await new ElasticsearchToolkit().ExecuteAsync("search", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -185,12 +185,12 @@ public sealed class ElasticsearchToolkitTests
 
 public sealed class OktaToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("okta", new OktaToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Okta", new OktaToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new OktaToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("okta", new OktaToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Okta", new OktaToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new OktaToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new OktaToolkit().ExecuteAsync("list_users", [], default).GetAwaiter().GetResult();
+        var r = await new OktaToolkit().ExecuteAsync("list_users", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -203,12 +203,12 @@ public sealed class OktaToolkitTests
 
 public sealed class Auth0ToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("auth0", new Auth0Toolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Auth0", new Auth0Toolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new Auth0Toolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("auth0", new Auth0Toolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Auth0", new Auth0Toolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Enterprise, new Auth0Toolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new Auth0Toolkit().ExecuteAsync("list_users", [], default).GetAwaiter().GetResult();
+        var r = await new Auth0Toolkit().ExecuteAsync("list_users", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()

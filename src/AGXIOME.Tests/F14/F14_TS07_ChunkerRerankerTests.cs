@@ -18,23 +18,23 @@ namespace AGXIOME.Tests.F14;
 
 public sealed class TS07_SentenceChunkerExtendedTests
 {
-    [Fact] public void ChunkerType_IsSentence()
+    [Fact] public async Task ChunkerType_IsSentence()
         => Assert.Equal(ChunkerType.Sentence, new SentenceChunker().ChunkerType);
 
-    [Fact] public void SingleSentence_ReturnsOneChunk()
+    [Fact] public async Task SingleSentence_ReturnsOneChunk()
     {
         var chunks = new SentenceChunker().Chunk("Hello world.", maxTokens: 100);
         Assert.Single(chunks);
         Assert.False(string.IsNullOrWhiteSpace(chunks[0].Content));
     }
 
-    [Fact] public void ChunkIndexes_StartAtZero()
+    [Fact] public async Task ChunkIndexes_StartAtZero()
     {
         var chunks = new SentenceChunker().Chunk("Sentence one. Sentence two. Sentence three.");
         Assert.Equal(0, chunks[0].ChunkIndex);
     }
 
-    [Fact] public void ChunkIndexes_AreSequential()
+    [Fact] public async Task ChunkIndexes_AreSequential()
     {
         var text  = string.Join(" ", Enumerable.Range(0, 20).Select(i => $"Sentence {i} ends here."));
         var chunks = new SentenceChunker().Chunk(text, maxTokens: 30);
@@ -42,7 +42,7 @@ public sealed class TS07_SentenceChunkerExtendedTests
             Assert.Equal(i + 1, chunks[i + 1].ChunkIndex);
     }
 
-    [Fact] public void MaxTokens_LimitEnforced()
+    [Fact] public async Task MaxTokens_LimitEnforced()
     {
         var longText = string.Join(" ", Enumerable.Range(0, 100).Select(i => $"Token{i}"));
         var chunks   = new SentenceChunker().Chunk(longText, maxTokens: 10, overlap: 0);
@@ -50,7 +50,7 @@ public sealed class TS07_SentenceChunkerExtendedTests
         Assert.All(chunks, c => Assert.True(c.Content.Split(' ').Length <= 200));
     }
 
-    [Fact] public void Overlap_DoesNotExceedChunkSize()
+    [Fact] public async Task Overlap_DoesNotExceedChunkSize()
     {
         var text   = string.Join(". ", Enumerable.Range(0, 10).Select(i => $"Sentence {i} text here"));
         var chunks = new SentenceChunker().Chunk(text, maxTokens: 20, overlap: 5);
@@ -64,37 +64,37 @@ public sealed class TS07_SentenceChunkerExtendedTests
 
 public sealed class TS07_RecursiveChunkerExtendedTests
 {
-    [Fact] public void ChunkerType_IsRecursive()
+    [Fact] public async Task ChunkerType_IsRecursive()
         => Assert.Equal(ChunkerType.Recursive, new RecursiveChunker().ChunkerType);
 
-    [Fact] public void EmptyInput_ReturnsOneChunk()
+    [Fact] public async Task EmptyInput_ReturnsOneChunk()
     {
         var chunks = new RecursiveChunker().Chunk(string.Empty, maxTokens: 100);
         Assert.Single(chunks);
     }
 
-    [Fact] public void WhitespaceOnly_ReturnsOneChunk()
+    [Fact] public async Task WhitespaceOnly_ReturnsOneChunk()
     {
         var chunks = new RecursiveChunker().Chunk("   ", maxTokens: 100);
         // RecursiveChunker may return empty or one chunk for whitespace-only input
         Assert.True(chunks.Count <= 1);
     }
 
-    [Fact] public void LongText_SplitsCorrectly()
+    [Fact] public async Task LongText_SplitsCorrectly()
     {
         var text   = string.Join("\n\n", Enumerable.Range(0, 10).Select(i => $"Paragraph {i} with more text inside it."));
         var chunks = new RecursiveChunker().Chunk(text, maxTokens: 20, overlap: 0);
         Assert.True(chunks.Count >= 2);
     }
 
-    [Fact] public void AllChunks_HaveNonEmptyContent()
+    [Fact] public async Task AllChunks_HaveNonEmptyContent()
     {
         var text   = string.Join(" ", Enumerable.Range(0, 50).Select(i => $"Word{i}"));
         var chunks = new RecursiveChunker().Chunk(text, maxTokens: 10, overlap: 0);
         Assert.All(chunks, c => Assert.False(string.IsNullOrWhiteSpace(c.Content)));
     }
 
-    [Fact] public void LargeOverlap_StillProducesValidChunks()
+    [Fact] public async Task LargeOverlap_StillProducesValidChunks()
     {
         var text   = string.Join(" ", Enumerable.Range(0, 30).Select(i => $"Word{i}"));
         var chunks = new RecursiveChunker().Chunk(text, maxTokens: 10, overlap: 5);
@@ -108,29 +108,29 @@ public sealed class TS07_RecursiveChunkerExtendedTests
 
 public sealed class TS07_WordChunkerExtendedTests
 {
-    [Fact] public void ChunkerType_IsSlidingWindow()
+    [Fact] public async Task ChunkerType_IsSlidingWindow()
         => Assert.Equal(ChunkerType.SlidingWindow, new SlidingWindowChunker().ChunkerType);
 
-    [Fact] public void EmptyInput_ReturnsOneChunk()
+    [Fact] public async Task EmptyInput_ReturnsOneChunk()
         => Assert.Single(new SlidingWindowChunker().Chunk(string.Empty));
 
-    [Fact] public void SingleWord_ReturnsOneChunk()
+    [Fact] public async Task SingleWord_ReturnsOneChunk()
         => Assert.Single(new SlidingWindowChunker().Chunk("Hello"));
 
-    [Fact] public void NWords_ProducesCorrectCount()
+    [Fact] public async Task NWords_ProducesCorrectCount()
     {
         var text   = string.Join(" ", Enumerable.Range(0, 100).Select(i => $"w{i}"));
         var chunks = new SlidingWindowChunker().Chunk(text, maxTokens: 10, overlap: 0);
         Assert.True(chunks.Count >= 10);
     }
 
-    [Fact] public void AllContent_Preserved()
+    [Fact] public async Task AllContent_Preserved()
     {
         var text   = "alpha beta gamma delta epsilon";
         var chunks = new SlidingWindowChunker().Chunk(text, maxTokens: 2, overlap: 0);
         var joined = string.Join(" ", chunks.Select(c => c.Content.Trim()));
         // At least one word from the input should appear in the chunks
-        Assert.True(text.Split(' ').Any(word => joined.Contains(word)));
+        Assert.Contains(text.Split(' '), word => joined.Contains(word));
     }
 }
 
@@ -140,23 +140,23 @@ public sealed class TS07_WordChunkerExtendedTests
 
 public sealed class TS07_MarkdownChunkerExtendedTests
 {
-    [Fact] public void ChunkerType_IsHeading()
+    [Fact] public async Task ChunkerType_IsHeading()
         => Assert.Equal(ChunkerType.Heading, new HeadingChunker().ChunkerType);
 
-    [Fact] public void NoHeadings_ReturnsAtLeastOne()
+    [Fact] public async Task NoHeadings_ReturnsAtLeastOne()
     {
         var result = new HeadingChunker().Chunk("Plain text without any headings.");
         Assert.NotEmpty(result);
     }
 
-    [Fact] public void MultipleH1_SplitsAtHeadings()
+    [Fact] public async Task MultipleH1_SplitsAtHeadings()
     {
         var md = "# Intro\n\nSome text.\n\n# Chapter 2\n\nMore text.";
         var result = new HeadingChunker().Chunk(md, maxTokens: 200);
         Assert.True(result.Count >= 1);
     }
 
-    [Fact] public void EmptyMarkdown_ReturnsOneChunk()
+    [Fact] public async Task EmptyMarkdown_ReturnsOneChunk()
         => Assert.Single(new HeadingChunker().Chunk(string.Empty));
 }
 
@@ -166,20 +166,20 @@ public sealed class TS07_MarkdownChunkerExtendedTests
 
 public sealed class TS07_TokenChunkerExtendedTests
 {
-    [Fact] public void ChunkerType_IsFixed()
+    [Fact] public async Task ChunkerType_IsFixed()
         => Assert.Equal(ChunkerType.Fixed, new FixedSizeChunker().ChunkerType);
 
-    [Fact] public void EmptyInput_ReturnsOneChunk()
+    [Fact] public async Task EmptyInput_ReturnsOneChunk()
         => Assert.Single(new FixedSizeChunker().Chunk(string.Empty));
 
-    [Fact] public void LongText_SplitsIntoMultipleChunks()
+    [Fact] public async Task LongText_SplitsIntoMultipleChunks()
     {
         var text   = string.Join(" ", Enumerable.Range(0, 200).Select(i => $"tok{i}"));
         var chunks = new FixedSizeChunker().Chunk(text, maxTokens: 20, overlap: 0);
         Assert.True(chunks.Count >= 5);
     }
 
-    [Fact] public void AllChunks_NonEmpty()
+    [Fact] public async Task AllChunks_NonEmpty()
     {
         var text   = string.Join(" ", Enumerable.Range(0, 50).Select(i => $"word{i}"));
         var chunks = new FixedSizeChunker().Chunk(text, maxTokens: 10, overlap: 0);
@@ -221,7 +221,7 @@ public sealed class TS07_RerankerExtendedTests
 
     // ── CrossEncoderOnnxReranker ───────────────────────────────────────────
 
-    [Fact] public void CrossEncoder_RerankerType_IsCrossEncoderOnnx()
+    [Fact] public async Task CrossEncoder_RerankerType_IsCrossEncoderOnnx()
         => Assert.Equal(RerankerType.CrossEncoderOnnx, new CrossEncoderOnnxReranker(OnnxOpts()).RerankerType);
 
     [Fact] public async Task CrossEncoder_EmptyList_ReturnsEmpty()
@@ -248,7 +248,7 @@ public sealed class TS07_RerankerExtendedTests
 
     // ── MixedBreadOnnxReranker ────────────────────────────────────────────
 
-    [Fact] public void MixedBread_RerankerType_IsMixedBreadOnnx()
+    [Fact] public async Task MixedBread_RerankerType_IsMixedBreadOnnx()
         => Assert.Equal(RerankerType.MixedBreadOnnx, new MixedBreadOnnxReranker(OnnxOpts()).RerankerType);
 
     [Fact] public async Task MixedBread_EmptyList_ReturnsEmpty()
@@ -271,7 +271,7 @@ public sealed class TS07_RerankerExtendedTests
 
     // ── CohereRerankEnglish ───────────────────────────────────────────────
 
-    [Fact] public void Cohere_RerankerType_IsCohereEnglish()
+    [Fact] public async Task Cohere_RerankerType_IsCohereEnglish()
     {
         var r = new CohereRerankEnglish(new HttpClient(), new CohereRerankerOptions { ApiKey = "k" });
         Assert.Equal(RerankerType.CohereEnglish, r.RerankerType);
@@ -287,7 +287,7 @@ public sealed class TS07_RerankerExtendedTests
 
     // ── LLMReranker ───────────────────────────────────────────────────────
 
-    [Fact] public void Llm_RerankerType_IsLlmReranker()
+    [Fact] public async Task Llm_RerankerType_IsLlmReranker()
     {
         var llm = Substitute.For<ILLMProvider>();
         Assert.Equal(RerankerType.LLMReranker, new LlmReranker(llm).RerankerType);
@@ -301,7 +301,7 @@ public sealed class TS07_RerankerExtendedTests
 
     // ── BgeOnnxReranker ──────────────────────────────────────────────────
 
-    [Fact] public void Bge_RerankerType_IsBgeOnnx()
+    [Fact] public async Task Bge_RerankerType_IsBgeOnnx()
         => Assert.Equal(RerankerType.BgeOnnx, new BgeOnnxReranker(OnnxOpts()).RerankerType);
 
     [Fact] public async Task Bge_EmptyList_ReturnsEmpty()

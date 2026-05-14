@@ -133,9 +133,9 @@ public sealed class OpenAIProvider : ILLMProvider
         using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
 
-        while (!reader.EndOfStream && !ct.IsCancellationRequested)
+        string? line;
+        while (!ct.IsCancellationRequested && (line = await reader.ReadLineAsync(ct)) is not null)
         {
-            var line = await reader.ReadLineAsync(ct) ?? "";
             if (!line.StartsWith("data: ")) continue;
             var data = line[6..];
             if (data == "[DONE]") { yield return new LLMWIKYChunk("", IsFinal: true); yield break; }

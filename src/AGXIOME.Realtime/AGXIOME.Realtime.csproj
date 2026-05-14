@@ -7,9 +7,10 @@
     <ProjectReference Include="..\AGXIOME.Orchestration\AGXIOME.Orchestration.csproj" />
   </ItemGroup>
 
-  <!-- Microsoft.AspNetCore.SignalR provides IHubContext for SignalR hubs -->
+  <!-- SignalR ships with ASP.NET Core in .NET 10 — use FrameworkReference instead of the
+       old Microsoft.AspNetCore.SignalR 1.x package which pulled in Newtonsoft.Json 11.x (CVE) -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.2.0" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -5,12 +5,12 @@ namespace AGXIOME.Tests.F12;
 
 public sealed class SlackToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("slack", new SlackToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Slack", new SlackToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new SlackToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("slack", new SlackToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Slack", new SlackToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new SlackToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new SlackToolkit().ExecuteAsync("send_message", [], default).GetAwaiter().GetResult();
+        var r = await new SlackToolkit().ExecuteAsync("send_message", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -23,12 +23,12 @@ public sealed class SlackToolkitTests
 
 public sealed class DiscordToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("discord", new DiscordToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Discord", new DiscordToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new DiscordToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("discord", new DiscordToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Discord", new DiscordToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new DiscordToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new DiscordToolkit().ExecuteAsync("send_message", [], default).GetAwaiter().GetResult();
+        var r = await new DiscordToolkit().ExecuteAsync("send_message", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -41,12 +41,12 @@ public sealed class DiscordToolkitTests
 
 public sealed class TelegramToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("telegram", new TelegramToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Telegram", new TelegramToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new TelegramToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("telegram", new TelegramToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Telegram", new TelegramToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new TelegramToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new TelegramToolkit().ExecuteAsync("send_message", [], default).GetAwaiter().GetResult();
+        var r = await new TelegramToolkit().ExecuteAsync("send_message", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -59,12 +59,12 @@ public sealed class TelegramToolkitTests
 
 public sealed class WhatsAppToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("whatsapp", new WhatsAppToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("WhatsApp", new WhatsAppToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new WhatsAppToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("whatsapp", new WhatsAppToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("WhatsApp", new WhatsAppToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new WhatsAppToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new WhatsAppToolkit().ExecuteAsync("send_message", [], default).GetAwaiter().GetResult();
+        var r = await new WhatsAppToolkit().ExecuteAsync("send_message", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -77,12 +77,12 @@ public sealed class WhatsAppToolkitTests
 
 public sealed class EmailSmtpToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("email_smtp", new EmailSmtpToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Email SMTP", new EmailSmtpToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new EmailSmtpToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("email_smtp", new EmailSmtpToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Email SMTP", new EmailSmtpToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new EmailSmtpToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new EmailSmtpToolkit().ExecuteAsync("send_email", [], default).GetAwaiter().GetResult();
+        var r = await new EmailSmtpToolkit().ExecuteAsync("send_email", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -95,12 +95,12 @@ public sealed class EmailSmtpToolkitTests
 
 public sealed class GmailToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("gmail", new GmailToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Gmail", new GmailToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new GmailToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("gmail", new GmailToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Gmail", new GmailToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new GmailToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new GmailToolkit().ExecuteAsync("send_email", [], default).GetAwaiter().GetResult();
+        var r = await new GmailToolkit().ExecuteAsync("send_email", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -113,12 +113,12 @@ public sealed class GmailToolkitTests
 
 public sealed class TeamsToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("teams", new TeamsToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Microsoft Teams", new TeamsToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new TeamsToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("teams", new TeamsToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Microsoft Teams", new TeamsToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new TeamsToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new TeamsToolkit().ExecuteAsync("send_message", [], default).GetAwaiter().GetResult();
+        var r = await new TeamsToolkit().ExecuteAsync("send_message", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -131,12 +131,12 @@ public sealed class TeamsToolkitTests
 
 public sealed class ZoomToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("zoom", new ZoomToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Zoom", new ZoomToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new ZoomToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("zoom", new ZoomToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Zoom", new ZoomToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new ZoomToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new ZoomToolkit().ExecuteAsync("create_meeting", [], default).GetAwaiter().GetResult();
+        var r = await new ZoomToolkit().ExecuteAsync("create_meeting", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -149,12 +149,12 @@ public sealed class ZoomToolkitTests
 
 public sealed class GoogleChatToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("google_chat", new GoogleChatToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Google Chat", new GoogleChatToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new GoogleChatToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("google_chat", new GoogleChatToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Google Chat", new GoogleChatToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new GoogleChatToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new GoogleChatToolkit().ExecuteAsync("send_message", [], default).GetAwaiter().GetResult();
+        var r = await new GoogleChatToolkit().ExecuteAsync("send_message", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -167,12 +167,12 @@ public sealed class GoogleChatToolkitTests
 
 public sealed class TwilioToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("twilio", new TwilioToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Twilio", new TwilioToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new TwilioToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("twilio", new TwilioToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Twilio", new TwilioToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new TwilioToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new TwilioToolkit().ExecuteAsync("send_sms", [], default).GetAwaiter().GetResult();
+        var r = await new TwilioToolkit().ExecuteAsync("send_sms", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -185,12 +185,12 @@ public sealed class TwilioToolkitTests
 
 public sealed class SendGridToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("sendgrid", new SendGridToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("SendGrid", new SendGridToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new SendGridToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("sendgrid", new SendGridToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("SendGrid", new SendGridToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new SendGridToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new SendGridToolkit().ExecuteAsync("send_email", [], default).GetAwaiter().GetResult();
+        var r = await new SendGridToolkit().ExecuteAsync("send_email", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -203,12 +203,12 @@ public sealed class SendGridToolkitTests
 
 public sealed class MailchimpToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("mailchimp", new MailchimpToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Mailchimp", new MailchimpToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new MailchimpToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("mailchimp", new MailchimpToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Mailchimp", new MailchimpToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new MailchimpToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new MailchimpToolkit().ExecuteAsync("send_campaign", [], default).GetAwaiter().GetResult();
+        var r = await new MailchimpToolkit().ExecuteAsync("send_campaign", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -221,12 +221,12 @@ public sealed class MailchimpToolkitTests
 
 public sealed class PushbulletToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("pushbullet", new PushbulletToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Pushbullet", new PushbulletToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new PushbulletToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("pushbullet", new PushbulletToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Pushbullet", new PushbulletToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new PushbulletToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new PushbulletToolkit().ExecuteAsync("push_note", [], default).GetAwaiter().GetResult();
+        var r = await new PushbulletToolkit().ExecuteAsync("push_note", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -239,12 +239,12 @@ public sealed class PushbulletToolkitTests
 
 public sealed class WebhookToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("webhook", new WebhookToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Webhook", new WebhookToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new WebhookToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("webhook", new WebhookToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Webhook", new WebhookToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new WebhookToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new WebhookToolkit().ExecuteAsync("post", [], default).GetAwaiter().GetResult();
+        var r = await new WebhookToolkit().ExecuteAsync("post", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -257,12 +257,12 @@ public sealed class WebhookToolkitTests
 
 public sealed class MqttToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("mqtt", new MqttToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("MQTT", new MqttToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new MqttToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("mqtt", new MqttToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("MQTT", new MqttToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Communication, new MqttToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new MqttToolkit().ExecuteAsync("publish", [], default).GetAwaiter().GetResult();
+        var r = await new MqttToolkit().ExecuteAsync("publish", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()

@@ -44,32 +44,32 @@ public sealed class RT01_ProgramScaffoldTests : IClassFixture<WebApplicationFact
         Assert.True(body!.ContainsKey("status") || body.ContainsKey("Status"));
     }
 
-    [Fact] public void Services_IKeyRotationService_Registered()
+    [Fact] public async Task Services_IKeyRotationService_Registered()
     {
         using var scope = _factory.Services.CreateScope();
         var svc = scope.ServiceProvider.GetService<IKeyRotationService>();
         Assert.NotNull(svc);
     }
 
-    [Fact] public void Services_IApiKeyStore_Registered()
+    [Fact] public async Task Services_IApiKeyStore_Registered()
     {
         using var scope = _factory.Services.CreateScope();
         Assert.NotNull(scope.ServiceProvider.GetService<IApiKeyStore>());
     }
 
-    [Fact] public void Services_IRbacPolicy_Registered()
+    [Fact] public async Task Services_IRbacPolicy_Registered()
     {
         using var scope = _factory.Services.CreateScope();
         Assert.NotNull(scope.ServiceProvider.GetService<IRbacPolicy>());
     }
 
-    [Fact] public void Services_IRateLimiter_Registered()
+    [Fact] public async Task Services_IRateLimiter_Registered()
     {
         using var scope = _factory.Services.CreateScope();
         Assert.NotNull(scope.ServiceProvider.GetService<IRateLimiter>());
     }
 
-    [Fact] public void Services_AuditLogger_Registered()
+    [Fact] public async Task Services_AuditLogger_Registered()
     {
         using var scope = _factory.Services.CreateScope();
         Assert.NotNull(scope.ServiceProvider.GetService<AuditLogger>());
@@ -150,39 +150,39 @@ public sealed class RT03_RbacTests
 {
     private readonly IRbacPolicy _policy = new DefaultRbacPolicy();
 
-    [Fact] public void Viewer_CannotDelete()
+    [Fact] public async Task Viewer_CannotDelete()
     {
         var viewer = new AgxiomePrincipal("v", [AgxiomeRole.Viewer], []);
         Assert.False(_policy.IsAuthorized(viewer, AgxiomePermission.AgentDelete));
     }
 
-    [Fact] public void Admin_CanDoEverything()
+    [Fact] public async Task Admin_CanDoEverything()
     {
         var admin = new AgxiomePrincipal("a", [AgxiomeRole.Admin], []);
         foreach (AgxiomePermission perm in Enum.GetValues<AgxiomePermission>())
             Assert.True(_policy.IsAuthorized(admin, perm), $"Admin missing permission: {perm}");
     }
 
-    [Fact] public void Operator_CanRun()
+    [Fact] public async Task Operator_CanRun()
     {
         var op = new AgxiomePrincipal("o", [AgxiomeRole.Operator], []);
         Assert.True(_policy.IsAuthorized(op, AgxiomePermission.AgentRun));
     }
 
-    [Fact] public void MultiRole_GrantsUnion()
+    [Fact] public async Task MultiRole_GrantsUnion()
     {
         var both = new AgxiomePrincipal("b", [AgxiomeRole.Viewer, AgxiomeRole.Operator], []);
         Assert.True(_policy.IsAuthorized(both, AgxiomePermission.AgentRun));
         Assert.True(_policy.IsAuthorized(both, AgxiomePermission.AgentRead));
     }
 
-    [Fact] public void EmptyRoles_DeniesAll()
+    [Fact] public async Task EmptyRoles_DeniesAll()
     {
         var none = new AgxiomePrincipal("n", [], []);
         Assert.False(_policy.IsAuthorized(none, AgxiomePermission.AgentRead));
     }
 
-    [Fact] public void GetPermissions_Admin_HasMoreThanViewer()
+    [Fact] public async Task GetPermissions_Admin_HasMoreThanViewer()
     {
         var adminPerms  = _policy.GetPermissions(AgxiomeRole.Admin);
         var viewerPerms = _policy.GetPermissions(AgxiomeRole.Viewer);
@@ -195,14 +195,14 @@ public sealed class RT03_RbacTests
 // ════════════════════════════════════════════════════════════
 public sealed class RT04_RateLimiterTests
 {
-    [Fact] public void AllowsRequestsUpToLimit()
+    [Fact] public async Task AllowsRequestsUpToLimit()
     {
         var limiter = new SlidingWindowRateLimiter();
         var policy  = new RateLimitPolicy(5, TimeSpan.FromMinutes(1));
         for (int i = 0; i < 5; i++) Assert.True(limiter.Check("k", policy).IsAllowed);
     }
 
-    [Fact] public void BlocksAboveLimit_Returns429Data()
+    [Fact] public async Task BlocksAboveLimit_Returns429Data()
     {
         var limiter = new SlidingWindowRateLimiter();
         var policy  = new RateLimitPolicy(3, TimeSpan.FromMinutes(1));
@@ -212,7 +212,7 @@ public sealed class RT04_RateLimiterTests
         Assert.True(r.RetryAfter.TotalSeconds > 0);
     }
 
-    [Fact] public void ResetClearsState()
+    [Fact] public async Task ResetClearsState()
     {
         var limiter = new SlidingWindowRateLimiter();
         var policy  = new RateLimitPolicy(1, TimeSpan.FromMinutes(1));
@@ -221,7 +221,7 @@ public sealed class RT04_RateLimiterTests
         Assert.True(limiter.Check("y", policy).IsAllowed);
     }
 
-    [Fact] public void DifferentKeys_NotInterfering()
+    [Fact] public async Task DifferentKeys_NotInterfering()
     {
         var limiter = new SlidingWindowRateLimiter();
         var policy  = new RateLimitPolicy(1, TimeSpan.FromMinutes(1));
@@ -231,7 +231,7 @@ public sealed class RT04_RateLimiterTests
         Assert.True(limiter.Check("b", policy).IsAllowed);
     }
 
-    [Fact] public void PolicyRegistry_FindsByRoute()
+    [Fact] public async Task PolicyRegistry_FindsByRoute()
     {
         var registry = new RateLimitPolicyRegistry();
         var p = new RateLimitPolicy(10, TimeSpan.FromMinutes(1));
@@ -241,7 +241,7 @@ public sealed class RT04_RateLimiterTests
         Assert.Equal(10, found!.MaxRequests);
     }
 
-    [Fact] public void PolicyRegistry_ReturnsNull_ForUnknownRoute()
+    [Fact] public async Task PolicyRegistry_ReturnsNull_ForUnknownRoute()
     {
         var registry = new RateLimitPolicyRegistry();
         Assert.Null(registry.Find("/notexist", RateLimitDimension.Ip));
@@ -523,37 +523,37 @@ public sealed class RT09_14_ControllersTests : IClassFixture<WebApplicationFacto
 // ════════════════════════════════════════════════════════════
 public sealed class RT15_17_HubTests
 {
-    [Fact] public void AgentHub_Instantiates()
+    [Fact] public async Task AgentHub_Instantiates()
     {
         var hub = new AgentHub();
         Assert.NotNull(hub);
     }
 
-    [Fact] public void LogHub_Instantiates()
+    [Fact] public async Task LogHub_Instantiates()
     {
         var hub = new LogHub();
         Assert.NotNull(hub);
     }
 
-    [Fact] public void AdminHub_Instantiates()
+    [Fact] public async Task AdminHub_Instantiates()
     {
         var hub = new AdminHub();
         Assert.NotNull(hub);
     }
 
-    [Fact] public void AgentRunEvent_Constructed()
+    [Fact] public async Task AgentRunEvent_Constructed()
     {
         var evt = new AgentRunEvent("r1","a1","started","",1,DateTimeOffset.UtcNow);
         Assert.Equal("r1", evt.RunId);
     }
 
-    [Fact] public void LogEvent_HasCorrectFields()
+    [Fact] public async Task LogEvent_HasCorrectFields()
     {
         var evt = new LogEvent("module","info","msg",2,DateTimeOffset.UtcNow);
         Assert.Equal("info", evt.Level);
     }
 
-    [Fact] public void AdminMetricEvent_HasSeq()
+    [Fact] public async Task AdminMetricEvent_HasSeq()
     {
         var evt = new AdminMetricEvent("cpu",42.0,3,DateTimeOffset.UtcNow);
         Assert.Equal(3L, evt.Seq);
@@ -565,7 +565,7 @@ public sealed class RT15_17_HubTests
 // ════════════════════════════════════════════════════════════
 public sealed class RT18_BackgroundRunWorkerTests
 {
-    [Fact] public void TryEnqueue_ReturnsTrueWhenSpace()
+    [Fact] public async Task TryEnqueue_ReturnsTrueWhenSpace()
     {
         var worker = new BackgroundRunWorker(
             new Microsoft.Extensions.Logging.Abstractions.NullLogger<BackgroundRunWorker>());
@@ -584,14 +584,14 @@ public sealed class RT18_BackgroundRunWorkerTests
         await worker.StopAsync(CancellationToken.None);
     }
 
-    [Fact] public void RunCommand_HasCorrectFields()
+    [Fact] public async Task RunCommand_HasCorrectFields()
     {
         var cmd = new RunCommand("run-1","agent-1","input", CancellationToken.None);
         Assert.Equal("run-1", cmd.RunId);
         Assert.Equal("agent-1", cmd.AgentId);
     }
 
-    [Fact] public void EnqueueMultiple_DoesNotThrow()
+    [Fact] public async Task EnqueueMultiple_DoesNotThrow()
     {
         var worker = new BackgroundRunWorker(
             new Microsoft.Extensions.Logging.Abstractions.NullLogger<BackgroundRunWorker>());
@@ -635,7 +635,7 @@ public sealed class RT20_TokenRotationJobTests
         await job.StopAsync(CancellationToken.None);
     }
 
-    [Fact] public void KeyRotationService_ForceRotate_ChangesKid()
+    [Fact] public async Task KeyRotationService_ForceRotate_ChangesKid()
     {
         using var svc = new InMemoryKeyRotationService();
         var old = svc.GetCurrentKey();

@@ -16,6 +16,7 @@ public sealed class DynamicAgentController(
     AgentCodeGenerator generator,
     AgentDropFolderService dropFolder) : ControllerBase
 {
+    private readonly AgentDropFolderService _dropFolder = dropFolder;  // injected for future use
     /// <summary>GET /api/agents/user/{userId} — lista agenti dell'utente.</summary>
     [HttpGet("user/{userId}")]
     public IActionResult GetUserAgents(string userId)

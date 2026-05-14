@@ -5,12 +5,12 @@ namespace AGXIOME.Tests.F12;
 
 public sealed class YahooFinanceToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("yahoo_finance", new YahooFinanceToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Yahoo Finance", new YahooFinanceToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new YahooFinanceToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("yahoo_finance", new YahooFinanceToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Yahoo Finance", new YahooFinanceToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new YahooFinanceToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new YahooFinanceToolkit().ExecuteAsync("get_quote", [], default).GetAwaiter().GetResult();
+        var r = await new YahooFinanceToolkit().ExecuteAsync("get_quote", [], default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -23,12 +23,12 @@ public sealed class YahooFinanceToolkitTests
 
 public sealed class AlphaVantageToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("alpha_vantage", new AlphaVantageToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Alpha Vantage", new AlphaVantageToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new AlphaVantageToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("alpha_vantage", new AlphaVantageToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Alpha Vantage", new AlphaVantageToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new AlphaVantageToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new AlphaVantageToolkit().ExecuteAsync("get_time_series", [], default).GetAwaiter().GetResult();
+        var r = await new AlphaVantageToolkit().ExecuteAsync("get_time_series", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -41,12 +41,12 @@ public sealed class AlphaVantageToolkitTests
 
 public sealed class PolygonToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("polygon", new PolygonToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Polygon.io", new PolygonToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new PolygonToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("polygon", new PolygonToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Polygon.io", new PolygonToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new PolygonToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new PolygonToolkit().ExecuteAsync("get_ticker", [], default).GetAwaiter().GetResult();
+        var r = await new PolygonToolkit().ExecuteAsync("get_ticker", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -59,12 +59,12 @@ public sealed class PolygonToolkitTests
 
 public sealed class CoinGeckoToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("coingecko", new CoinGeckoToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("CoinGecko", new CoinGeckoToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new CoinGeckoToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("coingecko", new CoinGeckoToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("CoinGecko", new CoinGeckoToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new CoinGeckoToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new CoinGeckoToolkit().ExecuteAsync("get_price", [], default).GetAwaiter().GetResult();
+        var r = await new CoinGeckoToolkit().ExecuteAsync("get_price", [], default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -77,12 +77,12 @@ public sealed class CoinGeckoToolkitTests
 
 public sealed class BinanceToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("binance", new BinanceToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Binance", new BinanceToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new BinanceToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("binance", new BinanceToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Binance", new BinanceToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new BinanceToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new BinanceToolkit().ExecuteAsync("get_ticker", [], default).GetAwaiter().GetResult();
+        var r = await new BinanceToolkit().ExecuteAsync("get_ticker", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -95,12 +95,12 @@ public sealed class BinanceToolkitTests
 
 public sealed class StripeToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("stripe", new StripeToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Stripe", new StripeToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new StripeToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("stripe", new StripeToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Stripe", new StripeToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new StripeToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new StripeToolkit().ExecuteAsync("create_payment_intent", [], default).GetAwaiter().GetResult();
+        var r = await new StripeToolkit().ExecuteAsync("create_payment_intent", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -113,12 +113,12 @@ public sealed class StripeToolkitTests
 
 public sealed class PlaidToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("plaid", new PlaidToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Plaid", new PlaidToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new PlaidToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("plaid", new PlaidToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Plaid", new PlaidToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new PlaidToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new PlaidToolkit().ExecuteAsync("get_accounts", [], default).GetAwaiter().GetResult();
+        var r = await new PlaidToolkit().ExecuteAsync("get_accounts", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -131,12 +131,12 @@ public sealed class PlaidToolkitTests
 
 public sealed class QuickBooksToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("quickbooks", new QuickBooksToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("QuickBooks", new QuickBooksToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new QuickBooksToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("quickbooks", new QuickBooksToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("QuickBooks", new QuickBooksToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new QuickBooksToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new QuickBooksToolkit().ExecuteAsync("list_invoices", [], default).GetAwaiter().GetResult();
+        var r = await new QuickBooksToolkit().ExecuteAsync("list_invoices", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -149,12 +149,12 @@ public sealed class QuickBooksToolkitTests
 
 public sealed class XeroToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("xero", new XeroToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Xero", new XeroToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new XeroToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("xero", new XeroToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Xero", new XeroToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new XeroToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new XeroToolkit().ExecuteAsync("list_invoices", [], default).GetAwaiter().GetResult();
+        var r = await new XeroToolkit().ExecuteAsync("list_invoices", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -167,12 +167,12 @@ public sealed class XeroToolkitTests
 
 public sealed class ForexToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("forex", new ForexToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Forex", new ForexToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new ForexToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("forex", new ForexToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Forex", new ForexToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new ForexToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new ForexToolkit().ExecuteAsync("get_rate", [], default).GetAwaiter().GetResult();
+        var r = await new ForexToolkit().ExecuteAsync("get_rate", [], default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()

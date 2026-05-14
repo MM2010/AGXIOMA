@@ -39,7 +39,7 @@ public sealed class SseHttpMcpTransport : IMcpTransport
             _sseReader = new StreamReader(await response.Content.ReadAsStreamAsync(ct));
         }
 
-        while (!_sseReader.EndOfStream && !ct.IsCancellationRequested)
+        while (!ct.IsCancellationRequested)
         {
             var line = await _sseReader.ReadLineAsync(ct);
             if (line == null) return null;

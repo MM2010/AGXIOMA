@@ -36,6 +36,8 @@ public sealed record ErrorResponse(string Code, string Message);
 [ApiController, Route("api/agents")]
 public sealed class AgentController(AuditLogger audit, IInputSanitizer sanitizer) : ControllerBase
 {
+    private readonly AuditLogger _audit = audit;          // injected for future audit usage
+    private readonly IInputSanitizer _sanitizer = sanitizer;
     // In-memory stub storage — production uses IAgentRepository
     private static readonly Dictionary<string, AgentDto> _agents = [];
 
@@ -49,7 +51,7 @@ public sealed class AgentController(AuditLogger audit, IInputSanitizer sanitizer
     [HttpPost]
     public IActionResult Create([FromBody] CreateAgentRequest req)
     {
-        var check = sanitizer.Sanitize(req.Name, SanitizationRules.AgentNameR);
+        var check = _sanitizer.Sanitize(req.Name, SanitizationRules.AgentNameR);
         if (!check.IsValid) return BadRequest(new ErrorResponse("invalid_input", check.ViolationDetail ?? "Invalid name"));
 
         var id    = Guid.NewGuid().ToString("N")[..12];

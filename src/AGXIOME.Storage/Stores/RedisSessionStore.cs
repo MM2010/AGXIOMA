@@ -42,7 +42,8 @@ public sealed class RedisSessionStore : ICommandStore, IDisposable
     {
         var key   = BuildKey<T>(GetId(entity));
         var value = JsonSerializer.Serialize(entity, _json);
-        await _db.StringSetAsync(key, value, _opts.Expiry);
+        var expiry = _opts.Expiry.HasValue ? new Expiration(_opts.Expiry.Value) : default(Expiration);
+        await _db.StringSetAsync(key, value, expiry);
     }
 
     public async Task UpdateAsync<T>(T entity, CancellationToken ct = default) where T : class

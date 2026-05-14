@@ -71,7 +71,7 @@ public record ProviderConfig
 
 public record TeamConfig
 {
-    public string Name { get; init; }
+    public string Name { get; init; } = "";
     public TeamMode Mode { get; init; } = TeamMode.Coordinate;
     public int MaxIterations { get; init; } = 20;
     public TimeSpan AgentTimeout { get; init; } = TimeSpan.FromSeconds(30);

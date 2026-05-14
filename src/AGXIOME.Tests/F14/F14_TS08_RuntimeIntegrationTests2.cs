@@ -103,7 +103,7 @@ public sealed class TS08_ContentTypeTests : IClassFixture<WebApplicationFactory<
 
 public sealed class TS08_DtoRecordTests
 {
-    [Fact] public void AgentDto_Equality()
+    [Fact] public async Task AgentDto_Equality()
     {
         var t  = DateTimeOffset.UtcNow;
         var a1 = new AgentDto("id", "n", null, null, t);
@@ -111,7 +111,7 @@ public sealed class TS08_DtoRecordTests
         Assert.Equal(a1, a2);
     }
 
-    [Fact] public void AgentDto_With_ChangesProperty()
+    [Fact] public async Task AgentDto_With_ChangesProperty()
     {
         var a = new AgentDto("id", "old", null, null, DateTimeOffset.UtcNow);
         var b = a with { Name = "new" };
@@ -119,49 +119,49 @@ public sealed class TS08_DtoRecordTests
         Assert.Equal(a.Id, b.Id);
     }
 
-    [Fact] public void RunDto_Status_NotNull()
+    [Fact] public async Task RunDto_Status_NotNull()
     {
         var r = new RunDto("run-1", "ag-1", "Running", DateTimeOffset.UtcNow, null, null);
         Assert.NotNull(r.Status);
     }
 
-    [Fact] public void SessionDto_IsActive_DefaultsTrue()
+    [Fact] public async Task SessionDto_IsActive_DefaultsTrue()
     {
         var s = new SessionDto("s-1", "ag-1", DateTimeOffset.UtcNow, true);
         Assert.True(s.IsActive);
     }
 
-    [Fact] public void TeamDto_AgentIds_NotNull()
+    [Fact] public async Task TeamDto_AgentIds_NotNull()
     {
         var t = new TeamDto("t-1", "Team", ["a1", "a2"]);
         Assert.NotNull(t.AgentIds);
     }
 
-    [Fact] public void WorkflowDto_StepIds_NotNull()
+    [Fact] public async Task WorkflowDto_StepIds_NotNull()
     {
         var w = new WorkflowDto("w-1", "Workflow", ["s1"], "Draft");
         Assert.NotNull(w.StepIds);
     }
 
-    [Fact] public void ToolDto_ToolId_Stored()
+    [Fact] public async Task ToolDto_ToolId_Stored()
     {
         var t = new ToolDto("tool-1", "name", "cat", null);
         Assert.Equal("tool-1", t.ToolId);
     }
 
-    [Fact] public void ErrorResponse_MessageStored()
+    [Fact] public async Task ErrorResponse_MessageStored()
     {
         var e = new ErrorResponse("err_code", "Something went wrong");
         Assert.Equal("Something went wrong", e.Message);
     }
 
-    [Fact] public void CreateAgentRequest_Name_Stored()
+    [Fact] public async Task CreateAgentRequest_Name_Stored()
     {
         var r = new CreateAgentRequest("AgentX", "desc", "gpt-4");
         Assert.Equal("AgentX", r.Name);
     }
 
-    [Fact] public void StartRunRequest_Default_Stream_False()
+    [Fact] public async Task StartRunRequest_Default_Stream_False()
     {
         var r = new StartRunRequest("ag-1", "input");
         Assert.False(r.Stream);

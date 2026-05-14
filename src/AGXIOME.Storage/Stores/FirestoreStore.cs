@@ -31,8 +31,10 @@ public sealed class FirestoreCommandStore : ICommandStore
     {
         if (opts is null) throw new ArgumentNullException(nameof(opts));
         var builder = new FirestoreDbBuilder { ProjectId = opts.ProjectId };
+#pragma warning disable CS0618 // GoogleCredential.FromFile is deprecated but CredentialFactory API may not be available in all versions
         if (opts.CredentialFilePath is not null)
-            builder.CredentialsPath = opts.CredentialFilePath;
+            builder.Credential = Google.Apis.Auth.OAuth2.GoogleCredential.FromFile(opts.CredentialFilePath);
+#pragma warning restore CS0618
         _db = builder.Build();
     }
 

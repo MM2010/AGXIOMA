@@ -14,7 +14,7 @@ public record LLMWIKYResponse(
     string? ToolCallId = null,
     string? ToolName = null,
     string? ToolArguments = null,
-    LLMWIKYUsage Usage = default
+    LLMWIKYUsage? Usage = null
 );
 
 public record LLMWIKYChunk(

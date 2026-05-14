@@ -66,10 +66,9 @@ public class AgentEdgeTests
     public async Task BackgroundHook_DoesNotBlock()
     {
         var agent = AgentFactory.CreateTestAgent("bg-hook");
-        bool completed = false;
 
         agent.AddHook(new AGXIOME.Core.Hooks.DelegateHook("bg", HookPoint.BackgroundPost,
-            async (ctx, ct) => { await Task.Delay(200, ct); completed = true; }));
+            async (ctx, ct) => { await Task.Delay(200, ct); }));
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var result = await agent.RunAsync(new AgentRequest("test"));

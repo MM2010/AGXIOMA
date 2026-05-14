@@ -37,10 +37,10 @@ public class PineconeStoreTests
         new HttpClient(new TestHttpMessageHandler(HttpStatusCode.OK, "{}"))
         { BaseAddress = new Uri("https://mock.pinecone.io/") };
 
-    [Fact] public void ProviderType_IsPinecone()
+    [Fact] public async Task ProviderType_IsPinecone()
         => Assert.Equal(VectorDbProviderType.Pinecone, new PineconeStore(MockHttp()).ProviderType);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new PineconeStore(null!));
 
     [Fact(Skip = "requires live Pinecone API key")]
@@ -67,10 +67,10 @@ public class WeaviateCloudStoreTests
         new HttpClient(new TestHttpMessageHandler(HttpStatusCode.OK, "{}"))
         { BaseAddress = new Uri("https://mock.weaviate.io/") };
 
-    [Fact] public void ProviderType_IsWeaviateCloud()
+    [Fact] public async Task ProviderType_IsWeaviateCloud()
         => Assert.Equal(VectorDbProviderType.WeaviateCloud, new WeaviateCloudStore(MockHttp()).ProviderType);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new WeaviateCloudStore(null!));
 
     [Fact(Skip = "requires live Weaviate Cloud endpoint")]
@@ -93,7 +93,7 @@ public class WeaviateCloudStoreTests
 
 public class QdrantCloudStoreTests
 {
-    [Fact] public void ProviderType_IsQdrantCloud()
+    [Fact] public async Task ProviderType_IsQdrantCloud()
     {
         // QdrantClient constructor requires a host; use the GrpcChannel-less overload
         // that accepts host + port without immediately opening a channel.
@@ -101,7 +101,7 @@ public class QdrantCloudStoreTests
         Assert.Equal(VectorDbProviderType.QdrantCloud, new QdrantCloudStore(client).ProviderType);
     }
 
-    [Fact] public void Constructor_NullClient_Throws()
+    [Fact] public async Task Constructor_NullClient_Throws()
         => Assert.Throws<ArgumentNullException>(() => new QdrantCloudStore(null!));
 
     [Fact(Skip = "requires live Qdrant server")]
@@ -128,10 +128,10 @@ public class MilvusCloudStoreTests
         new HttpClient(new TestHttpMessageHandler(HttpStatusCode.OK, "{\"data\":[]}"))
         { BaseAddress = new Uri("https://mock.milvus.io/") };
 
-    [Fact] public void ProviderType_IsMilvusCloud()
+    [Fact] public async Task ProviderType_IsMilvusCloud()
         => Assert.Equal(VectorDbProviderType.MilvusCloud, new MilvusCloudStore(MockHttp()).ProviderType);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new MilvusCloudStore(null!));
 
     [Fact(Skip = "requires live Milvus/Zilliz Cloud endpoint")]
@@ -158,10 +158,10 @@ public class ChromaDbCloudStoreTests
         new HttpClient(new TestHttpMessageHandler(HttpStatusCode.OK, "{}"))
         { BaseAddress = new Uri("https://mock.trychroma.com/") };
 
-    [Fact] public void ProviderType_IsChromaDB()
+    [Fact] public async Task ProviderType_IsChromaDB()
         => Assert.Equal(VectorDbProviderType.ChromaDB, new ChromaDbCloudStore(MockHttp()).ProviderType);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new ChromaDbCloudStore(null!));
 
     [Fact(Skip = "requires live Chroma Cloud endpoint")]
@@ -184,11 +184,11 @@ public class ChromaDbCloudStoreTests
 
 public class SupabasePgVectorStoreTests
 {
-    [Fact] public void ProviderType_IsSupabasePgVector()
+    [Fact] public async Task ProviderType_IsSupabasePgVector()
         => Assert.Equal(VectorDbProviderType.SupabasePgVector,
             new SupabasePgVectorStore("Host=localhost;Database=test").ProviderType);
 
-    [Fact] public void Constructor_EmptyConnectionString_Throws()
+    [Fact] public async Task Constructor_EmptyConnectionString_Throws()
         => Assert.Throws<ArgumentException>(() => new SupabasePgVectorStore(""));
 
     [Fact(Skip = "requires live PostgreSQL + pgvector (Supabase)")]
@@ -211,11 +211,11 @@ public class SupabasePgVectorStoreTests
 
 public class NeonPgVectorStoreTests
 {
-    [Fact] public void ProviderType_IsNeonPgVector()
+    [Fact] public async Task ProviderType_IsNeonPgVector()
         => Assert.Equal(VectorDbProviderType.NeonPgVector,
             new NeonPgVectorStore("Host=localhost;Database=test").ProviderType);
 
-    [Fact] public void Constructor_EmptyConnectionString_Throws()
+    [Fact] public async Task Constructor_EmptyConnectionString_Throws()
         => Assert.Throws<ArgumentException>(() => new NeonPgVectorStore(""));
 
     [Fact(Skip = "requires live Neon PostgreSQL + pgvector")]
@@ -238,11 +238,11 @@ public class NeonPgVectorStoreTests
 
 public class TimescalePgVectorStoreTests
 {
-    [Fact] public void ProviderType_IsTimescalePgVector()
+    [Fact] public async Task ProviderType_IsTimescalePgVector()
         => Assert.Equal(VectorDbProviderType.TimescalePgVector,
             new TimescalePgVectorStore("Host=localhost;Database=test").ProviderType);
 
-    [Fact] public void Constructor_EmptyConnectionString_Throws()
+    [Fact] public async Task Constructor_EmptyConnectionString_Throws()
         => Assert.Throws<ArgumentException>(() => new TimescalePgVectorStore(""));
 
     [Fact(Skip = "requires live TimescaleDB + pgvector")]
@@ -265,11 +265,11 @@ public class TimescalePgVectorStoreTests
 
 public class CockroachPgVectorStoreTests
 {
-    [Fact] public void ProviderType_IsCockroachPgVector()
+    [Fact] public async Task ProviderType_IsCockroachPgVector()
         => Assert.Equal(VectorDbProviderType.CockroachPgVector,
             new CockroachPgVectorStore("Host=localhost;Database=test").ProviderType);
 
-    [Fact] public void Constructor_EmptyConnectionString_Throws()
+    [Fact] public async Task Constructor_EmptyConnectionString_Throws()
         => Assert.Throws<ArgumentException>(() => new CockroachPgVectorStore(""));
 
     [Fact(Skip = "requires live CockroachDB + pgvector")]
@@ -292,11 +292,11 @@ public class CockroachPgVectorStoreTests
 
 public class SingleStoreVectorStoreTests
 {
-    [Fact] public void ProviderType_IsSingleStoreVector()
+    [Fact] public async Task ProviderType_IsSingleStoreVector()
         => Assert.Equal(VectorDbProviderType.SingleStoreVector,
             new SingleStoreVectorStore(new SingleStoreVectorOptions { ConnectionString = "Server=localhost;Database=test" }).ProviderType);
 
-    [Fact] public void Constructor_NullOptions_Throws()
+    [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new SingleStoreVectorStore(null!));
 
     [Fact(Skip = "requires live SingleStore instance")]
@@ -319,13 +319,13 @@ public class SingleStoreVectorStoreTests
 
 public class QdrantSelfHostedStoreTests
 {
-    [Fact] public void ProviderType_IsQdrantSelfHosted()
+    [Fact] public async Task ProviderType_IsQdrantSelfHosted()
     {
         var client = new QdrantClient("localhost", 6334, https: false);
         Assert.Equal(VectorDbProviderType.QdrantSelfHosted, new QdrantSelfHostedStore(client).ProviderType);
     }
 
-    [Fact] public void Constructor_NullClient_Throws()
+    [Fact] public async Task Constructor_NullClient_Throws()
         => Assert.Throws<ArgumentNullException>(() => new QdrantSelfHostedStore(null!));
 
     [Fact(Skip = "requires live Qdrant server")]
@@ -352,10 +352,10 @@ public class WeaviateSelfHostedStoreTests
         new HttpClient(new TestHttpMessageHandler(HttpStatusCode.OK, "{}"))
         { BaseAddress = new Uri("http://localhost:8080/") };
 
-    [Fact] public void ProviderType_IsWeaviateSelfHosted()
+    [Fact] public async Task ProviderType_IsWeaviateSelfHosted()
         => Assert.Equal(VectorDbProviderType.WeaviateSelfHosted, new WeaviateSelfHostedStore(MockHttp()).ProviderType);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new WeaviateSelfHostedStore(null!));
 
     [Fact(Skip = "requires live Weaviate self-hosted instance")]
@@ -382,10 +382,10 @@ public class MilvusSelfHostedStoreTests
         new HttpClient(new TestHttpMessageHandler(HttpStatusCode.OK, "{\"data\":[]}"))
         { BaseAddress = new Uri("http://localhost:19530/") };
 
-    [Fact] public void ProviderType_IsMilvusSelfHosted()
+    [Fact] public async Task ProviderType_IsMilvusSelfHosted()
         => Assert.Equal(VectorDbProviderType.MilvusSelfHosted, new MilvusSelfHostedStore(MockHttp()).ProviderType);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new MilvusSelfHostedStore(null!));
 
     [Fact(Skip = "requires live Milvus self-hosted instance")]
@@ -412,10 +412,10 @@ public class ChromaDbSelfHostedStoreTests
         new HttpClient(new TestHttpMessageHandler(HttpStatusCode.OK, "{}"))
         { BaseAddress = new Uri("http://localhost:8000/") };
 
-    [Fact] public void ProviderType_IsChromaSelfHosted()
+    [Fact] public async Task ProviderType_IsChromaSelfHosted()
         => Assert.Equal(VectorDbProviderType.ChromaSelfHosted, new ChromaDbSelfHostedStore(MockHttp()).ProviderType);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new ChromaDbSelfHostedStore(null!));
 
     [Fact(Skip = "requires live Chroma self-hosted instance")]
@@ -438,13 +438,13 @@ public class ChromaDbSelfHostedStoreTests
 
 public class ElasticsearchDenseStoreTests
 {
-    [Fact] public void ProviderType_IsElasticsearchDense()
+    [Fact] public async Task ProviderType_IsElasticsearchDense()
     {
         var client = new ElasticsearchClient(new ElasticsearchClientSettings(new Uri("http://localhost:9200")));
         Assert.Equal(VectorDbProviderType.ElasticsearchDense, new ElasticsearchDenseStore(client).ProviderType);
     }
 
-    [Fact] public void Constructor_NullClient_Throws()
+    [Fact] public async Task Constructor_NullClient_Throws()
         => Assert.Throws<ArgumentNullException>(() => new ElasticsearchDenseStore(null!));
 
     [Fact(Skip = "requires live Elasticsearch 8.x instance")]
@@ -467,13 +467,13 @@ public class ElasticsearchDenseStoreTests
 
 public class MeilisearchVectorStoreTests
 {
-    [Fact] public void ProviderType_IsMeilisearchVector()
+    [Fact] public async Task ProviderType_IsMeilisearchVector()
     {
         var client = new MeilisearchClient("http://localhost:7700");
         Assert.Equal(VectorDbProviderType.MeilisearchVector, new MeilisearchVectorStore(client).ProviderType);
     }
 
-    [Fact] public void Constructor_NullClient_Throws()
+    [Fact] public async Task Constructor_NullClient_Throws()
         => Assert.Throws<ArgumentNullException>(() => new MeilisearchVectorStore(null!));
 
     [Fact(Skip = "requires live Meilisearch instance")]
@@ -500,10 +500,10 @@ public class ValdStoreTests
         new HttpClient(new TestHttpMessageHandler(HttpStatusCode.OK, "{}"))
         { BaseAddress = new Uri("http://localhost:8080/") };
 
-    [Fact] public void ProviderType_IsVald()
+    [Fact] public async Task ProviderType_IsVald()
         => Assert.Equal(VectorDbProviderType.Vald, new ValdStore(MockHttp()).ProviderType);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new ValdStore(null!));
 
     [Fact(Skip = "requires live Vald gateway")]
@@ -531,10 +531,10 @@ public class VespaStoreTests
             "{\"root\":{\"fields\":{\"totalCount\":0},\"children\":[]}}"))
         { BaseAddress = new Uri("http://localhost:8080/") };
 
-    [Fact] public void ProviderType_IsVespa()
+    [Fact] public async Task ProviderType_IsVespa()
         => Assert.Equal(VectorDbProviderType.Vespa, new VespaStore(MockHttp()).ProviderType);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new VespaStore(null!));
 
     [Fact(Skip = "requires live Vespa instance")]
@@ -569,11 +569,11 @@ public class SqliteVecStoreTests
         });
     }
 
-    [Fact] public void ProviderType_IsSqliteVec()
+    [Fact] public async Task ProviderType_IsSqliteVec()
         => Assert.Equal(VectorDbProviderType.SqliteVec,
             new SqliteVecStore(new SqliteVecOptions { ConnectionString = "Data Source=:memory:;Pooling=False" }).ProviderType);
 
-    [Fact] public void Constructor_NullOptions_Throws()
+    [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new SqliteVecStore(null!));
 
     [Fact] public async Task EnsureCollection_Upsert_Get_RoundTrip()
@@ -644,10 +644,10 @@ public class LanceDbStoreTests
         new HttpClient(new TestHttpMessageHandler(HttpStatusCode.OK, "[]"))
         { BaseAddress = new Uri("http://localhost:8080/") };
 
-    [Fact] public void ProviderType_IsLanceDB()
+    [Fact] public async Task ProviderType_IsLanceDB()
         => Assert.Equal(VectorDbProviderType.LanceDB, new LanceDbStore(MockHttp()).ProviderType);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new LanceDbStore(null!));
 
     [Fact(Skip = "requires live LanceDB HTTP server")]
@@ -674,10 +674,10 @@ public class DuckDbVectorStoreTests
     private static DuckDbVectorStore Build()
         => new DuckDbVectorStore(new DuckDbVectorOptions { DataSource = ":memory:" });
 
-    [Fact] public void ProviderType_IsDuckDBVector()
+    [Fact] public async Task ProviderType_IsDuckDBVector()
         => Assert.Equal(VectorDbProviderType.DuckDBVector, Build().ProviderType);
 
-    [Fact] public void Constructor_NullOptions_Throws()
+    [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new DuckDbVectorStore(null!));
 
     [Fact] public async Task EnsureCollection_Upsert_Get_RoundTrip()
@@ -748,19 +748,19 @@ public class RedisStackVectorStoreTests
         return (db, server);
     }
 
-    [Fact] public void ProviderType_IsRedisStack()
+    [Fact] public async Task ProviderType_IsRedisStack()
     {
         var (db, server) = MockRedis();
         Assert.Equal(VectorDbProviderType.RedisStack, new RedisStackVectorStore(db, server).ProviderType);
     }
 
-    [Fact] public void Constructor_NullDatabase_Throws()
+    [Fact] public async Task Constructor_NullDatabase_Throws()
     {
         var (_, server) = MockRedis();
         Assert.Throws<ArgumentNullException>(() => new RedisStackVectorStore(null!, server));
     }
 
-    [Fact] public void Constructor_NullServer_Throws()
+    [Fact] public async Task Constructor_NullServer_Throws()
     {
         var (db, _) = MockRedis();
         Assert.Throws<ArgumentNullException>(() => new RedisStackVectorStore(db, null!));
@@ -783,13 +783,13 @@ public class RedisStackVectorStoreTests
 
 public class MongoDbAtlasVectorStoreTests
 {
-    [Fact] public void ProviderType_IsMongoDBAtlas()
+    [Fact] public async Task ProviderType_IsMongoDBAtlas()
     {
         var db = Substitute.For<IMongoDatabase>();
         Assert.Equal(VectorDbProviderType.MongoDBAtlas, new MongoDbAtlasVectorStore(db).ProviderType);
     }
 
-    [Fact] public void Constructor_NullDatabase_Throws()
+    [Fact] public async Task Constructor_NullDatabase_Throws()
         => Assert.Throws<ArgumentNullException>(() => new MongoDbAtlasVectorStore(null!));
 
     [Fact(Skip = "requires live MongoDB Atlas with vector search index")]
@@ -812,18 +812,18 @@ public class MongoDbAtlasVectorStoreTests
 
 public class CosmosDbVCoreStoreTests
 {
-    [Fact] public void ProviderType_IsCosmosDBVCore()
+    [Fact] public async Task ProviderType_IsCosmosDBVCore()
     {
         // CosmosClient constructor accepts a connection string without connecting eagerly.
         var client = new CosmosClient("AccountEndpoint=https://localhost:8081/;AccountKey=C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==");
         Assert.Equal(VectorDbProviderType.CosmosDBVCore, new CosmosDbVCoreStore(client, "testdb").ProviderType);
     }
 
-    [Fact] public void Constructor_NullClient_Throws()
+    [Fact] public async Task Constructor_NullClient_Throws()
         => Assert.Throws<ArgumentNullException>(() =>
             new CosmosDbVCoreStore(null!, "testdb"));
 
-    [Fact] public void Constructor_EmptyDatabaseId_Throws()
+    [Fact] public async Task Constructor_EmptyDatabaseId_Throws()
     {
         var client = new CosmosClient("AccountEndpoint=https://localhost:8081/;AccountKey=C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==");
         Assert.Throws<ArgumentException>(() => new CosmosDbVCoreStore(client, ""));
@@ -846,7 +846,7 @@ public class CosmosDbVCoreStoreTests
 
 public class HNSWLibStoreTests
 {
-    [Fact] public void ProviderType_IsHNSWLib()
+    [Fact] public async Task ProviderType_IsHNSWLib()
         => Assert.Equal(VectorDbProviderType.HNSWLib, new HNSWLibStore().ProviderType);
 
     [Fact] public async Task EnsureCollection_DoesNotThrow()
@@ -913,7 +913,7 @@ public class HNSWLibStoreTests
 
 public class FaissStoreTests
 {
-    [Fact] public void ProviderType_IsFAISS()
+    [Fact] public async Task ProviderType_IsFAISS()
         => Assert.Equal(VectorDbProviderType.FAISS, new FaissStore().ProviderType);
 
     [Fact] public async Task EnsureCollection_DoesNotThrow()
@@ -973,7 +973,7 @@ public class FaissStoreTests
 
 public class AnnoyStoreTests
 {
-    [Fact] public void ProviderType_IsAnnoy()
+    [Fact] public async Task ProviderType_IsAnnoy()
         => Assert.Equal(VectorDbProviderType.Annoy, new AnnoyStore().ProviderType);
 
     [Fact] public async Task EnsureCollection_DoesNotThrow()
@@ -1037,10 +1037,10 @@ public class ScaNNStoreTests
         new HttpClient(new TestHttpMessageHandler(HttpStatusCode.OK, "[]"))
         { BaseAddress = new Uri("http://localhost:8080/") };
 
-    [Fact] public void ProviderType_IsScaNN()
+    [Fact] public async Task ProviderType_IsScaNN()
         => Assert.Equal(VectorDbProviderType.ScaNN, new ScaNNStore(MockHttp()).ProviderType);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new ScaNNStore(null!));
 
     [Fact(Skip = "requires live ScaNN HTTP server")]
@@ -1084,7 +1084,7 @@ public class RocksDbHnswStoreTests : IDisposable
         Assert.Equal(VectorDbProviderType.RocksDBHNSW, _store.ProviderType);
     }
 
-    [Fact] public void Constructor_EmptyPath_Throws()
+    [Fact] public async Task Constructor_EmptyPath_Throws()
         => Assert.Throws<ArgumentException>(() => new RocksDbHnswStore(""));
 
     [Fact(Skip = "requires native RocksDB library")]
@@ -1149,11 +1149,11 @@ public class RocksDbHnswStoreTests : IDisposable
 
 public class SqlServerVectorStoreTests
 {
-    [Fact] public void ProviderType_IsSQLServerVector()
+    [Fact] public async Task ProviderType_IsSQLServerVector()
         => Assert.Equal(VectorDbProviderType.SQLServerVector,
             new SqlServerVectorStore("Server=localhost;Database=test;Integrated Security=True").ProviderType);
 
-    [Fact] public void Constructor_EmptyConnectionString_Throws()
+    [Fact] public async Task Constructor_EmptyConnectionString_Throws()
         => Assert.Throws<ArgumentException>(() => new SqlServerVectorStore(""));
 
     [Fact(Skip = "requires live SQL Server 2025 with VECTOR support")]

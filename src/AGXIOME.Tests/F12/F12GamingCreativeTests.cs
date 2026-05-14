@@ -5,12 +5,12 @@ namespace AGXIOME.Tests.F12;
 
 public sealed class SteamToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("steam", new SteamToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Steam", new SteamToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.GamingCreative, new SteamToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("steam", new SteamToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Steam", new SteamToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.GamingCreative, new SteamToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new SteamToolkit().ExecuteAsync("get_player_summary", [], default).GetAwaiter().GetResult();
+        var r = await new SteamToolkit().ExecuteAsync("get_player_summary", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -23,12 +23,12 @@ public sealed class SteamToolkitTests
 
 public sealed class TwitchToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("twitch", new TwitchToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Twitch", new TwitchToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.GamingCreative, new TwitchToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("twitch", new TwitchToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Twitch", new TwitchToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.GamingCreative, new TwitchToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new TwitchToolkit().ExecuteAsync("get_streams", [], default).GetAwaiter().GetResult();
+        var r = await new TwitchToolkit().ExecuteAsync("get_streams", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -41,12 +41,12 @@ public sealed class TwitchToolkitTests
 
 public sealed class SpotifyToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("spotify", new SpotifyToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Spotify", new SpotifyToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.GamingCreative, new SpotifyToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("spotify", new SpotifyToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Spotify", new SpotifyToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.GamingCreative, new SpotifyToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new SpotifyToolkit().ExecuteAsync("search_tracks", [], default).GetAwaiter().GetResult();
+        var r = await new SpotifyToolkit().ExecuteAsync("search_tracks", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -59,12 +59,12 @@ public sealed class SpotifyToolkitTests
 
 public sealed class LastFmToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("lastfm", new LastFmToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Last.fm", new LastFmToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.GamingCreative, new LastFmToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("lastfm", new LastFmToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Last.fm", new LastFmToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.GamingCreative, new LastFmToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new LastFmToolkit().ExecuteAsync("get_top_tracks", [], default).GetAwaiter().GetResult();
+        var r = await new LastFmToolkit().ExecuteAsync("get_top_tracks", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -77,12 +77,12 @@ public sealed class LastFmToolkitTests
 
 public sealed class UnsplashToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("unsplash", new UnsplashToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Unsplash", new UnsplashToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.GamingCreative, new UnsplashToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("unsplash", new UnsplashToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Unsplash", new UnsplashToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.GamingCreative, new UnsplashToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new UnsplashToolkit().ExecuteAsync("search_photos", [], default).GetAwaiter().GetResult();
+        var r = await new UnsplashToolkit().ExecuteAsync("search_photos", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -95,12 +95,12 @@ public sealed class UnsplashToolkitTests
 
 public sealed class PexelsToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("pexels", new PexelsToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Pexels", new PexelsToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.GamingCreative, new PexelsToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("pexels", new PexelsToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Pexels", new PexelsToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.GamingCreative, new PexelsToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new PexelsToolkit().ExecuteAsync("search_photos", [], default).GetAwaiter().GetResult();
+        var r = await new PexelsToolkit().ExecuteAsync("search_photos", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -113,12 +113,12 @@ public sealed class PexelsToolkitTests
 
 public sealed class GiphyToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("giphy", new GiphyToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Giphy", new GiphyToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.GamingCreative, new GiphyToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("giphy", new GiphyToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Giphy", new GiphyToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.GamingCreative, new GiphyToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new GiphyToolkit().ExecuteAsync("search_gifs", [], default).GetAwaiter().GetResult();
+        var r = await new GiphyToolkit().ExecuteAsync("search_gifs", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -131,12 +131,12 @@ public sealed class GiphyToolkitTests
 
 public sealed class OpenAiImageGenToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("openai_image_gen", new OpenAiImageGenToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("OpenAI Image Gen", new OpenAiImageGenToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.GamingCreative, new OpenAiImageGenToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("openai_image_gen", new OpenAiImageGenToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("OpenAI Image Gen", new OpenAiImageGenToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.GamingCreative, new OpenAiImageGenToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new OpenAiImageGenToolkit().ExecuteAsync("generate", [], default).GetAwaiter().GetResult();
+        var r = await new OpenAiImageGenToolkit().ExecuteAsync("generate", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()

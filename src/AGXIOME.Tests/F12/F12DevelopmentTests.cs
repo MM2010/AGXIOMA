@@ -5,12 +5,12 @@ namespace AGXIOME.Tests.F12;
 
 public sealed class GitHubToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("github", new GitHubToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("GitHub", new GitHubToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new GitHubToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("github", new GitHubToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("GitHub", new GitHubToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new GitHubToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new GitHubToolkit().ExecuteAsync("list_repos", [], default).GetAwaiter().GetResult();
+        var r = await new GitHubToolkit().ExecuteAsync("list_repos", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -23,12 +23,12 @@ public sealed class GitHubToolkitTests
 
 public sealed class GitLabToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("gitlab", new GitLabToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("GitLab", new GitLabToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new GitLabToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("gitlab", new GitLabToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("GitLab", new GitLabToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new GitLabToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new GitLabToolkit().ExecuteAsync("list_projects", [], default).GetAwaiter().GetResult();
+        var r = await new GitLabToolkit().ExecuteAsync("list_projects", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -41,12 +41,12 @@ public sealed class GitLabToolkitTests
 
 public sealed class BitbucketToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("bitbucket", new BitbucketToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Bitbucket", new BitbucketToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new BitbucketToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("bitbucket", new BitbucketToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Bitbucket", new BitbucketToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new BitbucketToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new BitbucketToolkit().ExecuteAsync("list_repos", [], default).GetAwaiter().GetResult();
+        var r = await new BitbucketToolkit().ExecuteAsync("list_repos", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -59,12 +59,12 @@ public sealed class BitbucketToolkitTests
 
 public sealed class GitToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("git", new GitToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Git", new GitToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new GitToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("git", new GitToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Git", new GitToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new GitToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new GitToolkit().ExecuteAsync("status", [], default).GetAwaiter().GetResult();
+        var r = await new GitToolkit().ExecuteAsync("status", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -77,12 +77,12 @@ public sealed class GitToolkitTests
 
 public sealed class NuGetToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("nuget", new NuGetToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("NuGet", new NuGetToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new NuGetToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("nuget", new NuGetToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("NuGet", new NuGetToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new NuGetToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new NuGetToolkit().ExecuteAsync("search", [], default).GetAwaiter().GetResult();
+        var r = await new NuGetToolkit().ExecuteAsync("search", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -95,12 +95,12 @@ public sealed class NuGetToolkitTests
 
 public sealed class DockerToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("docker", new DockerToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Docker", new DockerToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new DockerToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("docker", new DockerToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Docker", new DockerToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new DockerToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new DockerToolkit().ExecuteAsync("list_containers", [], default).GetAwaiter().GetResult();
+        var r = await new DockerToolkit().ExecuteAsync("list_containers", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -113,12 +113,12 @@ public sealed class DockerToolkitTests
 
 public sealed class K8sToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("kubernetes", new KubernetesToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Kubernetes", new KubernetesToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new KubernetesToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("kubernetes", new KubernetesToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Kubernetes", new KubernetesToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new KubernetesToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new KubernetesToolkit().ExecuteAsync("list_pods", [], default).GetAwaiter().GetResult();
+        var r = await new KubernetesToolkit().ExecuteAsync("list_pods", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -131,12 +131,12 @@ public sealed class K8sToolkitTests
 
 public sealed class TerraformToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("terraform", new TerraformToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Terraform", new TerraformToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new TerraformToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("terraform", new TerraformToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Terraform", new TerraformToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new TerraformToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new TerraformToolkit().ExecuteAsync("plan", [], default).GetAwaiter().GetResult();
+        var r = await new TerraformToolkit().ExecuteAsync("plan", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -149,12 +149,12 @@ public sealed class TerraformToolkitTests
 
 public sealed class PulumiToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("pulumi", new PulumiToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Pulumi", new PulumiToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new PulumiToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("pulumi", new PulumiToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Pulumi", new PulumiToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new PulumiToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new PulumiToolkit().ExecuteAsync("preview", [], default).GetAwaiter().GetResult();
+        var r = await new PulumiToolkit().ExecuteAsync("preview", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -167,12 +167,12 @@ public sealed class PulumiToolkitTests
 
 public sealed class HelmToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("helm", new HelmToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Helm", new HelmToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new HelmToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("helm", new HelmToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Helm", new HelmToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new HelmToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new HelmToolkit().ExecuteAsync("list", [], default).GetAwaiter().GetResult();
+        var r = await new HelmToolkit().ExecuteAsync("list", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -185,12 +185,12 @@ public sealed class HelmToolkitTests
 
 public sealed class AwsCliToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("aws_cli", new AwsCliToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("AWS CLI", new AwsCliToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new AwsCliToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("aws_cli", new AwsCliToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("AWS CLI", new AwsCliToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new AwsCliToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new AwsCliToolkit().ExecuteAsync("run_command", [], default).GetAwaiter().GetResult();
+        var r = await new AwsCliToolkit().ExecuteAsync("run_command", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -203,12 +203,12 @@ public sealed class AwsCliToolkitTests
 
 public sealed class AzureCliToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("azure_cli", new AzureCliToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Azure CLI", new AzureCliToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new AzureCliToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("azure_cli", new AzureCliToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Azure CLI", new AzureCliToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new AzureCliToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new AzureCliToolkit().ExecuteAsync("run_command", [], default).GetAwaiter().GetResult();
+        var r = await new AzureCliToolkit().ExecuteAsync("run_command", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -221,12 +221,12 @@ public sealed class AzureCliToolkitTests
 
 public sealed class GcpCliToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("gcp_cli", new GcpCliToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("GCP CLI", new GcpCliToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new GcpCliToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("gcp_cli", new GcpCliToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("GCP CLI", new GcpCliToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new GcpCliToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new GcpCliToolkit().ExecuteAsync("run_command", [], default).GetAwaiter().GetResult();
+        var r = await new GcpCliToolkit().ExecuteAsync("run_command", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -239,12 +239,12 @@ public sealed class GcpCliToolkitTests
 
 public sealed class SystemInfoToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("system_info", new SystemInfoToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("System Info", new SystemInfoToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new SystemInfoToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("system_info", new SystemInfoToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("System Info", new SystemInfoToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new SystemInfoToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new SystemInfoToolkit().ExecuteAsync("get_info", [], default).GetAwaiter().GetResult();
+        var r = await new SystemInfoToolkit().ExecuteAsync("get_info", [], default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -257,12 +257,12 @@ public sealed class SystemInfoToolkitTests
 
 public sealed class FileSystemToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("filesystem", new FileSystemToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("File System", new FileSystemToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new FileSystemToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("filesystem", new FileSystemToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("File System", new FileSystemToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new FileSystemToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new FileSystemToolkit().ExecuteAsync("list", [], default).GetAwaiter().GetResult();
+        var r = await new FileSystemToolkit().ExecuteAsync("list", [], default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -275,12 +275,12 @@ public sealed class FileSystemToolkitTests
 
 public sealed class ShellToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("shell", new ShellToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Shell", new ShellToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new ShellToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("shell", new ShellToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Shell", new ShellToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new ShellToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new ShellToolkit().ExecuteAsync("run", [], default).GetAwaiter().GetResult();
+        var r = await new ShellToolkit().ExecuteAsync("run", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -293,12 +293,12 @@ public sealed class ShellToolkitTests
 
 public sealed class PythonRunnerToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("python_runner", new PythonRunnerToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Python Runner", new PythonRunnerToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new PythonRunnerToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("python_runner", new PythonRunnerToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Python Runner", new PythonRunnerToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new PythonRunnerToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new PythonRunnerToolkit().ExecuteAsync("run", [], default).GetAwaiter().GetResult();
+        var r = await new PythonRunnerToolkit().ExecuteAsync("run", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -311,12 +311,12 @@ public sealed class PythonRunnerToolkitTests
 
 public sealed class JupyterToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("jupyter", new JupyterToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Jupyter", new JupyterToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new JupyterToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("jupyter", new JupyterToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Jupyter", new JupyterToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new JupyterToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new JupyterToolkit().ExecuteAsync("run_cell", [], default).GetAwaiter().GetResult();
+        var r = await new JupyterToolkit().ExecuteAsync("run_cell", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -329,12 +329,12 @@ public sealed class JupyterToolkitTests
 
 public sealed class BuildToolsToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("build_tools", new BuildToolsToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Build Tools", new BuildToolsToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new BuildToolsToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("build_tools", new BuildToolsToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Build Tools", new BuildToolsToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new BuildToolsToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new BuildToolsToolkit().ExecuteAsync("build", [], default).GetAwaiter().GetResult();
+        var r = await new BuildToolsToolkit().ExecuteAsync("build", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -347,12 +347,12 @@ public sealed class BuildToolsToolkitTests
 
 public sealed class CodeQualityToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("code_quality", new CodeQualityToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Code Quality", new CodeQualityToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new CodeQualityToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("code_quality", new CodeQualityToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Code Quality", new CodeQualityToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new CodeQualityToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new CodeQualityToolkit().ExecuteAsync("analyze", [], default).GetAwaiter().GetResult();
+        var r = await new CodeQualityToolkit().ExecuteAsync("analyze", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()

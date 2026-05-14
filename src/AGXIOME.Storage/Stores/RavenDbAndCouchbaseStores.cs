@@ -38,7 +38,7 @@ public sealed class RavenDbCommandStore : ICommandStore, IDisposable
             Database = opts.DatabaseName
         };
         if (opts.CertificatePath is not null)
-            store.Certificate = new System.Security.Cryptography.X509Certificates.X509Certificate2(opts.CertificatePath);
+            store.Certificate = System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadCertificateFromFile(opts.CertificatePath);
         _store = store.Initialize();
     }
 
@@ -112,11 +112,7 @@ public sealed class CouchbaseCommandStore : ICommandStore, IAsyncDisposable
             {
                 _cluster = await Cluster.ConnectAsync(
                     _opts.ConnectionString,
-                    new ClusterOptions
-                    {
-                        UserName = _opts.Username,
-                        Password = _opts.Password
-                    });
+                    new ClusterOptions().WithPasswordAuthentication(_opts.Username, _opts.Password));
                 var bucket = await _cluster.BucketAsync(_opts.BucketName);
                 var scope  = bucket.Scope(_opts.ScopeName);
                 _collection = scope.Collection(_opts.CollectionName);

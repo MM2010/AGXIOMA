@@ -172,7 +172,7 @@ public sealed class GCSReader : IDocumentReader
         meta["bucket"]      = bucket;
         meta["objectName"]  = objectName;
         meta["contentType"] = obj.ContentType ?? "";
-        meta["size"]        = obj.Size;
+        meta["size"]        = (object)(obj.Size ?? 0UL);
         meta["etag"]        = obj.ETag ?? "";
 
         return content with { SourceUri = uri, Metadata = meta };

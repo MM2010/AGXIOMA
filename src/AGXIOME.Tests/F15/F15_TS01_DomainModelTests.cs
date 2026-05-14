@@ -12,7 +12,7 @@ namespace AGXIOME.Tests.F15;
 
 public sealed class F15_TS01_EnumTests
 {
-    [Fact] public void OrchestratorTaskStatus_AllValuesDefined()
+    [Fact] public async Task OrchestratorTaskStatus_AllValuesDefined()
     {
         var expected = new[] { "Pending", "Running", "Done", "Failed", "Skipped", "Cancelled" };
         var defined = Enum.GetNames<OrchestratorTaskStatus>();
@@ -20,7 +20,7 @@ public sealed class F15_TS01_EnumTests
             Assert.Contains(e, defined);
     }
 
-    [Fact] public void OrchestratorPlanStatus_AllValuesDefined()
+    [Fact] public async Task OrchestratorPlanStatus_AllValuesDefined()
     {
         var expected = new[] { "Decomposing", "Running", "Paused", "Completed", "Failed", "Cancelled" };
         var defined = Enum.GetNames<OrchestratorPlanStatus>();
@@ -28,13 +28,13 @@ public sealed class F15_TS01_EnumTests
             Assert.Contains(e, defined);
     }
 
-    [Fact] public void StepExecutionMode_HasParallelAndSequential()
+    [Fact] public async Task StepExecutionMode_HasParallelAndSequential()
     {
         Assert.True(Enum.IsDefined(typeof(StepExecutionMode), StepExecutionMode.Parallel));
         Assert.True(Enum.IsDefined(typeof(StepExecutionMode), StepExecutionMode.Sequential));
     }
 
-    [Fact] public void AdvanceDecision_HasAllFourValues()
+    [Fact] public async Task AdvanceDecision_HasAllFourValues()
     {
         var names = Enum.GetNames<AdvanceDecision>();
         Assert.Contains("Advance", names);
@@ -43,7 +43,7 @@ public sealed class F15_TS01_EnumTests
         Assert.Contains("Retry", names);
     }
 
-    [Fact] public void AllEnumValues_AreUnique()
+    [Fact] public async Task AllEnumValues_AreUnique()
     {
         var taskVals = Enum.GetValues<OrchestratorTaskStatus>().Cast<int>().ToList();
         Assert.Equal(taskVals.Count, taskVals.Distinct().Count());
@@ -66,13 +66,13 @@ public sealed class F15_TS01_TaskSpecTests
         Description = "Test task"
     };
 
-    [Fact] public void TaskSpec_DefaultStatus_IsPending()
+    [Fact] public async Task TaskSpec_DefaultStatus_IsPending()
         => Assert.Equal(OrchestratorTaskStatus.Pending, Make().Status);
 
-    [Fact] public void TaskSpec_DefaultTemperature_Is07()
+    [Fact] public async Task TaskSpec_DefaultTemperature_Is07()
         => Assert.Equal(0.7f, Make().Temperature);
 
-    [Fact] public void TaskSpec_WithExpression_IsNonDestructive()
+    [Fact] public async Task TaskSpec_WithExpression_IsNonDestructive()
     {
         var original = Make(step: 1);
         var updated = original with { Status = OrchestratorTaskStatus.Running, StartedAt = DateTimeOffset.UtcNow };
@@ -81,7 +81,7 @@ public sealed class F15_TS01_TaskSpecTests
         Assert.Equal(original.TaskId, updated.TaskId);
     }
 
-    [Fact] public void TaskSpec_DefaultMaxTokens_Is4096()
+    [Fact] public async Task TaskSpec_DefaultMaxTokens_Is4096()
         => Assert.Equal(4096, Make().MaxTokens);
 }
 
@@ -101,16 +101,16 @@ public sealed class F15_TS01_TaskResultTests
         ElapsedTime = TimeSpan.FromSeconds(1)
     };
 
-    [Fact] public void TaskResult_Success_HasNoErrorMessage()
+    [Fact] public async Task TaskResult_Success_HasNoErrorMessage()
         => Assert.Null(MakeResult(true).ErrorMessage);
 
-    [Fact] public void TaskResult_Failed_CanHaveErrorMessage()
+    [Fact] public async Task TaskResult_Failed_CanHaveErrorMessage()
     {
         var r = MakeResult(false) with { ErrorMessage = "oops" };
         Assert.Equal("oops", r.ErrorMessage);
     }
 
-    [Fact] public void TaskResult_RetryCount_DefaultsToZero()
+    [Fact] public async Task TaskResult_RetryCount_DefaultsToZero()
         => Assert.Equal(0, MakeResult().RetryCount);
 }
 
@@ -142,17 +142,17 @@ public sealed class F15_TS01_PlanStateTests
         };
     }
 
-    [Fact] public void PlanState_CurrentStepTasks_ReturnsCorrectSubset()
+    [Fact] public async Task PlanState_CurrentStepTasks_ReturnsCorrectSubset()
     {
         var plan = MakePlan(2);
         var step0 = plan.CurrentStepTasks;
         Assert.All(step0, t => Assert.Equal(0, t.StepIndex));
     }
 
-    [Fact] public void PlanState_MaxStepIndex_IsCorrect()
+    [Fact] public async Task PlanState_MaxStepIndex_IsCorrect()
         => Assert.Equal(1, MakePlan(2).MaxStepIndex);
 
-    [Fact] public void PlanState_IsLastStep_TrueWhenOnMaxStep()
+    [Fact] public async Task PlanState_IsLastStep_TrueWhenOnMaxStep()
     {
         var plan = MakePlan(1) with { CurrentStep = 0 };
         Assert.True(plan.IsLastStep);

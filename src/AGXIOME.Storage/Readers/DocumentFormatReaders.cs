@@ -267,11 +267,11 @@ public sealed class PptxReader : IDocumentReader
             if (slidePart is null) continue;
 
             // Extract all text from slide shapes
-            var slideText = string.Join(" ", slidePart.Slide.Descendants<DocumentFormat.OpenXml.Drawing.Text>().Select(t => t.Text));
+            var slideText = string.Join(" ", slidePart.Slide?.Descendants<DocumentFormat.OpenXml.Drawing.Text>().Select(t => t.Text) ?? Enumerable.Empty<string?>());
             // Extract notes if present
             var notes = string.Join(" ", slidePart.NotesSlidePart?.NotesSlide
-                .Descendants<DocumentFormat.OpenXml.Drawing.Text>()
-                .Select(t => t.Text) ?? Array.Empty<string>());
+                ?.Descendants<DocumentFormat.OpenXml.Drawing.Text>()
+                .Select(t => t.Text) ?? Array.Empty<string?>());
 
             var content = notes.Length > 0 ? $"{slideText}\n\nNotes: {notes}" : slideText;
             sections.Add(new DocumentSection($"Slide {slideNum}", content, 1,

@@ -64,11 +64,11 @@ public sealed class TS06_AnthropicEmbedderTests
 {
     private static AnthropicEmbedderOptions Opts() => new() { ApiKey = "sk-ant-test" };
 
-    [Fact] public void EmbedderType_IsAnthropic()
+    [Fact] public async Task EmbedderType_IsAnthropic()
         => Assert.Equal(EmbedderType.Anthropic,
             new AnthropicEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), Opts()).EmbedderType);
 
-    [Fact] public void Dimensions_Is1536()
+    [Fact] public async Task Dimensions_Is1536()
         => Assert.Equal(1536, new AnthropicEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), Opts()).Dimensions);
 
     [Fact] public async Task EmptyInput_ReturnsDimensionSizeZeroVector()
@@ -86,7 +86,7 @@ public sealed class TS06_AnthropicEmbedderTests
         Assert.Empty(result);
     }
 
-    [Fact] public void Constructor_NullOptions_Throws()
+    [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() =>
             new AnthropicEmbedder(new HttpClient(), null!));
 }
@@ -99,7 +99,7 @@ public sealed class TS06_CohereEmbedderExtendedTests
 {
     private static CohereEmbedderOptions Opts() => new() { ApiKey = "co-test" };
 
-    [Fact] public void EmbedderType_IsCohere()
+    [Fact] public async Task EmbedderType_IsCohere()
         => Assert.Equal(EmbedderType.Cohere,
             new CohereEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), Opts()).EmbedderType);
 
@@ -116,11 +116,11 @@ public sealed class TS06_CohereEmbedderExtendedTests
         Assert.Empty(await emb.EmbedBatchAsync([]));
     }
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() =>
             new CohereEmbedder(null!, Opts()));
 
-    [Fact] public void Constructor_NullOptions_Throws()
+    [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() =>
             new CohereEmbedder(new HttpClient(), null!));
 }
@@ -133,7 +133,7 @@ public sealed class TS06_GeminiEmbedderExtendedTests
 {
     private static GeminiEmbedderOptions Opts() => new() { ApiKey = "gemini-test" };
 
-    [Fact] public void EmbedderType_IsGemini()
+    [Fact] public async Task EmbedderType_IsGemini()
         => Assert.Equal(EmbedderType.GoogleGemini,
             new GeminiEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), Opts()).EmbedderType);
 
@@ -159,7 +159,7 @@ public sealed class TS06_GeminiEmbedderExtendedTests
         Assert.Equal(vec, r);
     }
 
-    [Fact] public void Constructor_NullOptions_Throws()
+    [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() =>
             new GeminiEmbedder(new HttpClient(), null!));
 }
@@ -172,7 +172,7 @@ public sealed class TS06_HuggingFaceEmbedderExtendedTests
 {
     private static HuggingFaceEmbedderOptions Opts() => new() { ApiKey = "hf-test" };
 
-    [Fact] public void EmbedderType_IsHuggingFace()
+    [Fact] public async Task EmbedderType_IsHuggingFace()
         => Assert.Equal(EmbedderType.HuggingFaceApi,
             new HuggingFaceEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "[[0.1]]"), Opts()).EmbedderType);
 
@@ -189,11 +189,11 @@ public sealed class TS06_HuggingFaceEmbedderExtendedTests
         Assert.Empty(await emb.EmbedBatchAsync([]));
     }
 
-    [Fact] public void Constructor_NullOptions_Throws()
+    [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() =>
             new HuggingFaceEmbedder(new HttpClient(), null!));
 
-    [Fact] public void Dimensions_IsPositive()
+    [Fact] public async Task Dimensions_IsPositive()
     {
         var emb = new HuggingFaceEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), Opts());
         Assert.True(emb.Dimensions > 0);
@@ -221,11 +221,11 @@ public sealed class TS06_VoyageEmbedderExtendedTests
         Assert.Empty(await emb.EmbedBatchAsync([]));
     }
 
-    [Fact] public void Constructor_NullOptions_Throws()
+    [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() =>
             new VoyageEmbedder(new HttpClient(), null!));
 
-    [Fact] public void Dimensions_IsPositive()
+    [Fact] public async Task Dimensions_IsPositive()
     {
         var emb = new VoyageEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), Opts());
         Assert.True(emb.Dimensions > 0);
@@ -253,11 +253,11 @@ public sealed class TS06_JinaEmbedderExtendedTests
         Assert.Empty(await emb.EmbedBatchAsync([]));
     }
 
-    [Fact] public void Constructor_NullOptions_Throws()
+    [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() =>
             new JinaEmbedder(new HttpClient(), null!));
 
-    [Fact] public void Dimensions_IsPositive()
+    [Fact] public async Task Dimensions_IsPositive()
     {
         var emb = new JinaEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), Opts());
         Assert.True(emb.Dimensions > 0);
@@ -285,7 +285,7 @@ public sealed class TS06_MistralEmbedderExtendedTests
         Assert.Empty(await emb.EmbedBatchAsync([]));
     }
 
-    [Fact] public void Constructor_NullOptions_Throws()
+    [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() =>
             new MistralEmbedder(new HttpClient(), null!));
 
@@ -307,7 +307,7 @@ public sealed class TS06_BedrockTitanEmbedderExtendedTests
 {
     private static BedrockEmbedderOptions Opts() => new() { EndpointUrl = "https://bedrock.us-east-1.amazonaws.com" };
 
-    [Fact] public void EmbedderType_IsBedrock()
+    [Fact] public async Task EmbedderType_IsBedrock()
         => Assert.Equal(EmbedderType.AWSBedrockTitan,
             new BedrockTitanEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), Opts()).EmbedderType);
 
@@ -324,7 +324,7 @@ public sealed class TS06_BedrockTitanEmbedderExtendedTests
         Assert.Empty(await emb.EmbedBatchAsync([]));
     }
 
-    [Fact] public void Constructor_NullOptions_Throws()
+    [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() =>
             new BedrockTitanEmbedder(new HttpClient(), null!));
 }
@@ -342,7 +342,7 @@ public sealed class TS06_AzureOpenAIEmbedderExtendedTests
         Deployment = "text-embedding-ada-002"
     };
 
-    [Fact] public void EmbedderType_IsAzureOpenAI()
+    [Fact] public async Task EmbedderType_IsAzureOpenAI()
         => Assert.Equal(EmbedderType.AzureOpenAI,
             new AzureOpenAIEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), Opts()).EmbedderType);
 
@@ -359,7 +359,7 @@ public sealed class TS06_AzureOpenAIEmbedderExtendedTests
         Assert.Empty(await emb.EmbedBatchAsync([]));
     }
 
-    [Fact] public void Constructor_NullOptions_Throws()
+    [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() =>
             new AzureOpenAIEmbedder(new HttpClient(), null!));
 }
@@ -372,7 +372,7 @@ public sealed class TS06_LlamaCppEmbedderExtendedTests
 {
     private static LlamaCppEmbedderOptions Opts() => new() { BaseUrl = "http://localhost:8080" };
 
-    [Fact] public void EmbedderType_IsLlamaCpp()
+    [Fact] public async Task EmbedderType_IsLlamaCpp()
         => Assert.Equal(EmbedderType.LlamaCpp,
             new LlamaCppEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), Opts()).EmbedderType);
 
@@ -389,7 +389,7 @@ public sealed class TS06_LlamaCppEmbedderExtendedTests
         Assert.Empty(await emb.EmbedBatchAsync([]));
     }
 
-    [Fact] public void Constructor_NullOptions_Throws()
+    [Fact] public async Task Constructor_NullOptions_Throws()
     {
         // LlamaCppEmbedder may use a default options instance when null is passed
         var ex = Record.Exception(() => new LlamaCppEmbedder(new HttpClient(), null!));
@@ -405,7 +405,7 @@ public sealed class TS06_NvidiaNimEmbedderExtendedTests
 {
     private static NvidiaNimEmbedderOptions Opts() => new() { ApiKey = "nim-test" };
 
-    [Fact] public void EmbedderType_IsNvidiaNim()
+    [Fact] public async Task EmbedderType_IsNvidiaNim()
         => Assert.Equal(EmbedderType.NvidiaNIM,
             new NvidiaNimEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), Opts()).EmbedderType);
 
@@ -422,7 +422,7 @@ public sealed class TS06_NvidiaNimEmbedderExtendedTests
         Assert.Empty(await emb.EmbedBatchAsync([]));
     }
 
-    [Fact] public void Constructor_NullOptions_Throws()
+    [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() =>
             new NvidiaNimEmbedder(new HttpClient(), null!));
 }
@@ -462,10 +462,10 @@ public sealed class TS06_OpenAIExtendedTests
         Assert.Empty(await emb.EmbedBatchAsync([]));
     }
 
-    [Fact] public void Large_Dimensions_Is3072()
+    [Fact] public async Task Large_Dimensions_Is3072()
         => Assert.Equal(3072, new OpenAILargeEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), Opts()).Dimensions);
 
-    [Fact] public void Large_EmbedderType_IsOpenAILarge()
+    [Fact] public async Task Large_EmbedderType_IsOpenAILarge()
         => Assert.Equal(EmbedderType.OpenAILarge,
             new OpenAILargeEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), Opts()).EmbedderType);
 }
@@ -514,40 +514,40 @@ public sealed class TS06_OnnxSpecialtyEmbeddersTests
     private const string FakeModel = "fake-model-path";
     private static OnnxEmbedderOptions FakeOpts => new() { ModelPath = FakeModel };
 
-    [Fact] public void MultilingualE5_EmbedderType_IsMultilingualE5()
+    [Fact] public async Task MultilingualE5_EmbedderType_IsMultilingualE5()
         => Assert.Equal(EmbedderType.MultilingualE5, new MultilingualE5Embedder(FakeOpts).EmbedderType);
 
-    [Fact] public void Bge_EmbedderType_IsBge()
+    [Fact] public async Task Bge_EmbedderType_IsBge()
         => Assert.Equal(EmbedderType.BGE, new BgeEmbedder(FakeOpts).EmbedderType);
 
-    [Fact] public void Gte_EmbedderType_IsGte()
+    [Fact] public async Task Gte_EmbedderType_IsGte()
         => Assert.Equal(EmbedderType.GTE, new GteEmbedder(FakeOpts).EmbedderType);
 
-    [Fact] public void Solar_EmbedderType_IsSolar()
+    [Fact] public async Task Solar_EmbedderType_IsSolar()
         => Assert.Equal(EmbedderType.SOLAR, new SolarEmbedder(FakeOpts).EmbedderType);
 
-    [Fact] public void M3E_EmbedderType_IsM3E()
+    [Fact] public async Task M3E_EmbedderType_IsM3E()
         => Assert.Equal(EmbedderType.M3E, new M3EEmbedder(FakeOpts).EmbedderType);
 
-    [Fact] public void BgeM3_EmbedderType_IsBgeM3()
+    [Fact] public async Task BgeM3_EmbedderType_IsBgeM3()
         => Assert.Equal(EmbedderType.BAGEM3, new BgeM3Embedder(FakeOpts).EmbedderType);
 
-    [Fact] public void NomicV15_EmbedderType_IsNomicV15()
+    [Fact] public async Task NomicV15_EmbedderType_IsNomicV15()
         => Assert.Equal(EmbedderType.NomicV15, new NomicV15Embedder(FakeOpts).EmbedderType);
 
-    [Fact] public void MultilingualE5_Dimensions_IsPositive()
+    [Fact] public async Task MultilingualE5_Dimensions_IsPositive()
         => Assert.True(new MultilingualE5Embedder(FakeOpts).Dimensions > 0);
 
-    [Fact] public void Bge_Dimensions_IsPositive()
+    [Fact] public async Task Bge_Dimensions_IsPositive()
         => Assert.True(new BgeEmbedder(FakeOpts).Dimensions > 0);
 
-    [Fact] public void OnnxBertMiniLM_EmbedderType_IsOnnxBertMiniLM()
+    [Fact] public async Task OnnxBertMiniLM_EmbedderType_IsOnnxBertMiniLM()
         => Assert.Equal(EmbedderType.OnnxBertMiniLM, new OnnxBertMiniLMEmbedder(FakeOpts).EmbedderType);
 
-    [Fact] public void OnnxMPNet_EmbedderType_IsOnnxMPNet()
+    [Fact] public async Task OnnxMPNet_EmbedderType_IsOnnxMPNet()
         => Assert.Equal(EmbedderType.OnnxMPNet, new OnnxMPNetEmbedder(FakeOpts).EmbedderType);
 
-    [Fact] public void OnnxInstructor_EmbedderType_IsOnnxInstructor()
+    [Fact] public async Task OnnxInstructor_EmbedderType_IsOnnxInstructor()
         => Assert.Equal(EmbedderType.OnnxInstructor, new OnnxInstructorEmbedder(FakeOpts).EmbedderType);
 }
 
@@ -557,52 +557,52 @@ public sealed class TS06_OnnxSpecialtyEmbeddersTests
 
 public sealed class TS06_EmbedderTypeEnumTests
 {
-    [Fact] public void AllValues_AreUnique()
+    [Fact] public async Task AllValues_AreUnique()
     {
         var vals = Enum.GetValues<EmbedderType>().Cast<int>().ToList();
         Assert.Equal(vals.Count, vals.Distinct().Count());
     }
 
-    [Fact] public void OpenAISmall_HasDistinctValue()
+    [Fact] public async Task OpenAISmall_HasDistinctValue()
         => Assert.True(Enum.IsDefined(typeof(EmbedderType), EmbedderType.OpenAISmall));
 
-    [Fact] public void OpenAILarge_IsDistinctFromSmall()
+    [Fact] public async Task OpenAILarge_IsDistinctFromSmall()
         => Assert.NotEqual(EmbedderType.OpenAISmall, EmbedderType.OpenAILarge);
 
-    [Fact] public void Anthropic_HasDistinctValue()
+    [Fact] public async Task Anthropic_HasDistinctValue()
         => Assert.True(Enum.IsDefined(typeof(EmbedderType), EmbedderType.Anthropic));
 
-    [Fact] public void Cohere_HasDistinctValue()
+    [Fact] public async Task Cohere_HasDistinctValue()
         => Assert.True(Enum.IsDefined(typeof(EmbedderType), EmbedderType.Cohere));
 
-    [Fact] public void Gemini_HasDistinctValue()
+    [Fact] public async Task Gemini_HasDistinctValue()
         => Assert.True(Enum.IsDefined(typeof(EmbedderType), EmbedderType.GoogleGemini));
 
-    [Fact] public void HuggingFace_HasDistinctValue()
+    [Fact] public async Task HuggingFace_HasDistinctValue()
         => Assert.True(Enum.IsDefined(typeof(EmbedderType), EmbedderType.HuggingFaceApi));
 
-    [Fact] public void Voyage_HasDistinctValue()
+    [Fact] public async Task Voyage_HasDistinctValue()
         => Assert.True(Enum.IsDefined(typeof(EmbedderType), EmbedderType.VoyageAI));
 
-    [Fact] public void Jina_HasDistinctValue()
+    [Fact] public async Task Jina_HasDistinctValue()
         => Assert.True(Enum.IsDefined(typeof(EmbedderType), EmbedderType.JinaAI));
 
-    [Fact] public void Mistral_HasDistinctValue()
+    [Fact] public async Task Mistral_HasDistinctValue()
         => Assert.True(Enum.IsDefined(typeof(EmbedderType), EmbedderType.Mistral));
 
-    [Fact] public void GoogleGemini_HasDistinctValue()
+    [Fact] public async Task GoogleGemini_HasDistinctValue()
         => Assert.True(Enum.IsDefined(typeof(EmbedderType), EmbedderType.GoogleGemini));
 
-    [Fact] public void HuggingFaceApi_HasDistinctValue()
+    [Fact] public async Task HuggingFaceApi_HasDistinctValue()
         => Assert.True(Enum.IsDefined(typeof(EmbedderType), EmbedderType.HuggingFaceApi));
 
-    [Fact] public void VoyageAI_HasDistinctValue()
+    [Fact] public async Task VoyageAI_HasDistinctValue()
         => Assert.True(Enum.IsDefined(typeof(EmbedderType), EmbedderType.VoyageAI));
 
-    [Fact] public void JinaAI_HasDistinctValue()
+    [Fact] public async Task JinaAI_HasDistinctValue()
         => Assert.True(Enum.IsDefined(typeof(EmbedderType), EmbedderType.JinaAI));
 
-    [Fact] public void AWSBedrockTitan_HasDistinctValue()
+    [Fact] public async Task AWSBedrockTitan_HasDistinctValue()
         => Assert.True(Enum.IsDefined(typeof(EmbedderType), EmbedderType.AWSBedrockTitan));
 }
 
@@ -612,61 +612,61 @@ public sealed class TS06_EmbedderTypeEnumTests
 
 public sealed class TS06_EmbedderDisposeSafetyTests
 {
-    [Fact] public void AnthropicEmbedder_Dispose_DoesNotThrow()
+    [Fact] public async Task AnthropicEmbedder_Dispose_DoesNotThrow()
     {
         var emb = new AnthropicEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), new AnthropicEmbedderOptions { ApiKey = "k" });
         Assert.Null(Record.Exception(() => emb.Dispose()));
     }
 
-    [Fact] public void CohereEmbedder_Dispose_DoesNotThrow()
+    [Fact] public async Task CohereEmbedder_Dispose_DoesNotThrow()
     {
         var emb = new CohereEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), new CohereEmbedderOptions { ApiKey = "k" });
         Assert.Null(Record.Exception(() => emb.Dispose()));
     }
 
-    [Fact] public void GeminiEmbedder_Dispose_DoesNotThrow()
+    [Fact] public async Task GeminiEmbedder_Dispose_DoesNotThrow()
     {
         var emb = new GeminiEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), new GeminiEmbedderOptions { ApiKey = "k" });
         Assert.Null(Record.Exception(() => emb.Dispose()));
     }
 
-    [Fact] public void HuggingFaceEmbedder_Dispose_DoesNotThrow()
+    [Fact] public async Task HuggingFaceEmbedder_Dispose_DoesNotThrow()
     {
         var emb = new HuggingFaceEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), new HuggingFaceEmbedderOptions { ApiKey = "k" });
         Assert.Null(Record.Exception(() => emb.Dispose()));
     }
 
-    [Fact] public void VoyageEmbedder_Dispose_DoesNotThrow()
+    [Fact] public async Task VoyageEmbedder_Dispose_DoesNotThrow()
     {
         var emb = new VoyageEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), new VoyageEmbedderOptions { ApiKey = "k" });
         Assert.Null(Record.Exception(() => emb.Dispose()));
     }
 
-    [Fact] public void JinaEmbedder_Dispose_DoesNotThrow()
+    [Fact] public async Task JinaEmbedder_Dispose_DoesNotThrow()
     {
         var emb = new JinaEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), new JinaEmbedderOptions { ApiKey = "k" });
         Assert.Null(Record.Exception(() => emb.Dispose()));
     }
 
-    [Fact] public void MistralEmbedder_Dispose_DoesNotThrow()
+    [Fact] public async Task MistralEmbedder_Dispose_DoesNotThrow()
     {
         var emb = new MistralEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), new MistralEmbedderOptions { ApiKey = "k" });
         Assert.Null(Record.Exception(() => emb.Dispose()));
     }
 
-    [Fact] public void LlamaCppEmbedder_Dispose_DoesNotThrow()
+    [Fact] public async Task LlamaCppEmbedder_Dispose_DoesNotThrow()
     {
         var emb = new LlamaCppEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), new LlamaCppEmbedderOptions { BaseUrl = "http://localhost:8080/" });
         Assert.Null(Record.Exception(() => emb.Dispose()));
     }
 
-    [Fact] public void OllamaNomicEmbedder_Dispose_DoesNotThrow()
+    [Fact] public async Task OllamaNomicEmbedder_Dispose_DoesNotThrow()
     {
         var emb = new OllamaNomicEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), new OllamaEmbedderOptions { BaseUrl = "http://localhost:11434" });
         Assert.Null(Record.Exception(() => emb.Dispose()));
     }
 
-    [Fact] public void OllamaMxbaiEmbedder_Dispose_DoesNotThrow()
+    [Fact] public async Task OllamaMxbaiEmbedder_Dispose_DoesNotThrow()
     {
         var emb = new OllamaMxbaiEmbedder(F14EmbedHelper.Make(HttpStatusCode.OK, "{}"), new OllamaEmbedderOptions { BaseUrl = "http://localhost:11434" });
         Assert.Null(Record.Exception(() => emb.Dispose()));

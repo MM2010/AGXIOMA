@@ -90,7 +90,7 @@ public abstract class QdrantVectorStoreBase : IVectorStore
             cancellationToken: ct);
         if (points.Count == 0) return null;
         var p = points[0];
-        var vec = p.Vectors?.Vector?.Data?.ToArray() ?? Array.Empty<float>();
+        var vec = p.Vectors?.Vector?.Dense?.Data.ToArray() ?? Array.Empty<float>();
         var text = p.Payload.TryGetValue("text_content", out var t) ? t.StringValue : null;
         return new VectorRecord(id, vec, text);
     }

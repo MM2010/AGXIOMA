@@ -5,12 +5,12 @@ namespace AGXIOME.Tests.F12;
 
 public sealed class GoogleCalendarToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("google_calendar", new GoogleCalendarToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Google Calendar", new GoogleCalendarToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new GoogleCalendarToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("google_calendar", new GoogleCalendarToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Google Calendar", new GoogleCalendarToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new GoogleCalendarToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new GoogleCalendarToolkit().ExecuteAsync("list_events", [], default).GetAwaiter().GetResult();
+        var r = await new GoogleCalendarToolkit().ExecuteAsync("list_events", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -23,12 +23,12 @@ public sealed class GoogleCalendarToolkitTests
 
 public sealed class GoogleDriveToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("google_drive", new GoogleDriveToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Google Drive", new GoogleDriveToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new GoogleDriveToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("google_drive", new GoogleDriveToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Google Drive", new GoogleDriveToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new GoogleDriveToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new GoogleDriveToolkit().ExecuteAsync("list_files", [], default).GetAwaiter().GetResult();
+        var r = await new GoogleDriveToolkit().ExecuteAsync("list_files", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -41,12 +41,12 @@ public sealed class GoogleDriveToolkitTests
 
 public sealed class GoogleDocsToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("google_docs", new GoogleDocsToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Google Docs", new GoogleDocsToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new GoogleDocsToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("google_docs", new GoogleDocsToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Google Docs", new GoogleDocsToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new GoogleDocsToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new GoogleDocsToolkit().ExecuteAsync("read_document", [], default).GetAwaiter().GetResult();
+        var r = await new GoogleDocsToolkit().ExecuteAsync("read_document", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -59,12 +59,12 @@ public sealed class GoogleDocsToolkitTests
 
 public sealed class GoogleSheetsToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("google_sheets", new GoogleSheetsToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Google Sheets", new GoogleSheetsToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new GoogleSheetsToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("google_sheets", new GoogleSheetsToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Google Sheets", new GoogleSheetsToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new GoogleSheetsToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new GoogleSheetsToolkit().ExecuteAsync("read_range", [], default).GetAwaiter().GetResult();
+        var r = await new GoogleSheetsToolkit().ExecuteAsync("read_range", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -77,12 +77,12 @@ public sealed class GoogleSheetsToolkitTests
 
 public sealed class OneDriveToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("onedrive", new OneDriveToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("OneDrive", new OneDriveToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new OneDriveToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("onedrive", new OneDriveToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("OneDrive", new OneDriveToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new OneDriveToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new OneDriveToolkit().ExecuteAsync("list_files", [], default).GetAwaiter().GetResult();
+        var r = await new OneDriveToolkit().ExecuteAsync("list_files", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -95,12 +95,12 @@ public sealed class OneDriveToolkitTests
 
 public sealed class NotionToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("notion", new NotionToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Notion", new NotionToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new NotionToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("notion", new NotionToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Notion", new NotionToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new NotionToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new NotionToolkit().ExecuteAsync("read_page", [], default).GetAwaiter().GetResult();
+        var r = await new NotionToolkit().ExecuteAsync("read_page", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -113,12 +113,12 @@ public sealed class NotionToolkitTests
 
 public sealed class ConfluenceToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("confluence", new ConfluenceToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Confluence", new ConfluenceToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new ConfluenceToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("confluence", new ConfluenceToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Confluence", new ConfluenceToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new ConfluenceToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new ConfluenceToolkit().ExecuteAsync("read_page", [], default).GetAwaiter().GetResult();
+        var r = await new ConfluenceToolkit().ExecuteAsync("read_page", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -131,12 +131,12 @@ public sealed class ConfluenceToolkitTests
 
 public sealed class JiraToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("jira", new JiraToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Jira", new JiraToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new JiraToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("jira", new JiraToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Jira", new JiraToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new JiraToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new JiraToolkit().ExecuteAsync("list_issues", [], default).GetAwaiter().GetResult();
+        var r = await new JiraToolkit().ExecuteAsync("list_issues", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -149,12 +149,12 @@ public sealed class JiraToolkitTests
 
 public sealed class LinearToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("linear", new LinearToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Linear", new LinearToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new LinearToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("linear", new LinearToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Linear", new LinearToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new LinearToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new LinearToolkit().ExecuteAsync("list_issues", [], default).GetAwaiter().GetResult();
+        var r = await new LinearToolkit().ExecuteAsync("list_issues", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -167,12 +167,12 @@ public sealed class LinearToolkitTests
 
 public sealed class AsanaToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("asana", new AsanaToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Asana", new AsanaToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new AsanaToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("asana", new AsanaToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Asana", new AsanaToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new AsanaToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new AsanaToolkit().ExecuteAsync("list_tasks", [], default).GetAwaiter().GetResult();
+        var r = await new AsanaToolkit().ExecuteAsync("list_tasks", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -185,12 +185,12 @@ public sealed class AsanaToolkitTests
 
 public sealed class TrelloToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("trello", new TrelloToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Trello", new TrelloToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new TrelloToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("trello", new TrelloToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Trello", new TrelloToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new TrelloToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new TrelloToolkit().ExecuteAsync("list_cards", [], default).GetAwaiter().GetResult();
+        var r = await new TrelloToolkit().ExecuteAsync("list_cards", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -203,12 +203,12 @@ public sealed class TrelloToolkitTests
 
 public sealed class TodoistToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("todoist", new TodoistToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Todoist", new TodoistToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new TodoistToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("todoist", new TodoistToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Todoist", new TodoistToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new TodoistToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new TodoistToolkit().ExecuteAsync("list_tasks", [], default).GetAwaiter().GetResult();
+        var r = await new TodoistToolkit().ExecuteAsync("list_tasks", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -221,12 +221,12 @@ public sealed class TodoistToolkitTests
 
 public sealed class GoogleTasksToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("google_tasks", new GoogleTasksToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Google Tasks", new GoogleTasksToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new GoogleTasksToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("google_tasks", new GoogleTasksToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Google Tasks", new GoogleTasksToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new GoogleTasksToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new GoogleTasksToolkit().ExecuteAsync("list_tasks", [], default).GetAwaiter().GetResult();
+        var r = await new GoogleTasksToolkit().ExecuteAsync("list_tasks", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -239,12 +239,12 @@ public sealed class GoogleTasksToolkitTests
 
 public sealed class EvernoteToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("evernote", new EvernoteToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Evernote", new EvernoteToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new EvernoteToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("evernote", new EvernoteToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Evernote", new EvernoteToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new EvernoteToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new EvernoteToolkit().ExecuteAsync("list_notes", [], default).GetAwaiter().GetResult();
+        var r = await new EvernoteToolkit().ExecuteAsync("list_notes", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -257,12 +257,12 @@ public sealed class EvernoteToolkitTests
 
 public sealed class ObsidianToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("obsidian", new ObsidianToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Obsidian", new ObsidianToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new ObsidianToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("obsidian", new ObsidianToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Obsidian", new ObsidianToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new ObsidianToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new ObsidianToolkit().ExecuteAsync("read_note", [], default).GetAwaiter().GetResult();
+        var r = await new ObsidianToolkit().ExecuteAsync("read_note", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -275,12 +275,12 @@ public sealed class ObsidianToolkitTests
 
 public sealed class HabiticaToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("habitica", new HabiticaToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Habitica", new HabiticaToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new HabiticaToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("habitica", new HabiticaToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Habitica", new HabiticaToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new HabiticaToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new HabiticaToolkit().ExecuteAsync("list_tasks", [], default).GetAwaiter().GetResult();
+        var r = await new HabiticaToolkit().ExecuteAsync("list_tasks", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -293,12 +293,12 @@ public sealed class HabiticaToolkitTests
 
 public sealed class CalendlyToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("calendly", new CalendlyToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Calendly", new CalendlyToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new CalendlyToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("calendly", new CalendlyToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Calendly", new CalendlyToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new CalendlyToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new CalendlyToolkit().ExecuteAsync("list_events", [], default).GetAwaiter().GetResult();
+        var r = await new CalendlyToolkit().ExecuteAsync("list_events", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -311,12 +311,12 @@ public sealed class CalendlyToolkitTests
 
 public sealed class DocusignToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("docusign", new DocuSignToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("DocuSign", new DocuSignToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new DocuSignToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("docusign", new DocuSignToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("DocuSign", new DocuSignToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Productivity, new DocuSignToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new DocuSignToolkit().ExecuteAsync("send_envelope", [], default).GetAwaiter().GetResult();
+        var r = await new DocuSignToolkit().ExecuteAsync("send_envelope", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()

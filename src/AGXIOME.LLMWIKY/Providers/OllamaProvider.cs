@@ -96,7 +96,7 @@ public sealed class OllamaProvider : ILLMProvider
             var toolName = func.GetProperty("name").GetString();
             var toolArgs = func.GetProperty("arguments").GetRawText();
             var toolCallId = call.TryGetProperty("id", out var id) ? id.GetString() : $"call_{Guid.NewGuid():N[..16]}";
-            return new LLMWIKYResponse("", toolCallId, toolName, toolArgs, default);
+            return new LLMWIKYResponse("", toolCallId, toolName, toolArgs);
         }
 
         return new LLMWIKYResponse(msg.GetProperty("content").GetString() ?? "");
@@ -123,9 +123,9 @@ public sealed class OllamaProvider : ILLMProvider
         using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
 
-        while (!reader.EndOfStream && !ct.IsCancellationRequested)
+        string? line;
+        while (!ct.IsCancellationRequested && (line = await reader.ReadLineAsync(ct)) is not null)
         {
-            var line = await reader.ReadLineAsync(ct) ?? "";
             if (string.IsNullOrWhiteSpace(line)) continue;
             using var doc = JsonDocument.Parse(line);
             if (doc.RootElement.TryGetProperty("message", out var m) && m.TryGetProperty("content", out var c))

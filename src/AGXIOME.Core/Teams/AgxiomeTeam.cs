@@ -2,8 +2,6 @@ using AGXIOME.Core.Agent;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
-using AGXIOME.Shared.Interfaces;
-using AGXIOME.Shared.Models;
 
 namespace AGXIOME.Core.Teams;
 
@@ -102,7 +100,7 @@ public sealed class AgxiomeTeam : IAgxiomeTeam
         );
     }
 
-    public async IAsyncEnumerable<AgentChunk> ExecuteStreamAsync(string objective, TeamContext? context = null, CancellationToken ct = default)
+    public async IAsyncEnumerable<AgentChunk> ExecuteStreamAsync(string objective, TeamContext? context = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
         await foreach (var chunk in _leader.RunStreamAsync(new AgentRequest(objective), ct))
             yield return chunk;

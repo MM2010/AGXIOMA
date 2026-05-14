@@ -25,37 +25,37 @@ public sealed class SA01_RbacTests
 
     private readonly IRbacPolicy _policy = new DefaultRbacPolicy();
 
-    [Fact] public void Admin_HasAllPermissions()
+    [Fact] public async Task Admin_HasAllPermissions()
     {
         Assert.True(_policy.IsAuthorized(Admin, AgxiomePermission.AdminConfig));
         Assert.True(_policy.IsAuthorized(Admin, AgxiomePermission.AgentDelete));
         Assert.True(_policy.IsAuthorized(Admin, AgxiomePermission.AdminUsers));
     }
 
-    [Fact] public void Operator_CannotDeleteAgent()
+    [Fact] public async Task Operator_CannotDeleteAgent()
         => Assert.False(_policy.IsAuthorized(Operator, AgxiomePermission.AgentDelete));
 
-    [Fact] public void Viewer_CanReadButNotWrite()
+    [Fact] public async Task Viewer_CanReadButNotWrite()
     {
         Assert.True( _policy.IsAuthorized(Viewer, AgxiomePermission.AgentRead));
         Assert.False(_policy.IsAuthorized(Viewer, AgxiomePermission.AgentCreate));
         Assert.False(_policy.IsAuthorized(Viewer, AgxiomePermission.AgentRun));
     }
 
-    [Fact] public void Service_HasNarrowPermissions()
+    [Fact] public async Task Service_HasNarrowPermissions()
     {
         Assert.True( _policy.IsAuthorized(Service, AgxiomePermission.AgentRun));
         Assert.False(_policy.IsAuthorized(Service, AgxiomePermission.AgentCreate));
         Assert.False(_policy.IsAuthorized(Service, AgxiomePermission.AdminConfig));
     }
 
-    [Fact] public void HasRole_ReturnsCorrectly()
+    [Fact] public async Task HasRole_ReturnsCorrectly()
     {
         Assert.True( _policy.HasRole(Admin,  AgxiomeRole.Admin));
         Assert.False(_policy.HasRole(Viewer, AgxiomeRole.Admin));
     }
 
-    [Fact] public void PolicyBuilder_AddsPermission()
+    [Fact] public async Task PolicyBuilder_AddsPermission()
     {
         var custom = new RbacPolicyBuilder()
             .Allow(AgxiomeRole.Viewer, AgxiomePermission.AgentCreate)
@@ -105,7 +105,7 @@ public sealed class SA02_AuditTrailTests
         Assert.Equal(AuditSeverity.Critical, results[0].Severity);
     }
 
-    [Fact] public void Pseudonymize_IsDeterministic()
+    [Fact] public async Task Pseudonymize_IsDeterministic()
     {
         var h1 = AuditLogger.Pseudonymize("user@example.com");
         var h2 = AuditLogger.Pseudonymize("user@example.com");
@@ -113,7 +113,7 @@ public sealed class SA02_AuditTrailTests
         Assert.Equal(16, h1.Length);
     }
 
-    [Fact] public void Pseudonymize_DifferentInputsDifferentHashes()
+    [Fact] public async Task Pseudonymize_DifferentInputsDifferentHashes()
     {
         var h1 = AuditLogger.Pseudonymize("alice");
         var h2 = AuditLogger.Pseudonymize("bob");
@@ -136,7 +136,7 @@ public sealed class SA02_AuditTrailTests
 // ════════════════════════════════════════════════════════════
 public sealed class SA03_KeyRotationTests
 {
-    [Fact] public void GetCurrentKey_ReturnsActiveKey()
+    [Fact] public async Task GetCurrentKey_ReturnsActiveKey()
     {
         using var svc = new InMemoryKeyRotationService();
         var key = svc.GetCurrentKey();
@@ -145,7 +145,7 @@ public sealed class SA03_KeyRotationTests
         Assert.True(key.IsActive);
     }
 
-    [Fact] public void FindKey_FindsByKid()
+    [Fact] public async Task FindKey_FindsByKid()
     {
         using var svc = new InMemoryKeyRotationService();
         var key   = svc.GetCurrentKey();
@@ -154,13 +154,13 @@ public sealed class SA03_KeyRotationTests
         Assert.Equal(key.Kid, found!.Kid);
     }
 
-    [Fact] public void FindKey_ReturnsNull_ForUnknownKid()
+    [Fact] public async Task FindKey_ReturnsNull_ForUnknownKid()
     {
         using var svc = new InMemoryKeyRotationService();
         Assert.Null(svc.FindKey("k-notexist"));
     }
 
-    [Fact] public void ForceRotate_ProducesNewKey()
+    [Fact] public async Task ForceRotate_ProducesNewKey()
     {
         using var svc = new InMemoryKeyRotationService();
         var old = svc.GetCurrentKey();
@@ -168,7 +168,7 @@ public sealed class SA03_KeyRotationTests
         Assert.NotEqual(old.Kid, next.Kid);
     }
 
-    [Fact] public void GetPublicKey_ReturnsCopy()
+    [Fact] public async Task GetPublicKey_ReturnsCopy()
     {
         using var svc = new InMemoryKeyRotationService();
         var key = svc.GetCurrentKey();
@@ -178,7 +178,7 @@ public sealed class SA03_KeyRotationTests
         Assert.NotSame(pub1, pub2); // defensive copy
     }
 
-    [Fact] public void AllActiveKeys_ContainsCurrentKey()
+    [Fact] public async Task AllActiveKeys_ContainsCurrentKey()
     {
         using var svc = new InMemoryKeyRotationService();
         var current = svc.GetCurrentKey();
@@ -256,14 +256,14 @@ public sealed class SA05_RateLimitingTests
 {
     private static readonly RateLimitPolicy Policy3 = new(3, TimeSpan.FromMinutes(1));
 
-    [Fact] public void Check_AllowsUpToLimit()
+    [Fact] public async Task Check_AllowsUpToLimit()
     {
         var limiter = new SlidingWindowRateLimiter();
         for (int i = 0; i < 3; i++)
             Assert.True(limiter.Check("key1", Policy3).IsAllowed);
     }
 
-    [Fact] public void Check_BlocksAboveLimit()
+    [Fact] public async Task Check_BlocksAboveLimit()
     {
         var limiter = new SlidingWindowRateLimiter();
         for (int i = 0; i < 3; i++) limiter.Check("key2", Policy3);
@@ -272,7 +272,7 @@ public sealed class SA05_RateLimitingTests
         Assert.True(result.RetryAfter > TimeSpan.Zero);
     }
 
-    [Fact] public void Reset_ClearsState()
+    [Fact] public async Task Reset_ClearsState()
     {
         var limiter = new SlidingWindowRateLimiter();
         for (int i = 0; i < 3; i++) limiter.Check("key3", Policy3);
@@ -280,7 +280,7 @@ public sealed class SA05_RateLimitingTests
         Assert.True(limiter.Check("key3", Policy3).IsAllowed);
     }
 
-    [Fact] public void BurstAllowance_ExtendsLimit()
+    [Fact] public async Task BurstAllowance_ExtendsLimit()
     {
         var policy  = new RateLimitPolicy(2, TimeSpan.FromMinutes(1), BurstAllowance: 2);
         var limiter = new SlidingWindowRateLimiter();
@@ -289,7 +289,7 @@ public sealed class SA05_RateLimitingTests
         Assert.False(limiter.Check("burst", policy).IsAllowed);
     }
 
-    [Fact] public void DifferentKeys_IndependentCounters()
+    [Fact] public async Task DifferentKeys_IndependentCounters()
     {
         var limiter = new SlidingWindowRateLimiter();
         for (int i = 0; i < 3; i++) limiter.Check("ka", Policy3);
@@ -297,7 +297,7 @@ public sealed class SA05_RateLimitingTests
         Assert.True(limiter.Check("kb", Policy3).IsAllowed);
     }
 
-    [Fact] public void Remaining_DecreasesWithEachRequest()
+    [Fact] public async Task Remaining_DecreasesWithEachRequest()
     {
         var limiter = new SlidingWindowRateLimiter();
         var r1 = limiter.Check("dec", Policy3);
@@ -313,21 +313,21 @@ public sealed class SA06_InputSanitizationTests
 {
     private readonly IInputSanitizer _san = new InputSanitizer();
 
-    [Fact] public void ValidInput_PassesAlphanumRule()
+    [Fact] public async Task ValidInput_PassesAlphanumRule()
     {
         var result = _san.Sanitize("my-agent-01", SanitizationRules.AgentId);
         Assert.True(result.IsValid);
         Assert.Equal("my-agent-01", result.SanitizedValue);
     }
 
-    [Fact] public void SqlInjection_Blocked()
+    [Fact] public async Task SqlInjection_Blocked()
     {
         var result = _san.Sanitize("SELECT * FROM agents", SanitizationRules.FreeText);
         Assert.False(result.IsValid);
         Assert.Equal(SanitizationViolation.SqlKeyword, result.Violation);
     }
 
-    [Fact] public void HtmlStripped_WhenStripHtmlEnabled()
+    [Fact] public async Task HtmlStripped_WhenStripHtmlEnabled()
     {
         var rule   = new SanitizationRule("test", MaxLength: 100, StripHtml: true, CheckSqlKeywords: false);
         var result = _san.Sanitize("Hello <script>alert(1)</script>", rule);
@@ -335,14 +335,14 @@ public sealed class SA06_InputSanitizationTests
         Assert.DoesNotContain("<script>", result.SanitizedValue);
     }
 
-    [Fact] public void PathTraversal_Blocked()
+    [Fact] public async Task PathTraversal_Blocked()
     {
         var result = _san.Sanitize("../../etc/passwd", SanitizationRules.AgentId);
         Assert.False(result.IsValid);
         Assert.Equal(SanitizationViolation.PathTraversal, result.Violation);
     }
 
-    [Fact] public void TooLong_Blocked()
+    [Fact] public async Task TooLong_Blocked()
     {
         var input  = new string('a', 200);
         var result = _san.Sanitize(input, SanitizationRules.AgentId);
@@ -350,7 +350,7 @@ public sealed class SA06_InputSanitizationTests
         Assert.Equal(SanitizationViolation.TooLong, result.Violation);
     }
 
-    [Fact] public void Empty_BlockedByDefault()
+    [Fact] public async Task Empty_BlockedByDefault()
     {
         var result = _san.Sanitize(string.Empty, SanitizationRules.AgentId);
         Assert.False(result.IsValid);
@@ -363,7 +363,7 @@ public sealed class SA06_InputSanitizationTests
 // ════════════════════════════════════════════════════════════
 public sealed class SA07_CspHardeningTests
 {
-    [Fact] public void DefaultStrict_BuildsNonEmptyHeader()
+    [Fact] public async Task DefaultStrict_BuildsNonEmptyHeader()
     {
         var policy = CspBuilder.DefaultStrict();
         var header = policy.ToHeaderValue();
@@ -371,14 +371,14 @@ public sealed class SA07_CspHardeningTests
         Assert.Contains("default-src", header);
     }
 
-    [Fact] public void DefaultStrict_HasSelfOrigin()
+    [Fact] public async Task DefaultStrict_HasSelfOrigin()
     {
         var policy = CspBuilder.DefaultStrict();
         var header = policy.ToHeaderValue();
         Assert.Contains("'self'", header);
     }
 
-    [Fact] public void Builder_AddScriptSrc()
+    [Fact] public async Task Builder_AddScriptSrc()
     {
         var policy = new CspBuilder()
             .AllowScriptSrc("https://cdn.example.com")
@@ -386,7 +386,7 @@ public sealed class SA07_CspHardeningTests
         Assert.Contains("https://cdn.example.com", policy.ToHeaderValue());
     }
 
-    [Fact] public void Validator_FlagsWildcard()
+    [Fact] public async Task Validator_FlagsWildcard()
     {
         var policy = new CspBuilder().AllowScriptSrc("*").Build();
         var violations = CspPolicyValidator.ValidateForProduction(policy);
@@ -394,7 +394,7 @@ public sealed class SA07_CspHardeningTests
         Assert.Contains(violations, v => v.Contains("wildcard"));
     }
 
-    [Fact] public void Validator_FlagsUnsafeInline()
+    [Fact] public async Task Validator_FlagsUnsafeInline()
     {
         var policy = new CspBuilder().AllowScriptSrc("'unsafe-inline'").Build();
         var violations = CspPolicyValidator.ValidateForProduction(policy);
@@ -402,7 +402,7 @@ public sealed class SA07_CspHardeningTests
         Assert.Contains(violations, v => v.Contains("unsafe-inline"));
     }
 
-    [Fact] public void DefaultStrict_NoViolationsInProduction()
+    [Fact] public async Task DefaultStrict_NoViolationsInProduction()
     {
         var policy     = CspBuilder.DefaultStrict(CspEnvironment.Production);
         var violations = CspPolicyValidator.ValidateForProduction(policy);
@@ -417,30 +417,30 @@ public sealed class SA08_SecretsScannerTests
 {
     private readonly ISecretsScanner _scanner = new SecretsScanner();
 
-    [Fact] public void DetectsJwtToken()
+    [Fact] public async Task DetectsJwtToken()
     {
         const string jwt = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
         Assert.True(_scanner.ContainsSecrets(jwt));
     }
 
-    [Fact] public void DetectsOpenAiKey()
+    [Fact] public async Task DetectsOpenAiKey()
     {
         Assert.True(_scanner.ContainsSecrets("sk-abcdefghijklmnopqrstuvwxyz1234567890"));
     }
 
-    [Fact] public void DetectsAwsAccessKey()
+    [Fact] public async Task DetectsAwsAccessKey()
     {
         Assert.True(_scanner.ContainsSecrets("AKIAIOSFODNN7EXAMPLE"));
     }
 
-    [Fact] public void Mask_ReplacesSecret()
+    [Fact] public async Task Mask_ReplacesSecret()
     {
         var masked = _scanner.Mask("token=sk-abcdefghijklmnopqrstuvwxyz1234567890 rest");
         Assert.DoesNotContain("sk-abc", masked);
         Assert.Contains("***REDACTED***", masked);
     }
 
-    [Fact] public void SafeText_PassesThrough()
+    [Fact] public async Task SafeText_PassesThrough()
     {
         const string safe = "Hello, world! Agent run completed.";
         var result = _scanner.Scan(safe);
@@ -448,7 +448,7 @@ public sealed class SA08_SecretsScannerTests
         Assert.Equal(safe, result.SafeText);
     }
 
-    [Fact] public void DetectsPasswordKeyValue()
+    [Fact] public async Task DetectsPasswordKeyValue()
     {
         Assert.True(_scanner.ContainsSecrets("password=supersecret123"));
     }

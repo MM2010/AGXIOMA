@@ -21,7 +21,7 @@ namespace AGXIOME.Tests.F15;
 
 public sealed class F15_TS08_HotKeysTests
 {
-    [Fact] public void HotKeys_DifferentTaskIds_ProduceDifferentKeys()
+    [Fact] public async Task HotKeys_DifferentTaskIds_ProduceDifferentKeys()
     {
         var id1 = Guid.NewGuid();
         var id2 = Guid.NewGuid();
@@ -30,7 +30,7 @@ public sealed class F15_TS08_HotKeysTests
         Assert.NotEqual(HotKeys.TaskJobId(id1), HotKeys.TaskJobId(id2));
     }
 
-    [Fact] public void HotKeys_DifferentPlanIds_ProduceDifferentKeys()
+    [Fact] public async Task HotKeys_DifferentPlanIds_ProduceDifferentKeys()
     {
         var id1 = Guid.NewGuid();
         var id2 = Guid.NewGuid();
@@ -39,7 +39,7 @@ public sealed class F15_TS08_HotKeysTests
         Assert.NotEqual(HotKeys.PlanStep(id1), HotKeys.PlanStep(id2));
     }
 
-    [Fact] public void HotKeys_TaskResultAndTaskStatus_HaveDifferentPrefixes()
+    [Fact] public async Task HotKeys_TaskResultAndTaskStatus_HaveDifferentPrefixes()
     {
         var id = Guid.NewGuid();
         Assert.NotEqual(HotKeys.TaskResult(id), HotKeys.TaskStatus(id));
@@ -182,7 +182,7 @@ public sealed class F15_TS08_SaveNotifyPollPipelineTests
 
 public sealed class F15_TS08_DIExtensionTests
 {
-    [Fact] public void AddAgxiomeOrchestration_RegistersIHotStore()
+    [Fact] public async Task AddAgxiomeOrchestration_RegistersIHotStore()
     {
         var llm = Substitute.For<ILLMProvider>();
         var worker = Substitute.For<AGXIOME.Core.Execution.IBackgroundRunWorker>();
@@ -198,7 +198,7 @@ public sealed class F15_TS08_DIExtensionTests
         Assert.NotNull(hotStore);
     }
 
-    [Fact] public void AddAgxiomeOrchestration_RegistersIOrchestrationStore()
+    [Fact] public async Task AddAgxiomeOrchestration_RegistersIOrchestrationStore()
     {
         var services = new ServiceCollection();
         services.AddSingleton(Substitute.For<ILLMProvider>());
@@ -209,7 +209,7 @@ public sealed class F15_TS08_DIExtensionTests
         Assert.NotNull(provider.GetRequiredService<IOrchestrationStore>());
     }
 
-    [Fact] public void AddAgxiomeOrchestration_RegistersICompletionNotifier()
+    [Fact] public async Task AddAgxiomeOrchestration_RegistersICompletionNotifier()
     {
         var services = new ServiceCollection();
         services.AddSingleton(Substitute.For<ILLMProvider>());

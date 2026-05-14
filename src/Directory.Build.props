@@ -2,9 +2,9 @@
   <!--
     AGXIOME Directory.Build.props — applies to all projects in src/
     - NU1603: benign version resolution warning (nuget resolves to available version)
-    - NU1902/NU1903: transitive CVEs with no available patch (latest versions already in use)
+    - NU1510: suppress package deprecation noise
   -->
   <PropertyGroup>
-    <NoWarn>$(NoWarn);NU1603;NU1902;NU1903;NU1510</NoWarn>
+    <NoWarn>$(NoWarn);NU1603;NU1510</NoWarn>
   </PropertyGroup>
 </Project>

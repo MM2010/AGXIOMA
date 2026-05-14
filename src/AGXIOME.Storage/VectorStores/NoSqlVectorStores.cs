@@ -70,7 +70,7 @@ public sealed class RedisStackVectorStore : IVectorStore
     public async Task<IReadOnlyList<string>> ListCollectionsAsync(CancellationToken ct = default)
     {
         var result = await _server.ExecuteAsync("FT._LIST");
-        return result.Type == ResultType.MultiBulk
+        return result.Resp2Type == ResultType.Array
             ? ((RedisResult[])result!).Select(r => (string)r!).ToList()
             : Array.Empty<string>();
     }
@@ -126,7 +126,7 @@ public sealed class RedisStackVectorStore : IVectorStore
             "LIMIT", "0", topK.ToString());
 
         var results = new List<VectorSearchResult>();
-        if (result.Type != ResultType.MultiBulk) return results;
+        if (result.Resp2Type != ResultType.Array) return results;
         var arr = (RedisResult[])result!;
         // Result format: [count, key, [field, value, ...], key, [field, value, ...], ...]
         for (int i = 1; i < arr.Length; i += 2)

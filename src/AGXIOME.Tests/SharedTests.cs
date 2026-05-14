@@ -6,7 +6,7 @@ namespace AGXIOME.Tests;
 
 public class SharedRecordTests
 {
-    [Fact] public void Record_Immutability_With_ReturnsNewInstance()
+    [Fact] public async Task Record_Immutability_With_ReturnsNewInstance()
     {
         var original = new AgentRequest("hello");
         var modified = original with { Prompt = "world" };
@@ -14,7 +14,7 @@ public class SharedRecordTests
         Assert.Equal("world", modified.Prompt);
     }
 
-    [Fact] public void Record_Equality_SameValuesAreEqual()
+    [Fact] public async Task Record_Equality_SameValuesAreEqual()
     {
         var a = new AgentRequest("test");
         var b = new AgentRequest("test");
@@ -22,27 +22,27 @@ public class SharedRecordTests
         Assert.True(a == b);
     }
 
-    [Fact] public void Record_Equality_DifferentValuesNotEqual()
+    [Fact] public async Task Record_Equality_DifferentValuesNotEqual()
     {
         var a = new AgentRequest("hello");
         var b = new AgentRequest("world");
         Assert.NotEqual(a, b);
     }
 
-    [Fact] public void Record_NullString_DoesNotThrow()
+    [Fact] public async Task Record_NullString_DoesNotThrow()
     {
         var msg = new AgentMessage("user", null!);
         Assert.Null(msg.Content);
     }
 
-    [Fact] public void Enum_ParseRoundtrip()
+    [Fact] public async Task Enum_ParseRoundtrip()
     {
         var status = AgentStatus.Completed;
         var parsed = Enum.Parse<AgentStatus>(status.ToString());
         Assert.Equal(AgentStatus.Completed, parsed);
     }
 
-    [Fact] public void Config_HasSensibleDefaults()
+    [Fact] public async Task Config_HasSensibleDefaults()
     {
         var cfg = new AgentConfig();
         Assert.Equal(20, cfg.MaxIterations);
@@ -50,7 +50,7 @@ public class SharedRecordTests
         Assert.Equal(LLMProviderType.OpenAI, cfg.ReasoningEngine.Provider);
     }
 
-    [Fact] public void LLMWIKYConfig_HasDefaults()
+    [Fact] public async Task LLMWIKYConfig_HasDefaults()
     {
         var cfg = new LLMWIKYConfig();
         Assert.Equal("gpt-4o", cfg.Model);

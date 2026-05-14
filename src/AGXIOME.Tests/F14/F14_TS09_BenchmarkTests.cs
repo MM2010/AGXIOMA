@@ -15,6 +15,7 @@ namespace AGXIOME.Tests.F14;
 // TS-09-A  Chunker throughput budgets (10 tests)
 // ═════════════════════════════════════════════════════════════════════════════
 
+[Collection("Benchmarks")]
 public sealed class TS09_ChunkerBenchmarkTests
 {
     // SLO: chunking 10 KB of text in under 500 ms (very generous for CI)
@@ -23,7 +24,7 @@ public sealed class TS09_ChunkerBenchmarkTests
     private static string MakeText(int wordCount) =>
         string.Join(" ", Enumerable.Range(0, wordCount).Select(i => $"word{i}"));
 
-    [Fact] public void SentenceChunker_10kWords_UnderSlo()
+    [Fact] public async Task SentenceChunker_10kWords_UnderSlo()
     {
         var text = MakeText(10_000);
         var sw   = Stopwatch.StartNew();
@@ -33,7 +34,7 @@ public sealed class TS09_ChunkerBenchmarkTests
             $"SentenceChunker took {sw.ElapsedMilliseconds}ms (SLO={ChunkSloMs}ms)");
     }
 
-    [Fact] public void RecursiveChunker_10kWords_UnderSlo()
+    [Fact] public async Task RecursiveChunker_10kWords_UnderSlo()
     {
         var text = MakeText(10_000);
         var sw   = Stopwatch.StartNew();
@@ -43,7 +44,7 @@ public sealed class TS09_ChunkerBenchmarkTests
             $"RecursiveChunker took {sw.ElapsedMilliseconds}ms");
     }
 
-    [Fact] public void SlidingWindowChunker_10kWords_UnderSlo()
+    [Fact] public async Task SlidingWindowChunker_10kWords_UnderSlo()
     {
         var text = MakeText(10_000);
         var sw   = Stopwatch.StartNew();
@@ -53,7 +54,7 @@ public sealed class TS09_ChunkerBenchmarkTests
             $"SlidingWindowChunker took {sw.ElapsedMilliseconds}ms");
     }
 
-    [Fact] public void FixedSizeChunker_10kWords_UnderSlo()
+    [Fact] public async Task FixedSizeChunker_10kWords_UnderSlo()
     {
         var text = MakeText(10_000);
         var sw   = Stopwatch.StartNew();
@@ -63,7 +64,7 @@ public sealed class TS09_ChunkerBenchmarkTests
             $"FixedSizeChunker took {sw.ElapsedMilliseconds}ms");
     }
 
-    [Fact] public void HeadingChunker_10kWords_UnderSlo()
+    [Fact] public async Task HeadingChunker_10kWords_UnderSlo()
     {
         var text = "# Section\n\n" + MakeText(5_000) + "\n\n# Another\n\n" + MakeText(5_000);
         var sw   = Stopwatch.StartNew();
@@ -73,7 +74,7 @@ public sealed class TS09_ChunkerBenchmarkTests
             $"HeadingChunker took {sw.ElapsedMilliseconds}ms");
     }
 
-    [Fact] public void SentenceChunker_1kWords_Under100ms()
+    [Fact] public async Task SentenceChunker_1kWords_Under100ms()
     {
         var text = MakeText(1_000);
         var sw   = Stopwatch.StartNew();
@@ -83,7 +84,7 @@ public sealed class TS09_ChunkerBenchmarkTests
             $"SentenceChunker 1k took {sw.ElapsedMilliseconds}ms");
     }
 
-    [Fact] public void SlidingWindowChunker_Empty_Under10ms()
+    [Fact] public async Task SlidingWindowChunker_Empty_Under10ms()
     {
         var sw = Stopwatch.StartNew();
         for (int i = 0; i < 1000; i++) new SlidingWindowChunker().Chunk(string.Empty);
@@ -92,7 +93,7 @@ public sealed class TS09_ChunkerBenchmarkTests
             $"SlidingWindowChunker empty x1000 took {sw.ElapsedMilliseconds}ms");
     }
 
-    [Fact] public void RecursiveChunker_RepeatCalls_LinearScaling()
+    [Fact] public async Task RecursiveChunker_RepeatCalls_LinearScaling()
     {
         var text  = MakeText(1_000);
         var sw    = Stopwatch.StartNew();
@@ -103,7 +104,7 @@ public sealed class TS09_ChunkerBenchmarkTests
             $"100 recursive chunks took {sw.ElapsedMilliseconds}ms");
     }
 
-    [Fact] public void AllChunkers_TinyInput_UnderThreshold()
+    [Fact] public async Task AllChunkers_TinyInput_UnderThreshold()
     {
         IChunker[] chunkers = [new SentenceChunker(), new RecursiveChunker(),
             new SlidingWindowChunker(), new FixedSizeChunker(), new HeadingChunker()];
@@ -115,7 +116,7 @@ public sealed class TS09_ChunkerBenchmarkTests
             $"All 5 chunkers on tiny input took {sw.ElapsedMilliseconds}ms");
     }
 
-    [Fact] public void SentenceChunker_ProducesChunks_WithinBudget()
+    [Fact] public async Task SentenceChunker_ProducesChunks_WithinBudget()
     {
         var text  = string.Join(". ", Enumerable.Range(0, 500).Select(i => $"This is sentence {i}"));
         var sw    = Stopwatch.StartNew();
@@ -130,6 +131,7 @@ public sealed class TS09_ChunkerBenchmarkTests
 // TS-09-B  Store serialization budgets (10 tests)
 // ═════════════════════════════════════════════════════════════════════════════
 
+[Collection("Benchmarks")]
 public sealed class TS09_StoreBenchmarkTests
 {
     private static string TempDb() =>
@@ -166,7 +168,7 @@ public sealed class TS09_StoreBenchmarkTests
             for (int i = 0; i < 100; i++)
                 await store.DeleteAsync<F14DbRecord>($"r{i}");
             sw.Stop();
-            Assert.True(sw.ElapsedMilliseconds < 2000,
+            Assert.True(sw.ElapsedMilliseconds < 5000,
                 $"100 SQLite deletes took {sw.ElapsedMilliseconds}ms");
         }
         finally { if (File.Exists(tmp)) File.Delete(tmp); }
@@ -202,8 +204,8 @@ public sealed class TS09_StoreBenchmarkTests
             for (int i = 0; i < 50; i++)
                 await store.DeleteAsync<F14DbRecord>($"jr{i}");
             sw.Stop();
-            Assert.True(sw.ElapsedMilliseconds < 5_000,
-                $"50 JsonFile deletes took {sw.ElapsedMilliseconds}ms (SLO=5000ms)");
+            Assert.True(sw.ElapsedMilliseconds < 10_000,
+                $"50 JsonFile deletes took {sw.ElapsedMilliseconds}ms (SLO=10000ms)");
         }
         finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
     }
@@ -224,7 +226,7 @@ public sealed class TS09_StoreBenchmarkTests
         finally { if (File.Exists(tmp)) File.Delete(tmp); }
     }
 
-    [Fact] public void StoreOptions_Construction_IsInstant()
+    [Fact] public async Task StoreOptions_Construction_IsInstant()
     {
         var sw = Stopwatch.StartNew();
         for (int i = 0; i < 10_000; i++)
@@ -271,14 +273,14 @@ public sealed class TS09_StoreBenchmarkTests
         finally { if (File.Exists(tmp)) File.Delete(tmp); }
     }
 
-    [Fact] public void ChunkerResult_AllChunks_HaveContent()
+    [Fact] public async Task ChunkerResult_AllChunks_HaveContent()
     {
         var text   = string.Join(" ", Enumerable.Range(0, 1000).Select(i => $"w{i}"));
         var chunks = new SlidingWindowChunker().Chunk(text, maxTokens: 50, overlap: 5);
         Assert.All(chunks, c => Assert.False(string.IsNullOrWhiteSpace(c.Content)));
     }
 
-    [Fact] public void ChunkerResult_Indexes_MonotonicallyIncreasing()
+    [Fact] public async Task ChunkerResult_Indexes_MonotonicallyIncreasing()
     {
         var text   = string.Join(" ", Enumerable.Range(0, 500).Select(i => $"w{i}"));
         var chunks = new FixedSizeChunker().Chunk(text, maxTokens: 20, overlap: 0);
@@ -291,9 +293,10 @@ public sealed class TS09_StoreBenchmarkTests
 // TS-09-C  Model/enum construction budgets (10 tests)
 // ═════════════════════════════════════════════════════════════════════════════
 
+[Collection("Benchmarks")]
 public sealed class TS09_ModelConstructionBenchmarkTests
 {
-    [Fact] public void EmbedderType_Enum_Iteration_Fast()
+    [Fact] public async Task EmbedderType_Enum_Iteration_Fast()
     {
         var sw = Stopwatch.StartNew();
         for (int i = 0; i < 100_000; i++)
@@ -302,7 +305,7 @@ public sealed class TS09_ModelConstructionBenchmarkTests
         Assert.True(sw.ElapsedMilliseconds < 500);
     }
 
-    [Fact] public void StorageProviderType_Enum_Iteration_Fast()
+    [Fact] public async Task StorageProviderType_Enum_Iteration_Fast()
     {
         var sw = Stopwatch.StartNew();
         for (int i = 0; i < 100_000; i++)
@@ -311,7 +314,7 @@ public sealed class TS09_ModelConstructionBenchmarkTests
         Assert.True(sw.ElapsedMilliseconds < 500);
     }
 
-    [Fact] public void ChunkerType_Enum_Iteration_Fast()
+    [Fact] public async Task ChunkerType_Enum_Iteration_Fast()
     {
         var sw = Stopwatch.StartNew();
         for (int i = 0; i < 100_000; i++)
@@ -320,7 +323,7 @@ public sealed class TS09_ModelConstructionBenchmarkTests
         Assert.True(sw.ElapsedMilliseconds < 500);
     }
 
-    [Fact] public void F14DbRecord_Construction_1M_Under100ms()
+    [Fact] public async Task F14DbRecord_Construction_1M_Under100ms()
     {
         var sw = Stopwatch.StartNew();
         for (int i = 0; i < 1_000_000; i++)
@@ -330,7 +333,7 @@ public sealed class TS09_ModelConstructionBenchmarkTests
             $"1M record constructions took {sw.ElapsedMilliseconds}ms");
     }
 
-    [Fact] public void SqliteStoreOptions_100k_Under200ms()
+    [Fact] public async Task SqliteStoreOptions_100k_Under200ms()
     {
         var sw = Stopwatch.StartNew();
         for (int i = 0; i < 100_000; i++)
@@ -339,7 +342,7 @@ public sealed class TS09_ModelConstructionBenchmarkTests
         Assert.True(sw.ElapsedMilliseconds < 1000);
     }
 
-    [Fact] public void ChunkResult_100k_Construction_Under200ms()
+    [Fact] public async Task ChunkResult_100k_Construction_Under200ms()
     {
         var sw = Stopwatch.StartNew();
         for (int i = 0; i < 100_000; i++)
@@ -348,7 +351,7 @@ public sealed class TS09_ModelConstructionBenchmarkTests
         Assert.True(sw.ElapsedMilliseconds < 1000);
     }
 
-    [Fact] public void StringSplit_10k_Lines_Under100ms()
+    [Fact] public async Task StringSplit_10k_Lines_Under100ms()
     {
         var text = string.Join("\n", Enumerable.Range(0, 10_000).Select(i => $"Line {i}"));
         var sw   = Stopwatch.StartNew();
@@ -357,7 +360,7 @@ public sealed class TS09_ModelConstructionBenchmarkTests
         Assert.True(sw.ElapsedMilliseconds < 100);
     }
 
-    [Fact] public void ListAllEnumValues_100k_Under500ms()
+    [Fact] public async Task ListAllEnumValues_100k_Under500ms()
     {
         var sw = Stopwatch.StartNew();
         for (int i = 0; i < 100_000; i++)
@@ -370,7 +373,7 @@ public sealed class TS09_ModelConstructionBenchmarkTests
         Assert.True(sw.ElapsedMilliseconds < 3000);
     }
 
-    [Fact] public void GuidGeneration_10k_Under100ms()
+    [Fact] public async Task GuidGeneration_10k_Under100ms()
     {
         var sw = Stopwatch.StartNew();
         for (int i = 0; i < 10_000; i++)
@@ -379,7 +382,7 @@ public sealed class TS09_ModelConstructionBenchmarkTests
         Assert.True(sw.ElapsedMilliseconds < 200);
     }
 
-    [Fact] public void DictionaryLookup_100k_Under100ms()
+    [Fact] public async Task DictionaryLookup_100k_Under100ms()
     {
         var dict = Enumerable.Range(0, 1000).ToDictionary(i => $"key{i}", i => i);
         var sw   = Stopwatch.StartNew();

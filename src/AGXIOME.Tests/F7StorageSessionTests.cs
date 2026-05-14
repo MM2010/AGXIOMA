@@ -38,11 +38,11 @@ public class RedisSessionManagerTests
         var mux = Substitute.For<IConnectionMultiplexer>();
         mux.GetDatabase(Arg.Any<int>(), Arg.Any<object?>()).Returns(db);
 
-        // StringSetAsync — always succeeds
+        // StringSetAsync — always succeeds (Expiration-based overload, Redis 2.13.1+)
         db.StringSetAsync(
             Arg.Any<RedisKey>(), Arg.Any<RedisValue>(),
-            Arg.Any<TimeSpan?>(), Arg.Any<bool>(),
-            Arg.Any<When>(), Arg.Any<CommandFlags>())
+            Arg.Any<Expiration>(),
+            Arg.Any<ValueCondition>(), Arg.Any<CommandFlags>())
             .Returns(true);
 
         // StringGetAsync — return empty by default (no session stored)
@@ -112,8 +112,8 @@ public class RedisSessionManagerTests
         // Verify session was written to Redis
         await db.Received().StringSetAsync(
             Arg.Any<RedisKey>(), Arg.Any<RedisValue>(),
-            Arg.Any<TimeSpan?>(), Arg.Any<bool>(),
-            Arg.Any<When>(), Arg.Any<CommandFlags>());
+            Arg.Any<Expiration>(),
+            Arg.Any<ValueCondition>(), Arg.Any<CommandFlags>());
     }
 
     // ── Test 5: GetSession returns null when not found ────────────────────────
@@ -596,7 +596,7 @@ public class WorkflowSerializerTests
         Assert.Equal(def.Name,      back.Name);
         Assert.Equal(def.EntryStep, back.EntryStep);
         Assert.Equal(2, back.Steps.Count);
-        Assert.Equal(1, back.Transitions.Count);
+        Assert.Single(back.Transitions);
     }
 
     // ── Test 3: StepType enum round-trip ──────────────────────────────────────

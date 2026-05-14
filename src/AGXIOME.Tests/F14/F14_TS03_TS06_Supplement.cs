@@ -89,34 +89,34 @@ public sealed class TS03_Supplement_SqliteSchemaTests
 
 public sealed class TS03_Supplement_ProviderTypeCompletenessTests
 {
-    [Fact] public void StorageProviderType_HasAtLeast20Values()
+    [Fact] public async Task StorageProviderType_HasAtLeast20Values()
         => Assert.True(Enum.GetValues<StorageProviderType>().Length >= 20);
 
-    [Fact] public void StorageProviderType_ContainsSQLite()
+    [Fact] public async Task StorageProviderType_ContainsSQLite()
         => Assert.True(Enum.IsDefined(typeof(StorageProviderType), StorageProviderType.SQLite));
 
-    [Fact] public void StorageProviderType_ContainsPostgreSQL()
+    [Fact] public async Task StorageProviderType_ContainsPostgreSQL()
         => Assert.True(Enum.IsDefined(typeof(StorageProviderType), StorageProviderType.PostgreSQL));
 
-    [Fact] public void StorageProviderType_ContainsMongoDB()
+    [Fact] public async Task StorageProviderType_ContainsMongoDB()
         => Assert.True(Enum.IsDefined(typeof(StorageProviderType), StorageProviderType.MongoDB));
 
-    [Fact] public void StorageProviderType_ContainsRedis()
+    [Fact] public async Task StorageProviderType_ContainsRedis()
         => Assert.True(Enum.IsDefined(typeof(StorageProviderType), StorageProviderType.RedisCache));
 
-    [Fact] public void StorageProviderType_ContainsDynamoDB()
+    [Fact] public async Task StorageProviderType_ContainsDynamoDB()
         => Assert.True(Enum.IsDefined(typeof(StorageProviderType), StorageProviderType.DynamoDB));
 
-    [Fact] public void StorageProviderType_ContainsCosmosDB()
+    [Fact] public async Task StorageProviderType_ContainsCosmosDB()
         => Assert.True(Enum.IsDefined(typeof(StorageProviderType), StorageProviderType.CosmosDB));
 
-    [Fact] public void StorageProviderType_ContainsJsonFile()
+    [Fact] public async Task StorageProviderType_ContainsJsonFile()
         => Assert.True(Enum.IsDefined(typeof(StorageProviderType), StorageProviderType.JsonFile));
 
-    [Fact] public void StorageProviderType_ContainsSqlServer()
+    [Fact] public async Task StorageProviderType_ContainsSqlServer()
         => Assert.True(Enum.IsDefined(typeof(StorageProviderType), StorageProviderType.SQLServer));
 
-    [Fact] public void StorageProviderType_ContainsMySQL()
+    [Fact] public async Task StorageProviderType_ContainsMySQL()
         => Assert.True(Enum.IsDefined(typeof(StorageProviderType), StorageProviderType.MySQL));
 }
 
@@ -142,38 +142,38 @@ file sealed class S06Handler(HttpStatusCode status, string json) : HttpMessageHa
 
 public sealed class TS06_Supplement_EmbedderTests
 {
-    [Fact] public void AnthropicEmbedder_CustomDimensions()
+    [Fact] public async Task AnthropicEmbedder_CustomDimensions()
     {
         var opts = new AnthropicEmbedderOptions { ApiKey = "k", Dimensions = 512 };
         var emb  = new AnthropicEmbedder(S06Helper.Make(HttpStatusCode.OK, "{}"), opts);
         Assert.Equal(512, emb.Dimensions);
     }
 
-    [Fact] public void AnthropicEmbedder_CustomModel()
+    [Fact] public async Task AnthropicEmbedder_CustomModel()
     {
         var opts = new AnthropicEmbedderOptions { ApiKey = "k", Model = "custom-model" };
         Assert.Equal("custom-model", opts.Model);
     }
 
-    [Fact] public void CohereEmbedder_DefaultModel_NotEmpty()
+    [Fact] public async Task CohereEmbedder_DefaultModel_NotEmpty()
     {
         var opts = new CohereEmbedderOptions { ApiKey = "k" };
         Assert.NotEmpty(opts.Model ?? "embed-english-v3.0");
     }
 
-    [Fact] public void GeminiEmbedder_DefaultModel_NotEmpty()
+    [Fact] public async Task GeminiEmbedder_DefaultModel_NotEmpty()
     {
         var opts = new GeminiEmbedderOptions { ApiKey = "k" };
         Assert.NotEmpty(opts.Model ?? "embedding-001");
     }
 
-    [Fact] public void MistralEmbedder_DefaultModel_NotEmpty()
+    [Fact] public async Task MistralEmbedder_DefaultModel_NotEmpty()
     {
         var opts = new MistralEmbedderOptions { ApiKey = "k" };
         Assert.NotEmpty(opts.Model ?? "mistral-embed");
     }
 
-    [Fact] public void VoyageEmbedder_DefaultModel_NotEmpty()
+    [Fact] public async Task VoyageEmbedder_DefaultModel_NotEmpty()
     {
         var opts = new VoyageEmbedderOptions { ApiKey = "k" };
         Assert.NotEmpty(opts.Model ?? "voyage-02");
@@ -195,19 +195,19 @@ public sealed class TS06_Supplement_EmbedderTests
         Assert.Single(r);
     }
 
-    [Fact] public void LlamaCppEmbedder_CustomBaseUrl()
+    [Fact] public async Task LlamaCppEmbedder_CustomBaseUrl()
     {
         var opts = new LlamaCppEmbedderOptions { BaseUrl = "http://custom:9000/" };
         Assert.Equal("http://custom:9000/", opts.BaseUrl);
     }
 
-    [Fact] public void NvidiaNimEmbedder_DefaultBaseUrl_NotEmpty()
+    [Fact] public async Task NvidiaNimEmbedder_DefaultBaseUrl_NotEmpty()
     {
         var opts = new NvidiaNimEmbedderOptions { ApiKey = "k" };
         Assert.NotEmpty(opts.BaseUrl ?? "https://integrate.api.nvidia.com/v1/");
     }
 
-    [Fact] public void AzureOpenAIEmbedder_Deployment_Stored()
+    [Fact] public async Task AzureOpenAIEmbedder_Deployment_Stored()
     {
         var opts = new AzureOpenAIEmbedderOptions
             { ApiKey = "k", Endpoint = "https://r.openai.azure.com", Deployment = "my-deploy" };

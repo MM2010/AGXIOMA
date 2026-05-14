@@ -69,7 +69,7 @@ public sealed class TS10_ErrorRateTests
     /// <summary>
     /// Simulates 200 chunk operations. SLO: 0% exception rate.
     /// </summary>
-    [Fact] public void Chunker_200ops_ZeroErrors()
+    [Fact] public async Task Chunker_200ops_ZeroErrors()
     {
         var chunker  = new SlidingWindowChunker();
         int errors   = 0;
@@ -85,7 +85,7 @@ public sealed class TS10_ErrorRateTests
     /// <summary>
     /// SLO: all 5 chunker types must handle empty input without errors.
     /// </summary>
-    [Fact] public void AllChunkers_EmptyInput_ZeroErrors()
+    [Fact] public async Task AllChunkers_EmptyInput_ZeroErrors()
     {
         IChunker[] chunkers = [new SentenceChunker(), new RecursiveChunker(),
             new SlidingWindowChunker(), new FixedSizeChunker(), new HeadingChunker()];
@@ -120,7 +120,7 @@ public sealed class TS10_ErrorRateTests
         finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
     }
 
-    [Fact] public void ChunkResult_NeverNullContent_100ops()
+    [Fact] public async Task ChunkResult_NeverNullContent_100ops()
     {
         var text   = "Some text to chunk into pieces.";
         var errors = 0;
@@ -133,7 +133,7 @@ public sealed class TS10_ErrorRateTests
         Assert.Equal(0, errors);
     }
 
-    [Fact] public void StorageProviderType_Parse_NeverThrows()
+    [Fact] public async Task StorageProviderType_Parse_NeverThrows()
     {
         int errors = 0;
         foreach (var name in Enum.GetNames<StorageProviderType>())
@@ -149,6 +149,7 @@ public sealed class TS10_ErrorRateTests
 // TS-10-B  Latency budget compliance (7 tests)
 // ═════════════════════════════════════════════════════════════════════════════
 
+[Collection("Benchmarks")]
 public sealed class TS10_LatencyBudgetTests
 {
     // p95 latency budget for in-process operations
@@ -178,7 +179,7 @@ public sealed class TS10_LatencyBudgetTests
         finally { if (File.Exists(tmp)) File.Delete(tmp); }
     }
 
-    [Fact] public void SentenceChunker_p95_UnderBudget()
+    [Fact] public async Task SentenceChunker_p95_UnderBudget()
     {
         var text      = string.Join(". ", Enumerable.Range(0, 100).Select(i => $"Sentence {i}"));
         var latencies = new List<long>(100);
@@ -193,7 +194,7 @@ public sealed class TS10_LatencyBudgetTests
         Assert.True(p95 < P95BudgetMs, $"SentenceChunker p95={p95}ms exceeds budget");
     }
 
-    [Fact] public void SlidingWindowChunker_p95_UnderBudget()
+    [Fact] public async Task SlidingWindowChunker_p95_UnderBudget()
     {
         var text      = string.Join(" ", Enumerable.Range(0, 500).Select(i => $"w{i}"));
         var latencies = new List<long>(50);
@@ -208,7 +209,7 @@ public sealed class TS10_LatencyBudgetTests
         Assert.True(p95 < P95BudgetMs, $"SlidingWindowChunker p95={p95}ms exceeds budget");
     }
 
-    [Fact] public void RecursiveChunker_p95_UnderBudget()
+    [Fact] public async Task RecursiveChunker_p95_UnderBudget()
     {
         var text      = string.Join("\n\n", Enumerable.Range(0, 20).Select(i => $"Paragraph {i} with content."));
         var latencies = new List<long>(50);
@@ -223,7 +224,7 @@ public sealed class TS10_LatencyBudgetTests
         Assert.True(p95 < P95BudgetMs);
     }
 
-    [Fact] public void EnumIteration_p95_Under1ms()
+    [Fact] public async Task EnumIteration_p95_Under1ms()
     {
         var latencies = new List<long>(1000);
         for (int i = 0; i < 1000; i++)
@@ -333,7 +334,7 @@ public sealed class TS10_IdempotencyTests
         finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
     }
 
-    [Fact] public void ChunkerChunk_SameInput_SameOutput()
+    [Fact] public async Task ChunkerChunk_SameInput_SameOutput()
     {
         var text   = "Same text repeated across calls.";
         var result1 = new SentenceChunker().Chunk(text, maxTokens: 100);
@@ -343,7 +344,7 @@ public sealed class TS10_IdempotencyTests
             Assert.Equal(result1[i].Content, result2[i].Content);
     }
 
-    [Fact] public void ChunkerEmpty_MultipleCallsIdempotent()
+    [Fact] public async Task ChunkerEmpty_MultipleCallsIdempotent()
     {
         var c = new SlidingWindowChunker();
         for (int i = 0; i < 10; i++)

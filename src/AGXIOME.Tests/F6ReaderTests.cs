@@ -89,10 +89,10 @@ public class PdfReaderTests
 {
     private readonly PdfReader _reader = new();
 
-    [Fact] public void ReaderType_IsPdf()
+    [Fact] public async Task ReaderType_IsPdf()
         => Assert.Equal(DocumentReaderType.Pdf, _reader.ReaderType);
 
-    [Fact] public void SupportedExtensions_ContainsPdf()
+    [Fact] public async Task SupportedExtensions_ContainsPdf()
         => Assert.Contains(".pdf", _reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_ValidPdf_ReturnsContent()
@@ -122,10 +122,10 @@ public class PdfReaderTests
         Assert.NotNull(result);
     }
 
-    [Fact] public void SupportedExtensions_NotEmpty()
+    [Fact] public async Task SupportedExtensions_NotEmpty()
         => Assert.NotEmpty(_reader.SupportedExtensions);
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(_reader);
 }
 
@@ -137,10 +137,10 @@ public class DocxReaderTests
 {
     private readonly DocxReader _reader = new();
 
-    [Fact] public void ReaderType_IsDocx()
+    [Fact] public async Task ReaderType_IsDocx()
         => Assert.Equal(DocumentReaderType.Docx, _reader.ReaderType);
 
-    [Fact] public void SupportedExtensions_ContainsDocx()
+    [Fact] public async Task SupportedExtensions_ContainsDocx()
         => Assert.Contains(".docx", _reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_InvalidBytes_ReturnsEmptyOrThrows()
@@ -152,10 +152,10 @@ public class DocxReaderTests
     [Fact] public async Task ReadAsync_FileNotFound_Throws()
         => await Assert.ThrowsAnyAsync<Exception>(() => _reader.ReadAsync("/nonexistent/file.docx"));
 
-    [Fact] public void SupportedExtensions_NotEmpty()
+    [Fact] public async Task SupportedExtensions_NotEmpty()
         => Assert.NotEmpty(_reader.SupportedExtensions);
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(_reader);
 
     [Fact(Skip = "requires a real .docx file on disk")]
@@ -173,10 +173,10 @@ public class XlsxReaderTests
 {
     private readonly XlsxReader _reader = new();
 
-    [Fact] public void ReaderType_IsXlsx()
+    [Fact] public async Task ReaderType_IsXlsx()
         => Assert.Equal(DocumentReaderType.Xlsx, _reader.ReaderType);
 
-    [Fact] public void SupportedExtensions_ContainsXlsx()
+    [Fact] public async Task SupportedExtensions_ContainsXlsx()
         => Assert.Contains(".xlsx", _reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_InvalidBytes_Throws()
@@ -188,10 +188,10 @@ public class XlsxReaderTests
     [Fact] public async Task ReadAsync_FileNotFound_Throws()
         => await Assert.ThrowsAnyAsync<Exception>(() => _reader.ReadAsync("/nonexistent/file.xlsx"));
 
-    [Fact] public void SupportedExtensions_NotEmpty()
+    [Fact] public async Task SupportedExtensions_NotEmpty()
         => Assert.NotEmpty(_reader.SupportedExtensions);
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(_reader);
 
     [Fact(Skip = "requires a real .xlsx file on disk")]
@@ -209,10 +209,10 @@ public class PptxReaderTests
 {
     private readonly PptxReader _reader = new();
 
-    [Fact] public void ReaderType_IsPptx()
+    [Fact] public async Task ReaderType_IsPptx()
         => Assert.Equal(DocumentReaderType.Pptx, _reader.ReaderType);
 
-    [Fact] public void SupportedExtensions_ContainsPptx()
+    [Fact] public async Task SupportedExtensions_ContainsPptx()
         => Assert.Contains(".pptx", _reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_InvalidBytes_Throws()
@@ -224,10 +224,10 @@ public class PptxReaderTests
     [Fact] public async Task ReadAsync_FileNotFound_Throws()
         => await Assert.ThrowsAnyAsync<Exception>(() => _reader.ReadAsync("/nonexistent/file.pptx"));
 
-    [Fact] public void SupportedExtensions_NotEmpty()
+    [Fact] public async Task SupportedExtensions_NotEmpty()
         => Assert.NotEmpty(_reader.SupportedExtensions);
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(_reader);
 
     [Fact(Skip = "requires a real .pptx file")]
@@ -245,10 +245,10 @@ public class CsvReaderTests
 {
     private readonly CsvReader _reader = new();
 
-    [Fact] public void ReaderType_IsCsv()
+    [Fact] public async Task ReaderType_IsCsv()
         => Assert.Equal(DocumentReaderType.Csv, _reader.ReaderType);
 
-    [Fact] public void SupportedExtensions_ContainsCsv()
+    [Fact] public async Task SupportedExtensions_ContainsCsv()
         => Assert.Contains(".csv", _reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_ValidCsv_ReturnsContent()
@@ -269,7 +269,7 @@ public class CsvReaderTests
     [Fact] public async Task ReadAsync_FileNotFound_Throws()
         => await Assert.ThrowsAnyAsync<Exception>(() => _reader.ReadAsync("/nonexistent/file.csv"));
 
-    [Fact] public void SupportedExtensions_NotEmpty()
+    [Fact] public async Task SupportedExtensions_NotEmpty()
         => Assert.NotEmpty(_reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_ValidCsv_MetadataHasRowCount()
@@ -280,7 +280,7 @@ public class CsvReaderTests
         Assert.True(result.Metadata!.ContainsKey("rowCount"));
     }
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(_reader);
 }
 
@@ -292,10 +292,10 @@ public class JsonReaderTests
 {
     private readonly JsonDocumentReader _reader = new();
 
-    [Fact] public void ReaderType_IsJson()
+    [Fact] public async Task ReaderType_IsJson()
         => Assert.Equal(DocumentReaderType.Json, _reader.ReaderType);
 
-    [Fact] public void SupportedExtensions_ContainsJson()
+    [Fact] public async Task SupportedExtensions_ContainsJson()
         => Assert.Contains(".json", _reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_ValidJson_ReturnsContent()
@@ -317,7 +317,7 @@ public class JsonReaderTests
     [Fact] public async Task ReadAsync_FileNotFound_Throws()
         => await Assert.ThrowsAnyAsync<Exception>(() => _reader.ReadAsync("/nonexistent/file.json"));
 
-    [Fact] public void SupportedExtensions_NotEmpty()
+    [Fact] public async Task SupportedExtensions_NotEmpty()
         => Assert.NotEmpty(_reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_InvalidJson_Throws()
@@ -326,7 +326,7 @@ public class JsonReaderTests
         await Assert.ThrowsAnyAsync<Exception>(() => _reader.ReadFromStreamAsync(ms));
     }
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(_reader);
 }
 
@@ -338,10 +338,10 @@ public class XmlReaderTests
 {
     private readonly XmlDocumentReader _reader = new();
 
-    [Fact] public void ReaderType_IsXml()
+    [Fact] public async Task ReaderType_IsXml()
         => Assert.Equal(DocumentReaderType.Xml, _reader.ReaderType);
 
-    [Fact] public void SupportedExtensions_ContainsXml()
+    [Fact] public async Task SupportedExtensions_ContainsXml()
         => Assert.Contains(".xml", _reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_ValidXml_ReturnsContent()
@@ -363,7 +363,7 @@ public class XmlReaderTests
     [Fact] public async Task ReadAsync_FileNotFound_Throws()
         => await Assert.ThrowsAnyAsync<Exception>(() => _reader.ReadAsync("/nonexistent/file.xml"));
 
-    [Fact] public void SupportedExtensions_NotEmpty()
+    [Fact] public async Task SupportedExtensions_NotEmpty()
         => Assert.NotEmpty(_reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_InvalidXml_Throws()
@@ -372,7 +372,7 @@ public class XmlReaderTests
         await Assert.ThrowsAnyAsync<Exception>(() => _reader.ReadFromStreamAsync(ms));
     }
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(_reader);
 }
 
@@ -384,10 +384,10 @@ public class MarkdownReaderTests
 {
     private readonly MarkdownReader _reader = new();
 
-    [Fact] public void ReaderType_IsMarkdown()
+    [Fact] public async Task ReaderType_IsMarkdown()
         => Assert.Equal(DocumentReaderType.Markdown, _reader.ReaderType);
 
-    [Fact] public void SupportedExtensions_ContainsMd()
+    [Fact] public async Task SupportedExtensions_ContainsMd()
         => Assert.Contains(".md", _reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_ValidMarkdown_ReturnsContent()
@@ -408,7 +408,7 @@ public class MarkdownReaderTests
     [Fact] public async Task ReadAsync_FileNotFound_Throws()
         => await Assert.ThrowsAnyAsync<Exception>(() => _reader.ReadAsync("/nonexistent/file.md"));
 
-    [Fact] public void SupportedExtensions_NotEmpty()
+    [Fact] public async Task SupportedExtensions_NotEmpty()
         => Assert.NotEmpty(_reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_EmptyMarkdown_ReturnsSingleSection()
@@ -418,7 +418,7 @@ public class MarkdownReaderTests
         Assert.NotNull(result);
     }
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(_reader);
 }
 
@@ -430,10 +430,10 @@ public class HtmlDocumentReaderTests
 {
     private readonly HtmlDocumentReader _reader = new();
 
-    [Fact] public void ReaderType_IsHtml()
+    [Fact] public async Task ReaderType_IsHtml()
         => Assert.Equal(DocumentReaderType.Html, _reader.ReaderType);
 
-    [Fact] public void SupportedExtensions_ContainsHtml()
+    [Fact] public async Task SupportedExtensions_ContainsHtml()
         => Assert.Contains(".html", _reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_ValidHtml_ReturnsContent()
@@ -455,7 +455,7 @@ public class HtmlDocumentReaderTests
     [Fact] public async Task ReadAsync_FileNotFound_Throws()
         => await Assert.ThrowsAnyAsync<Exception>(() => _reader.ReadAsync("/nonexistent/file.html"));
 
-    [Fact] public void SupportedExtensions_NotEmpty()
+    [Fact] public async Task SupportedExtensions_NotEmpty()
         => Assert.NotEmpty(_reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_EmptyHtml_ReturnsResult()
@@ -465,7 +465,7 @@ public class HtmlDocumentReaderTests
         Assert.NotNull(result);
     }
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(_reader);
 }
 
@@ -477,10 +477,10 @@ public class PlainTextReaderTests
 {
     private readonly PlainTextReader _reader = new();
 
-    [Fact] public void ReaderType_IsPlainText()
+    [Fact] public async Task ReaderType_IsPlainText()
         => Assert.Equal(DocumentReaderType.PlainText, _reader.ReaderType);
 
-    [Fact] public void SupportedExtensions_ContainsTxt()
+    [Fact] public async Task SupportedExtensions_ContainsTxt()
         => Assert.Contains(".txt", _reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_ValidText_ReturnsContent()
@@ -501,7 +501,7 @@ public class PlainTextReaderTests
     [Fact] public async Task ReadAsync_FileNotFound_Throws()
         => await Assert.ThrowsAnyAsync<Exception>(() => _reader.ReadAsync("/nonexistent/file.txt"));
 
-    [Fact] public void SupportedExtensions_NotEmpty()
+    [Fact] public async Task SupportedExtensions_NotEmpty()
         => Assert.NotEmpty(_reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_EmptyText_ReturnsSingleSection()
@@ -511,7 +511,7 @@ public class PlainTextReaderTests
         Assert.NotNull(result);
     }
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(_reader);
 }
 
@@ -523,10 +523,10 @@ public class YamlDocumentReaderTests
 {
     private readonly YamlDocumentReader _reader = new();
 
-    [Fact] public void ReaderType_IsYaml()
+    [Fact] public async Task ReaderType_IsYaml()
         => Assert.Equal(DocumentReaderType.Yaml, _reader.ReaderType);
 
-    [Fact] public void SupportedExtensions_ContainsYaml()
+    [Fact] public async Task SupportedExtensions_ContainsYaml()
         => Assert.Contains(".yaml", _reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_ValidYaml_ReturnsContent()
@@ -547,7 +547,7 @@ public class YamlDocumentReaderTests
     [Fact] public async Task ReadAsync_FileNotFound_Throws()
         => await Assert.ThrowsAnyAsync<Exception>(() => _reader.ReadAsync("/nonexistent/file.yaml"));
 
-    [Fact] public void SupportedExtensions_NotEmpty()
+    [Fact] public async Task SupportedExtensions_NotEmpty()
         => Assert.NotEmpty(_reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_EmptyYaml_ReturnsResult()
@@ -557,7 +557,7 @@ public class YamlDocumentReaderTests
         Assert.NotNull(result);
     }
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(_reader);
 }
 
@@ -569,10 +569,10 @@ public class RtfDocumentReaderTests
 {
     private readonly RtfDocumentReader _reader = new();
 
-    [Fact] public void ReaderType_IsRtf()
+    [Fact] public async Task ReaderType_IsRtf()
         => Assert.Equal(DocumentReaderType.Rtf, _reader.ReaderType);
 
-    [Fact] public void SupportedExtensions_ContainsRtf()
+    [Fact] public async Task SupportedExtensions_ContainsRtf()
         => Assert.Contains(".rtf", _reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_ValidRtf_ReturnsContent()
@@ -593,7 +593,7 @@ public class RtfDocumentReaderTests
     [Fact] public async Task ReadAsync_FileNotFound_Throws()
         => await Assert.ThrowsAnyAsync<Exception>(() => _reader.ReadAsync("/nonexistent/file.rtf"));
 
-    [Fact] public void SupportedExtensions_NotEmpty()
+    [Fact] public async Task SupportedExtensions_NotEmpty()
         => Assert.NotEmpty(_reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_EmptyRtf_ReturnsResult()
@@ -603,7 +603,7 @@ public class RtfDocumentReaderTests
         Assert.NotNull(result);
     }
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(_reader);
 }
 
@@ -616,13 +616,13 @@ public class WebsiteReaderTests
     private static HttpClient MockHttp(string responseBody = "<html><body><h1>Title</h1><p>Content</p></body></html>")
         => new HttpClient(new TestHttpMessageHandler(HttpStatusCode.OK, responseBody));
 
-    [Fact] public void ReaderType_IsWebsite()
+    [Fact] public async Task ReaderType_IsWebsite()
         => Assert.Equal(DocumentReaderType.Website, new WebsiteReader(MockHttp()).ReaderType);
 
-    [Fact] public void SupportedExtensions_IsEmpty()
+    [Fact] public async Task SupportedExtensions_IsEmpty()
         => Assert.Empty(new WebsiteReader(MockHttp()).SupportedExtensions);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new WebsiteReader(null!));
 
     [Fact] public async Task ReadFromStream_ValidHtml_ReturnsContent()
@@ -638,7 +638,7 @@ public class WebsiteReaderTests
     [Fact(Skip = "requires live HTTP endpoint")] public Task ReadAsync_404_Throws() => Task.CompletedTask;
     [Fact(Skip = "requires live HTTP endpoint")] public Task ReadAsync_Redirects_Follows() => Task.CompletedTask;
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new WebsiteReader(MockHttp()));
 }
 
@@ -652,13 +652,13 @@ public class WikipediaReaderTests
         new TestHttpMessageHandler(HttpStatusCode.OK,
             "{\"displaytitle\":\"Test\",\"extract\":\"An article.\",\"description\":\"desc\"}"));
 
-    [Fact] public void ReaderType_IsWikipedia()
+    [Fact] public async Task ReaderType_IsWikipedia()
         => Assert.Equal(DocumentReaderType.Wikipedia, new WikipediaReader(MockHttp()).ReaderType);
 
-    [Fact] public void SupportedExtensions_IsEmpty()
+    [Fact] public async Task SupportedExtensions_IsEmpty()
         => Assert.Empty(new WikipediaReader(MockHttp()).SupportedExtensions);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new WikipediaReader(null!));
 
     [Fact] public async Task ReadFromStream_Throws_NotSupported()
@@ -672,7 +672,7 @@ public class WikipediaReaderTests
     [Fact(Skip = "requires live Wikipedia API")] public Task ReadAsync_WikipediaUri_Parsed() => Task.CompletedTask;
     [Fact(Skip = "requires live Wikipedia API")] public Task ReadAsync_LangPrefix_UsedInRequest() => Task.CompletedTask;
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new WikipediaReader(MockHttp()));
 }
 
@@ -692,13 +692,13 @@ public class ArxivReaderTests
     private static HttpClient MockHttp() => new HttpClient(
         new TestHttpMessageHandler(HttpStatusCode.OK, FakeAtom));
 
-    [Fact] public void ReaderType_IsArxiv()
+    [Fact] public async Task ReaderType_IsArxiv()
         => Assert.Equal(DocumentReaderType.Arxiv, new ArxivReader(MockHttp()).ReaderType);
 
-    [Fact] public void SupportedExtensions_IsEmpty()
+    [Fact] public async Task SupportedExtensions_IsEmpty()
         => Assert.Empty(new ArxivReader(MockHttp()).SupportedExtensions);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new ArxivReader(null!));
 
     [Fact] public async Task ReadFromStream_Throws_NotSupported()
@@ -712,7 +712,7 @@ public class ArxivReaderTests
     [Fact(Skip = "requires live arXiv API")] public Task ReadAsync_FullUrl_ParsedCorrectly() => Task.CompletedTask;
     [Fact(Skip = "requires live arXiv API")] public Task ReadAsync_InvalidId_Throws() => Task.CompletedTask;
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new ArxivReader(MockHttp()));
 }
 
@@ -725,13 +725,13 @@ public class PubMedReaderTests
     private static HttpClient MockHttp() => new HttpClient(
         new TestHttpMessageHandler(HttpStatusCode.OK, "{}"));
 
-    [Fact] public void ReaderType_IsPubMed()
+    [Fact] public async Task ReaderType_IsPubMed()
         => Assert.Equal(DocumentReaderType.PubMed, new PubMedReader(MockHttp()).ReaderType);
 
-    [Fact] public void SupportedExtensions_IsEmpty()
+    [Fact] public async Task SupportedExtensions_IsEmpty()
         => Assert.Empty(new PubMedReader(MockHttp()).SupportedExtensions);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new PubMedReader(null!));
 
     [Fact] public async Task ReadFromStream_Throws_NotSupported()
@@ -745,7 +745,7 @@ public class PubMedReaderTests
     [Fact(Skip = "requires live NCBI Entrez API")] public Task ReadAsync_PubmedUri_ParsedCorrectly() => Task.CompletedTask;
     [Fact(Skip = "requires live NCBI Entrez API")] public Task ReadAsync_InvalidPmid_Throws() => Task.CompletedTask;
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new PubMedReader(MockHttp()));
 }
 
@@ -760,13 +760,13 @@ public class YoutubeTranscriptReaderTests
             "{\"events\":[{\"tStartMs\":0,\"segs\":[{\"utf8\":\"Hello world \"}]}," +
             "{\"tStartMs\":70000,\"segs\":[{\"utf8\":\"Next segment.\"}]}]}"));
 
-    [Fact] public void ReaderType_IsYoutubeTranscript()
+    [Fact] public async Task ReaderType_IsYoutubeTranscript()
         => Assert.Equal(DocumentReaderType.YoutubeTranscript, new YoutubeTranscriptReader(MockHttp()).ReaderType);
 
-    [Fact] public void SupportedExtensions_IsEmpty()
+    [Fact] public async Task SupportedExtensions_IsEmpty()
         => Assert.Empty(new YoutubeTranscriptReader(MockHttp()).SupportedExtensions);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new YoutubeTranscriptReader(null!));
 
     [Fact] public async Task ReadFromStream_Throws_NotSupported()
@@ -780,7 +780,7 @@ public class YoutubeTranscriptReaderTests
     [Fact(Skip = "requires live YouTube timedtext API")] public Task ReadAsync_FullYoutubeUrl_Parsed() => Task.CompletedTask;
     [Fact(Skip = "requires live YouTube timedtext API")] public Task ReadAsync_VideoWithNoCaption_Throws() => Task.CompletedTask;
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new YoutubeTranscriptReader(MockHttp()));
 }
 
@@ -795,13 +795,13 @@ public class FirecrawlReaderTests
             "{\"data\":{\"markdown\":\"# Test\\n\\nContent\",\"metadata\":{\"title\":\"Test Page\"}}}"))
     { BaseAddress = new Uri("https://api.firecrawl.dev/") };
 
-    [Fact] public void ReaderType_IsFirecrawl()
+    [Fact] public async Task ReaderType_IsFirecrawl()
         => Assert.Equal(DocumentReaderType.Firecrawl, new FirecrawlReader(MockHttp()).ReaderType);
 
-    [Fact] public void SupportedExtensions_IsEmpty()
+    [Fact] public async Task SupportedExtensions_IsEmpty()
         => Assert.Empty(new FirecrawlReader(MockHttp()).SupportedExtensions);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new FirecrawlReader(null!));
 
     [Fact] public async Task ReadFromStream_Throws_NotSupported()
@@ -815,7 +815,7 @@ public class FirecrawlReaderTests
     [Fact(Skip = "requires live Firecrawl API key and endpoint")] public Task ReadAsync_AuthError_Throws() => Task.CompletedTask;
     [Fact(Skip = "requires live Firecrawl API key and endpoint")] public Task ReadAsync_Metadata_HasTitle() => Task.CompletedTask;
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new FirecrawlReader(MockHttp()));
 }
 
@@ -827,13 +827,13 @@ public class AWSS3ReaderTests
 {
     private static Amazon.S3.IAmazonS3 MockS3() => Substitute.For<Amazon.S3.IAmazonS3>();
 
-    [Fact] public void ReaderType_IsAWSS3()
+    [Fact] public async Task ReaderType_IsAWSS3()
         => Assert.Equal(DocumentReaderType.AWSS3, new AWSS3Reader(MockS3()).ReaderType);
 
-    [Fact] public void SupportedExtensions_IsEmpty()
+    [Fact] public async Task SupportedExtensions_IsEmpty()
         => Assert.Empty(new AWSS3Reader(MockS3()).SupportedExtensions);
 
-    [Fact] public void Constructor_NullS3_Throws()
+    [Fact] public async Task Constructor_NullS3_Throws()
         => Assert.Throws<ArgumentNullException>(() => new AWSS3Reader(null!));
 
     [Fact] public async Task ReadFromStream_PlainText_ReturnsContent()
@@ -849,7 +849,7 @@ public class AWSS3ReaderTests
     [Fact(Skip = "requires live AWS S3 credentials")] public Task ReadAsync_NotFound_Throws() => Task.CompletedTask;
     [Fact(Skip = "requires live AWS S3 credentials")] public Task ReadAsync_Metadata_HasEtag() => Task.CompletedTask;
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new AWSS3Reader(MockS3()));
 }
 
@@ -862,13 +862,13 @@ public class AzureBlobReaderTests
     private static Azure.Storage.Blobs.BlobServiceClient MockClient()
         => new Azure.Storage.Blobs.BlobServiceClient("UseDevelopmentStorage=true");
 
-    [Fact] public void ReaderType_IsAzureBlob()
+    [Fact] public async Task ReaderType_IsAzureBlob()
         => Assert.Equal(DocumentReaderType.AzureBlob, new AzureBlobReader(MockClient()).ReaderType);
 
-    [Fact] public void SupportedExtensions_IsEmpty()
+    [Fact] public async Task SupportedExtensions_IsEmpty()
         => Assert.Empty(new AzureBlobReader(MockClient()).SupportedExtensions);
 
-    [Fact] public void Constructor_NullClient_Throws()
+    [Fact] public async Task Constructor_NullClient_Throws()
         => Assert.Throws<ArgumentNullException>(() => new AzureBlobReader(null!));
 
     [Fact] public async Task ReadFromStream_PlainText_ReturnsContent()
@@ -884,7 +884,7 @@ public class AzureBlobReaderTests
     [Fact(Skip = "requires live Azure Blob Storage")] public Task ReadAsync_BlobNotFound_Throws() => Task.CompletedTask;
     [Fact(Skip = "requires live Azure Blob Storage")] public Task ReadAsync_Metadata_HasETag() => Task.CompletedTask;
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new AzureBlobReader(MockClient()));
 }
 
@@ -897,13 +897,13 @@ public class GCSReaderTests
     private static Google.Cloud.Storage.V1.StorageClient MockClient()
         => Substitute.For<Google.Cloud.Storage.V1.StorageClient>();
 
-    [Fact] public void ReaderType_IsGCS()
+    [Fact] public async Task ReaderType_IsGCS()
         => Assert.Equal(DocumentReaderType.GCS, new GCSReader(MockClient()).ReaderType);
 
-    [Fact] public void SupportedExtensions_IsEmpty()
+    [Fact] public async Task SupportedExtensions_IsEmpty()
         => Assert.Empty(new GCSReader(MockClient()).SupportedExtensions);
 
-    [Fact] public void Constructor_NullClient_Throws()
+    [Fact] public async Task Constructor_NullClient_Throws()
         => Assert.Throws<ArgumentNullException>(() => new GCSReader(null!));
 
     [Fact] public async Task ReadFromStream_PlainText_ReturnsContent()
@@ -919,7 +919,7 @@ public class GCSReaderTests
     [Fact(Skip = "requires live GCS credentials")] public Task ReadAsync_ObjectNotFound_Throws() => Task.CompletedTask;
     [Fact(Skip = "requires live GCS credentials")] public Task ReadAsync_Metadata_HasContentType() => Task.CompletedTask;
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new GCSReader(MockClient()));
 }
 
@@ -936,13 +936,13 @@ public class GitHubReaderTests
     private static HttpClient MockHttp() => new HttpClient(
         new TestHttpMessageHandler(HttpStatusCode.OK, FakeGitHubResponse()));
 
-    [Fact] public void ReaderType_IsGitHub()
+    [Fact] public async Task ReaderType_IsGitHub()
         => Assert.Equal(DocumentReaderType.GitHub, new GitHubReader(MockHttp()).ReaderType);
 
-    [Fact] public void SupportedExtensions_IsEmpty()
+    [Fact] public async Task SupportedExtensions_IsEmpty()
         => Assert.Empty(new GitHubReader(MockHttp()).SupportedExtensions);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new GitHubReader(null!));
 
     [Fact] public async Task ReadFromStream_Throws_NotSupported()
@@ -956,7 +956,7 @@ public class GitHubReaderTests
     [Fact(Skip = "requires live GitHub API token")] public Task ReadAsync_PrivateRepo_RequiresAuth() => Task.CompletedTask;
     [Fact(Skip = "requires live GitHub API token")] public Task ReadAsync_FileNotFound_Throws() => Task.CompletedTask;
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new GitHubReader(MockHttp()));
 }
 
@@ -972,16 +972,16 @@ public class SharePointReaderTests
     // ReadFromStreamAsync never access _graph, we bypass the ctor via
     // FormatterServices.GetUninitializedObject (creates object without running ctor).
     private static SharePointReader UnsafeCreate()
-        => (SharePointReader)System.Runtime.Serialization.FormatterServices
+        => (SharePointReader)System.Runtime.CompilerServices.RuntimeHelpers
             .GetUninitializedObject(typeof(SharePointReader));
 
-    [Fact] public void ReaderType_IsSharePoint()
+    [Fact] public async Task ReaderType_IsSharePoint()
         => Assert.Equal(DocumentReaderType.SharePoint, UnsafeCreate().ReaderType);
 
     // SupportedExtensions for SharePoint is empty (no local file extensions — only sharepoint:// URIs).
     // Tested via the class design, not instance, because GetUninitializedObject bypasses
     // field initializers. The real reader always returns empty.
-    [Fact] public void SupportedExtensions_IsEmpty()
+    [Fact] public async Task SupportedExtensions_IsEmpty()
     {
         var field = typeof(SharePointReader).GetProperty(nameof(SharePointReader.SupportedExtensions));
         // The property getter is auto-implemented, so accessing it on a raw instance
@@ -989,7 +989,7 @@ public class SharePointReaderTests
         Assert.NotNull(typeof(SharePointReader).GetProperty("SupportedExtensions"));
     }
 
-    [Fact] public void Constructor_NullGraph_Throws()
+    [Fact] public async Task Constructor_NullGraph_Throws()
         => Assert.Throws<ArgumentNullException>(() => new SharePointReader(null!));
 
     [Fact] public async Task ReadFromStream_PlainText_ReturnsContent()
@@ -1004,7 +1004,7 @@ public class SharePointReaderTests
     [Fact(Skip = "requires live Microsoft Graph credentials")] public Task ReadAsync_UnauthorizedAccess_Throws() => Task.CompletedTask;
     [Fact(Skip = "requires live Microsoft Graph credentials")] public Task ReadAsync_Metadata_HasSiteAndDrive() => Task.CompletedTask;
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(UnsafeCreate());
 }
 
@@ -1014,35 +1014,35 @@ public class SharePointReaderTests
 
 public class ImageOcrReaderTests
 {
-    [Fact] public void Constructor_EmptyDataPath_Throws()
+    [Fact] public async Task Constructor_EmptyDataPath_Throws()
         => Assert.Throws<ArgumentNullException>(() => new ImageOcrReader(""));
 
-    [Fact] public void ReaderType_IsImageOCR()
+    [Fact] public async Task ReaderType_IsImageOCR()
     {
         // Create reader with a dummy path (won't load Tesseract engine at construction time)
         var reader = new ImageOcrReader("./tessdata");
         Assert.Equal(DocumentReaderType.ImageOCR, reader.ReaderType);
     }
 
-    [Fact] public void SupportedExtensions_ContainsPng()
+    [Fact] public async Task SupportedExtensions_ContainsPng()
     {
         var reader = new ImageOcrReader("./tessdata");
         Assert.Contains(".png", reader.SupportedExtensions);
     }
 
-    [Fact] public void SupportedExtensions_ContainsJpg()
+    [Fact] public async Task SupportedExtensions_ContainsJpg()
     {
         var reader = new ImageOcrReader("./tessdata");
         Assert.Contains(".jpg", reader.SupportedExtensions);
     }
 
-    [Fact] public void SupportedExtensions_NotEmpty()
+    [Fact] public async Task SupportedExtensions_NotEmpty()
     {
         var reader = new ImageOcrReader("./tessdata");
         Assert.NotEmpty(reader.SupportedExtensions);
     }
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new ImageOcrReader("./tessdata"));
 
     [Fact(Skip = "requires native Tesseract library and tessdata language packs")]
@@ -1063,19 +1063,19 @@ public class AudioWhisperReaderTests
             "{\"text\":\"Hello world.\",\"segments\":[{\"text\":\" Hello world.\",\"start\":0.0,\"end\":1.5}]}"))
     { BaseAddress = new Uri("https://api.openai.com/") };
 
-    [Fact] public void ReaderType_IsAudioWhisper()
+    [Fact] public async Task ReaderType_IsAudioWhisper()
         => Assert.Equal(DocumentReaderType.AudioWhisper, new AudioWhisperReader(MockHttp()).ReaderType);
 
-    [Fact] public void SupportedExtensions_ContainsMp3()
+    [Fact] public async Task SupportedExtensions_ContainsMp3()
         => Assert.Contains(".mp3", new AudioWhisperReader(MockHttp()).SupportedExtensions);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new AudioWhisperReader(null!));
 
-    [Fact] public void SupportedExtensions_NotEmpty()
+    [Fact] public async Task SupportedExtensions_NotEmpty()
         => Assert.NotEmpty(new AudioWhisperReader(MockHttp()).SupportedExtensions);
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new AudioWhisperReader(MockHttp()));
 
     [Fact(Skip = "requires live OpenAI Whisper API key")] public Task ReadAsync_ValidAudioFile_ReturnsTranscript() => Task.CompletedTask;
@@ -1091,10 +1091,10 @@ public class EpubReaderTests
 {
     private readonly EpubDocumentReader _reader = new();
 
-    [Fact] public void ReaderType_IsEpub()
+    [Fact] public async Task ReaderType_IsEpub()
         => Assert.Equal(DocumentReaderType.Epub, _reader.ReaderType);
 
-    [Fact] public void SupportedExtensions_ContainsEpub()
+    [Fact] public async Task SupportedExtensions_ContainsEpub()
         => Assert.Contains(".epub", _reader.SupportedExtensions);
 
     [Fact] public async Task ReadFromStream_InvalidBytes_Throws()
@@ -1106,10 +1106,10 @@ public class EpubReaderTests
     [Fact] public async Task ReadAsync_FileNotFound_Throws()
         => await Assert.ThrowsAnyAsync<Exception>(() => _reader.ReadAsync("/nonexistent/file.epub"));
 
-    [Fact] public void SupportedExtensions_NotEmpty()
+    [Fact] public async Task SupportedExtensions_NotEmpty()
         => Assert.NotEmpty(_reader.SupportedExtensions);
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(_reader);
 
     [Fact(Skip = "requires a real .epub file on disk")]
@@ -1131,13 +1131,13 @@ public class NotionReaderTests
             "\"results\":[{\"type\":\"paragraph\",\"paragraph\":{\"rich_text\":[{\"plain_text\":\"Content.\"}]}}]}"))
     { BaseAddress = new Uri("https://api.notion.com/") };
 
-    [Fact] public void ReaderType_IsNotion()
+    [Fact] public async Task ReaderType_IsNotion()
         => Assert.Equal(DocumentReaderType.Notion, new NotionReader(MockHttp()).ReaderType);
 
-    [Fact] public void SupportedExtensions_IsEmpty()
+    [Fact] public async Task SupportedExtensions_IsEmpty()
         => Assert.Empty(new NotionReader(MockHttp()).SupportedExtensions);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new NotionReader(null!));
 
     [Fact] public async Task ReadFromStream_Throws_NotSupported()
@@ -1151,7 +1151,7 @@ public class NotionReaderTests
     [Fact(Skip = "requires live Notion integration token")] public Task ReadAsync_HeadingBlocks_BecomeSections() => Task.CompletedTask;
     [Fact(Skip = "requires live Notion integration token")] public Task ReadAsync_Unauthorized_Throws() => Task.CompletedTask;
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new NotionReader(MockHttp()));
 }
 
@@ -1167,13 +1167,13 @@ public class ConfluenceReaderTests
             "\"body\":{\"storage\":{\"value\":\"<p>Hello Confluence</p>\"}}}]}"))
     { BaseAddress = new Uri("https://myinstance.atlassian.net/") };
 
-    [Fact] public void ReaderType_IsConfluence()
+    [Fact] public async Task ReaderType_IsConfluence()
         => Assert.Equal(DocumentReaderType.Confluence, new ConfluenceReader(MockHttp()).ReaderType);
 
-    [Fact] public void SupportedExtensions_IsEmpty()
+    [Fact] public async Task SupportedExtensions_IsEmpty()
         => Assert.Empty(new ConfluenceReader(MockHttp()).SupportedExtensions);
 
-    [Fact] public void Constructor_NullHttp_Throws()
+    [Fact] public async Task Constructor_NullHttp_Throws()
         => Assert.Throws<ArgumentNullException>(() => new ConfluenceReader(null!));
 
     [Fact] public async Task ReadFromStream_Throws_NotSupported()
@@ -1187,6 +1187,6 @@ public class ConfluenceReaderTests
     [Fact(Skip = "requires live Confluence Cloud credentials")] public Task ReadAsync_SpaceAndTitle_ReturnsPage() => Task.CompletedTask;
     [Fact(Skip = "requires live Confluence Cloud credentials")] public Task ReadAsync_PageId_ReturnsDirectly() => Task.CompletedTask;
 
-    [Fact] public void ReaderType_ImplementsInterface()
+    [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new ConfluenceReader(MockHttp()));
 }

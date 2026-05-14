@@ -19,13 +19,13 @@ namespace AGXIOME.Tests.F15;
 
 public sealed class F15_TS06_OrchestratorOptionsTests
 {
-    [Fact] public void OrchestratorOptions_DefaultMaxParallel_Is4()
+    [Fact] public async Task OrchestratorOptions_DefaultMaxParallel_Is4()
         => Assert.Equal(4, new OrchestratorOptions().MaxParallelTasks);
 
-    [Fact] public void OrchestratorOptions_DefaultTimeout_Is5Minutes()
+    [Fact] public async Task OrchestratorOptions_DefaultTimeout_Is5Minutes()
         => Assert.Equal(TimeSpan.FromMinutes(5), new OrchestratorOptions().DefaultTaskTimeout);
 
-    [Fact] public void OrchestratorOptions_EnableAutoResume_DefaultTrue()
+    [Fact] public async Task OrchestratorOptions_EnableAutoResume_DefaultTrue()
         => Assert.True(new OrchestratorOptions().EnableAutoResume);
 }
 
@@ -113,25 +113,25 @@ public sealed class F15_TS06_PlanOrchestratorStartTests
 
 public sealed class F15_TS06_OrchestratorEventTests
 {
-    [Fact] public void PlanStartedEvent_IsOrchestratorEvent()
+    [Fact] public async Task PlanStartedEvent_IsOrchestratorEvent()
     {
         var e = new PlanStartedEvent(Guid.NewGuid(), DateTimeOffset.UtcNow);
         Assert.IsAssignableFrom<OrchestratorEvent>(e);
     }
 
-    [Fact] public void PlanCompletedEvent_HasFinalSummary()
+    [Fact] public async Task PlanCompletedEvent_HasFinalSummary()
     {
         var e = new PlanCompletedEvent(Guid.NewGuid(), "summary text", DateTimeOffset.UtcNow);
         Assert.Equal("summary text", e.Summary);
     }
 
-    [Fact] public void TaskSpawnedEvent_HasStepIndex()
+    [Fact] public async Task TaskSpawnedEvent_HasStepIndex()
     {
         var e = new TaskSpawnedEvent(Guid.NewGuid(), Guid.NewGuid(), 2, DateTimeOffset.UtcNow);
         Assert.Equal(2, e.StepIndex);
     }
 
-    [Fact] public void StepAdvancedEvent_HasPrevAndNextStep()
+    [Fact] public async Task StepAdvancedEvent_HasPrevAndNextStep()
     {
         var e = new StepAdvancedEvent(Guid.NewGuid(), 0, 1, DateTimeOffset.UtcNow);
         Assert.Equal(0, e.OldStep);

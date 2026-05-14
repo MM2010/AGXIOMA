@@ -50,7 +50,7 @@ public sealed class CodeChunker : IChunker
             if (csharpType is null) return null;
 
             var parseTextMethod = csharpType.GetMethod("ParseText",
-                [typeof(string), null, null, null, typeof(System.Threading.CancellationToken)]);
+                [typeof(string), null!, null!, null!, typeof(System.Threading.CancellationToken)]);
             if (parseTextMethod is null) return null;
 
             dynamic? tree = parseTextMethod.Invoke(null,

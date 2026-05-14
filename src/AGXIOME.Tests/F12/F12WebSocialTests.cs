@@ -5,12 +5,12 @@ namespace AGXIOME.Tests.F12;
 
 public sealed class TwitterToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("twitter", new TwitterToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Twitter/X", new TwitterToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new TwitterToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("twitter", new TwitterToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Twitter/X", new TwitterToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new TwitterToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new TwitterToolkit().ExecuteAsync("post_tweet", [], default).GetAwaiter().GetResult();
+        var r = await new TwitterToolkit().ExecuteAsync("post_tweet", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -23,12 +23,12 @@ public sealed class TwitterToolkitTests
 
 public sealed class RedditToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("reddit", new RedditToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Reddit", new RedditToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new RedditToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("reddit", new RedditToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Reddit", new RedditToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new RedditToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new RedditToolkit().ExecuteAsync("get_posts", [], default).GetAwaiter().GetResult();
+        var r = await new RedditToolkit().ExecuteAsync("get_posts", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -41,12 +41,12 @@ public sealed class RedditToolkitTests
 
 public sealed class LinkedInToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("linkedin", new LinkedInToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("LinkedIn", new LinkedInToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new LinkedInToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("linkedin", new LinkedInToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("LinkedIn", new LinkedInToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new LinkedInToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new LinkedInToolkit().ExecuteAsync("post_update", [], default).GetAwaiter().GetResult();
+        var r = await new LinkedInToolkit().ExecuteAsync("post_update", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -59,12 +59,12 @@ public sealed class LinkedInToolkitTests
 
 public sealed class InstagramToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("instagram", new InstagramToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Instagram", new InstagramToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new InstagramToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("instagram", new InstagramToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Instagram", new InstagramToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new InstagramToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new InstagramToolkit().ExecuteAsync("get_media", [], default).GetAwaiter().GetResult();
+        var r = await new InstagramToolkit().ExecuteAsync("get_media", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -77,12 +77,12 @@ public sealed class InstagramToolkitTests
 
 public sealed class YouTubeToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("youtube", new YouTubeToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("YouTube", new YouTubeToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new YouTubeToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("youtube", new YouTubeToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("YouTube", new YouTubeToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new YouTubeToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new YouTubeToolkit().ExecuteAsync("search_videos", [], default).GetAwaiter().GetResult();
+        var r = await new YouTubeToolkit().ExecuteAsync("search_videos", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -95,12 +95,12 @@ public sealed class YouTubeToolkitTests
 
 public sealed class TikTokToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("tiktok", new TikTokToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("TikTok", new TikTokToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new TikTokToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("tiktok", new TikTokToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("TikTok", new TikTokToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new TikTokToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new TikTokToolkit().ExecuteAsync("get_videos", [], default).GetAwaiter().GetResult();
+        var r = await new TikTokToolkit().ExecuteAsync("get_videos", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -113,12 +113,12 @@ public sealed class TikTokToolkitTests
 
 public sealed class MediumToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("medium", new MediumToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Medium", new MediumToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new MediumToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("medium", new MediumToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Medium", new MediumToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new MediumToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new MediumToolkit().ExecuteAsync("create_post", [], default).GetAwaiter().GetResult();
+        var r = await new MediumToolkit().ExecuteAsync("create_post", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -131,12 +131,12 @@ public sealed class MediumToolkitTests
 
 public sealed class DevToToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("devto", new DevToToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Dev.to", new DevToToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new DevToToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("devto", new DevToToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Dev.to", new DevToToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new DevToToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new DevToToolkit().ExecuteAsync("create_article", [], default).GetAwaiter().GetResult();
+        var r = await new DevToToolkit().ExecuteAsync("create_article", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -149,12 +149,12 @@ public sealed class DevToToolkitTests
 
 public sealed class HashnodeToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("hashnode", new HashnodeToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Hashnode", new HashnodeToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new HashnodeToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("hashnode", new HashnodeToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Hashnode", new HashnodeToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new HashnodeToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new HashnodeToolkit().ExecuteAsync("create_story", [], default).GetAwaiter().GetResult();
+        var r = await new HashnodeToolkit().ExecuteAsync("create_story", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -167,12 +167,12 @@ public sealed class HashnodeToolkitTests
 
 public sealed class WordPressToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("wordpress", new WordPressToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("WordPress", new WordPressToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new WordPressToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("wordpress", new WordPressToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("WordPress", new WordPressToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new WordPressToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new WordPressToolkit().ExecuteAsync("create_post", [], default).GetAwaiter().GetResult();
+        var r = await new WordPressToolkit().ExecuteAsync("create_post", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -185,12 +185,12 @@ public sealed class WordPressToolkitTests
 
 public sealed class ShopifyToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("shopify", new ShopifyToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Shopify", new ShopifyToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new ShopifyToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("shopify", new ShopifyToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Shopify", new ShopifyToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new ShopifyToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new ShopifyToolkit().ExecuteAsync("list_products", [], default).GetAwaiter().GetResult();
+        var r = await new ShopifyToolkit().ExecuteAsync("list_products", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -203,12 +203,12 @@ public sealed class ShopifyToolkitTests
 
 public sealed class WooCommerceToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("woocommerce", new WooCommerceToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("WooCommerce", new WooCommerceToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new WooCommerceToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("woocommerce", new WooCommerceToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("WooCommerce", new WooCommerceToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new WooCommerceToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new WooCommerceToolkit().ExecuteAsync("list_products", [], default).GetAwaiter().GetResult();
+        var r = await new WooCommerceToolkit().ExecuteAsync("list_products", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -221,12 +221,12 @@ public sealed class WooCommerceToolkitTests
 
 public sealed class SquarespaceToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("squarespace", new SquarespaceToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Squarespace", new SquarespaceToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new SquarespaceToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("squarespace", new SquarespaceToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Squarespace", new SquarespaceToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new SquarespaceToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new SquarespaceToolkit().ExecuteAsync("list_pages", [], default).GetAwaiter().GetResult();
+        var r = await new SquarespaceToolkit().ExecuteAsync("list_pages", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -239,12 +239,12 @@ public sealed class SquarespaceToolkitTests
 
 public sealed class ZapierToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("zapier", new ZapierToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Zapier", new ZapierToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new ZapierToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("zapier", new ZapierToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Zapier", new ZapierToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new ZapierToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new ZapierToolkit().ExecuteAsync("trigger_zap", [], default).GetAwaiter().GetResult();
+        var r = await new ZapierToolkit().ExecuteAsync("trigger_zap", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -257,12 +257,12 @@ public sealed class ZapierToolkitTests
 
 public sealed class IFTTTToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("ifttt", new IftttToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("IFTTT", new IftttToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new IftttToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("ifttt", new IftttToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("IFTTT", new IftttToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new IftttToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new IftttToolkit().ExecuteAsync("trigger_applet", [], default).GetAwaiter().GetResult();
+        var r = await new IftttToolkit().ExecuteAsync("trigger_applet", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -275,12 +275,12 @@ public sealed class IFTTTToolkitTests
 
 public sealed class MakeToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("make_com", new MakeComToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Make (Integromat)", new MakeComToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new MakeComToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("make_com", new MakeComToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Make (Integromat)", new MakeComToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new MakeComToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new MakeComToolkit().ExecuteAsync("run_scenario", [], default).GetAwaiter().GetResult();
+        var r = await new MakeComToolkit().ExecuteAsync("run_scenario", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -293,12 +293,12 @@ public sealed class MakeToolkitTests
 
 public sealed class WebScraperToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("web_scraper", new WebScraperToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("Web Scraper", new WebScraperToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new WebScraperToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("web_scraper", new WebScraperToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("Web Scraper", new WebScraperToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new WebScraperToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new WebScraperToolkit().ExecuteAsync("scrape", [], default).GetAwaiter().GetResult();
+        var r = await new WebScraperToolkit().ExecuteAsync("scrape", [], default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -311,12 +311,12 @@ public sealed class WebScraperToolkitTests
 
 public sealed class RssToolkitTests
 {
-    [Fact] public void Id_IsCorrect() => Assert.Equal("rss", new RssToolkit().Id);
-    [Fact] public void Name_IsCorrect() => Assert.Equal("RSS", new RssToolkit().Name);
-    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new RssToolkit().Category);
-    [Fact] public void NotConfigured_ReturnsSkipped()
+    [Fact] public async Task Id_IsCorrect() => Assert.Equal("rss", new RssToolkit().Id);
+    [Fact] public async Task Name_IsCorrect() => Assert.Equal("RSS", new RssToolkit().Name);
+    [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.WebSocial, new RssToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = new RssToolkit().ExecuteAsync("fetch_feed", [], default).GetAwaiter().GetResult();
+        var r = await new RssToolkit().ExecuteAsync("fetch_feed", [], default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()

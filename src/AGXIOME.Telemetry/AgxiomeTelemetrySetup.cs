@@ -17,7 +17,7 @@ public static class AgxiomeTelemetrySetup
                 .AddHttpClientInstrumentation()
                 .AddOtlpExporter(o =>
                 {
-                    o.Endpoint = config.OtlpEndpoint;
+                    o.Endpoint = config.OtlpEndpoint ?? new Uri("http://localhost:4317");
                     o.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
                 }))
             .WithMetrics(m => m

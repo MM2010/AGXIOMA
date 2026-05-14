@@ -1,5 +1,4 @@
 using AGXIOME.Shared.Models;
-using AGXIOME.Shared.Models;
 using Microsoft.AspNetCore.SignalR;
 
 namespace AGXIOME.Realtime.Hubs;

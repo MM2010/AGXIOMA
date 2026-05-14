@@ -28,7 +28,6 @@ public abstract class OnnxEmbedderBase : IEmbedder
 {
     // Lazily resolved runtime shim — null until first Embed call.
     private object? _session;  // InferenceSession (untyped to avoid static dep)
-    private object? _tokenizer;
 
     protected abstract string DefaultModelPath { get; }
     protected abstract int    ModelDimensions  { get; }

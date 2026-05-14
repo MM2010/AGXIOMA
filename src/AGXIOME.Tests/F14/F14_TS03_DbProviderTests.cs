@@ -24,7 +24,7 @@ public sealed class TS03_SqliteExtendedTests
         });
     }
 
-    [Fact] public void ProviderType_IsSQLite()
+    [Fact] public async Task ProviderType_IsSQLite()
     {
         using var store = MakeStore();
         Assert.Equal(StorageProviderType.SQLite, store.ProviderType);
@@ -64,17 +64,17 @@ public sealed class TS03_SqliteExtendedTests
         Assert.Null(ex);
     }
 
-    [Fact] public void DisposeDoesNotThrow()
+    [Fact] public async Task DisposeDoesNotThrow()
     {
         var store = MakeStore();
         var ex = Record.Exception(() => store.Dispose());
         Assert.Null(ex);
     }
 
-    [Fact] public void NullOptions_Throws()
+    [Fact] public async Task NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new SqliteCommandStore(null!));
 
-    [Fact] public void AutoCreateSchema_DefaultTrue()
+    [Fact] public async Task AutoCreateSchema_DefaultTrue()
     {
         var opts = new SqliteStoreOptions { ConnectionString = "Data Source=:memory:" };
         Assert.True(opts.AutoCreateSchema);
@@ -90,25 +90,25 @@ public sealed class TS03_PostgresContractTests
     // PostgresCommandStore takes a plain connection string
     private const string FakeCs = "Server=localhost;Database=test;User Id=sa;Password=fake";
 
-    [Fact] public void Constructor_ValidConnectionString_Succeeds()
+    [Fact] public async Task Constructor_ValidConnectionString_Succeeds()
     {
         var store = new PostgresCommandStore(FakeCs);
         Assert.NotNull(store);
     }
 
-    [Fact] public void Constructor_NullString_DoesNotCrashRuntime()
+    [Fact] public async Task Constructor_NullString_DoesNotCrashRuntime()
     {
         try { _ = new PostgresCommandStore(null!); }
         catch (Exception) { /* acceptable */ }
     }
 
-    [Fact] public void StorageProviderType_PostgreSQL_DefinedInEnum()
+    [Fact] public async Task StorageProviderType_PostgreSQL_DefinedInEnum()
         => Assert.True(Enum.IsDefined(typeof(StorageProviderType), StorageProviderType.PostgreSQL));
 
-    [Fact] public void StorageProviderType_PostgreSQL_ValueIs0()
+    [Fact] public async Task StorageProviderType_PostgreSQL_ValueIs0()
         => Assert.Equal((StorageProviderType)0, StorageProviderType.PostgreSQL);
 
-    [Fact] public void TwoInstances_AreDistinctObjects()
+    [Fact] public async Task TwoInstances_AreDistinctObjects()
     {
         var a = new PostgresCommandStore(FakeCs);
         var b = new PostgresCommandStore(FakeCs);
@@ -128,7 +128,7 @@ public sealed class TS03_JsonFileStoreTests
         return new JsonFileCommandStore(new JsonFileStoreOptions { BaseDirectory = dir });
     }
 
-    [Fact] public void ProviderType_IsJsonFile()
+    [Fact] public async Task ProviderType_IsJsonFile()
     {
         using var store = MakeStore();
         Assert.Equal(StorageProviderType.JsonFile, store.ProviderType);
@@ -151,7 +151,7 @@ public sealed class TS03_JsonFileStoreTests
         Assert.Null(ex);
     }
 
-    [Fact] public void NullOptions_Throws()
+    [Fact] public async Task NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new JsonFileCommandStore(null!));
 
     [Fact] public async Task SaveMultiple_AllSucceed()
@@ -172,18 +172,18 @@ public sealed class TS03_JsonFileStoreTests
 
 public sealed class TS03_StorageProviderTypeTests
 {
-    [Fact] public void SQLite_IsDistinctFromPostgreSQL()
+    [Fact] public async Task SQLite_IsDistinctFromPostgreSQL()
         => Assert.NotEqual(StorageProviderType.PostgreSQL, StorageProviderType.SQLite);
-    [Fact] public void MongoDB_IsDistinctFromMySQL()
+    [Fact] public async Task MongoDB_IsDistinctFromMySQL()
         => Assert.NotEqual(StorageProviderType.MySQL, StorageProviderType.MongoDB);
-    [Fact] public void AllValues_AreUnique()
+    [Fact] public async Task AllValues_AreUnique()
     {
         var values = Enum.GetValues<StorageProviderType>().Cast<int>().ToList();
         Assert.Equal(values.Count, values.Distinct().Count());
     }
-    [Fact] public void EnumHasAtLeast20Values()
+    [Fact] public async Task EnumHasAtLeast20Values()
         => Assert.True(Enum.GetValues<StorageProviderType>().Length >= 20);
-    [Fact] public void JsonFile_IsDefined()
+    [Fact] public async Task JsonFile_IsDefined()
         => Assert.True(Enum.IsDefined(typeof(StorageProviderType), StorageProviderType.JsonFile));
 }
 
@@ -292,19 +292,19 @@ public sealed class TS03_SqliteConcurrencyTests
 public sealed class TS03_MongoContractTests
 {
     // MongoStore takes (string connectionString, string databaseName)
-    [Fact] public void Constructor_ValidArgs_Succeeds()
+    [Fact] public async Task Constructor_ValidArgs_Succeeds()
     {
         var store = new MongoStore("mongodb://localhost:27017", "testdb");
         Assert.NotNull(store);
     }
 
-    [Fact] public void StorageProviderType_MongoDB_Defined()
+    [Fact] public async Task StorageProviderType_MongoDB_Defined()
         => Assert.True(Enum.IsDefined(typeof(StorageProviderType), StorageProviderType.MongoDB));
 
-    [Fact] public void StorageProviderType_MongoDB_ValueIs3()
+    [Fact] public async Task StorageProviderType_MongoDB_ValueIs3()
         => Assert.Equal((StorageProviderType)3, StorageProviderType.MongoDB);
 
-    [Fact] public void TwoInstances_AreDistinct()
+    [Fact] public async Task TwoInstances_AreDistinct()
     {
         var a = new MongoStore("mongodb://localhost:27017", "dbA");
         var b = new MongoStore("mongodb://localhost:27017", "dbB");
@@ -315,16 +315,16 @@ public sealed class TS03_MongoContractTests
 public sealed class TS03_RedisContractTests
 {
     // RedisCache takes a plain connection string; has GetAsync/SetAsync but NOT ProviderType
-    [Fact] public void StorageProviderType_RedisCache_Defined()
+    [Fact] public async Task StorageProviderType_RedisCache_Defined()
         => Assert.True(Enum.IsDefined(typeof(StorageProviderType), StorageProviderType.RedisCache));
 
-    [Fact] public void StorageProviderType_RedisCache_ValueIs4()
+    [Fact] public async Task StorageProviderType_RedisCache_ValueIs4()
         => Assert.Equal((StorageProviderType)4, StorageProviderType.RedisCache);
 
-    [Fact] public void StorageProviderType_RedisSession_Defined()
+    [Fact] public async Task StorageProviderType_RedisSession_Defined()
         => Assert.True(Enum.IsDefined(typeof(StorageProviderType), StorageProviderType.RedisSession));
 
-    [Fact] public void RedisSessionStore_ProviderType_IsRedisSession()
+    [Fact] public async Task RedisSessionStore_ProviderType_IsRedisSession()
     {
         var store = new RedisSessionStore(new RedisSessionStoreOptions
             { ConnectionString = "localhost:6379,abortConnect=false" });
@@ -342,16 +342,16 @@ public sealed class TS03_DynamoDbContractTests
         ServiceUrl = "http://localhost:8000"
     };
 
-    [Fact] public void ProviderType_IsDynamoDB()
+    [Fact] public async Task ProviderType_IsDynamoDB()
         => Assert.Equal(StorageProviderType.DynamoDB, new DynamoDbCommandStore(Opts()).ProviderType);
 
-    [Fact] public void NullOptions_Throws()
+    [Fact] public async Task NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new DynamoDbCommandStore(null!));
 
-    [Fact] public void TableName_Stored()
+    [Fact] public async Task TableName_Stored()
         => Assert.Equal("test-table", Opts().TableName);
 
-    [Fact] public void Region_DefaultIsUsEast1()
+    [Fact] public async Task Region_DefaultIsUsEast1()
         => Assert.Equal("us-east-1", Opts().Region);
 }
 
@@ -361,30 +361,30 @@ public sealed class TS03_DynamoDbContractTests
 
 public sealed class TS03_StoreOptionsValidationTests
 {
-    [Fact] public void SqliteOptions_AutoCreateSchema_DefaultTrue()
+    [Fact] public async Task SqliteOptions_AutoCreateSchema_DefaultTrue()
         => Assert.True(new SqliteStoreOptions { ConnectionString = ":memory:" }.AutoCreateSchema);
 
-    [Fact] public void SqliteOptions_ConnectionString_Stored()
+    [Fact] public async Task SqliteOptions_ConnectionString_Stored()
     {
         var opts = new SqliteStoreOptions { ConnectionString = "Data Source=test.db" };
         Assert.Equal("Data Source=test.db", opts.ConnectionString);
     }
 
-    [Fact] public void SqlServerCommandStore_ProviderType_IsSQLServer()
+    [Fact] public async Task SqlServerCommandStore_ProviderType_IsSQLServer()
     {
         var store = new SqlServerCommandStore(new SqlServerStoreOptions
             { ConnectionString = "Server=localhost;Database=test" });
         Assert.Equal(StorageProviderType.SQLServer, store.ProviderType);
     }
 
-    [Fact] public void DynamoDbOptions_TableName_Stored()
+    [Fact] public async Task DynamoDbOptions_TableName_Stored()
     {
         var opts = new DynamoDbStoreOptions
             { TableName = "myTable", AccessKey = "A", SecretKey = "S", ServiceUrl = "http://localhost" };
         Assert.Equal("myTable", opts.TableName);
     }
 
-    [Fact] public void CosmosDbCommandStore_ProviderType_IsCosmosDB()
+    [Fact] public async Task CosmosDbCommandStore_ProviderType_IsCosmosDB()
     {
         var store = new CosmosDbCommandStore(new CosmosDbStoreOptions
         {
@@ -395,14 +395,14 @@ public sealed class TS03_StoreOptionsValidationTests
         Assert.Equal(StorageProviderType.CosmosDB, store.ProviderType);
     }
 
-    [Fact] public void ClickHouseCommandStore_ProviderType_IsClickHouse()
+    [Fact] public async Task ClickHouseCommandStore_ProviderType_IsClickHouse()
     {
         var store = new ClickHouseCommandStore(new ClickHouseStoreOptions
             { ConnectionString = "Host=localhost;Port=9000", Database = "default" });
         Assert.Equal(StorageProviderType.ClickHouse, store.ProviderType);
     }
 
-    [Fact] public void FirestoreCommandStore_ProviderType_IsFirestore()
+    [Fact] public async Task FirestoreCommandStore_ProviderType_IsFirestore()
     {
         // Firestore may attempt cloud bootstrap on construction; accept if provider type is correct or skip if throws
         try
@@ -416,13 +416,13 @@ public sealed class TS03_StoreOptionsValidationTests
         }
     }
 
-    [Fact] public void DuckDbCommandStore_ProviderType_IsDuckDB()
+    [Fact] public async Task DuckDbCommandStore_ProviderType_IsDuckDB()
     {
         var store = new DuckDbCommandStore(new DuckDbStoreOptions { DataSource = ":memory:" });
         Assert.Equal(StorageProviderType.DuckDB, store.ProviderType);
     }
 
-    [Fact] public void SurrealDbCommandStore_ProviderType_IsSurrealDB()
+    [Fact] public async Task SurrealDbCommandStore_ProviderType_IsSurrealDB()
     {
         var store = new SurrealDbCommandStore(new SurrealDbStoreOptions
         {
@@ -435,7 +435,7 @@ public sealed class TS03_StoreOptionsValidationTests
         Assert.Equal(StorageProviderType.SurrealDB, store.ProviderType);
     }
 
-    [Fact] public void EtcdCommandStore_ProviderType_IsEtcd()
+    [Fact] public async Task EtcdCommandStore_ProviderType_IsEtcd()
     {
         var store = new EtcdCommandStore(new EtcdStoreOptions { Endpoint = "http://localhost:2379" });
         Assert.Equal(StorageProviderType.Etcd, store.ProviderType);
@@ -448,20 +448,20 @@ public sealed class TS03_StoreOptionsValidationTests
 
 public sealed class TS03_StoreInterfaceConsistencyTests
 {
-    [Fact] public void JsonFileCommandStore_ProviderType_IsJsonFile()
+    [Fact] public async Task JsonFileCommandStore_ProviderType_IsJsonFile()
     {
         var dir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         using var store = new JsonFileCommandStore(new JsonFileStoreOptions { BaseDirectory = dir });
         Assert.Equal(StorageProviderType.JsonFile, store.ProviderType);
     }
 
-    [Fact] public void MemcachedCommandStore_ProviderType_IsMemcached()
+    [Fact] public async Task MemcachedCommandStore_ProviderType_IsMemcached()
     {
         var store = new MemcachedCommandStore(new MemcachedStoreOptions { Host = "localhost" });
         Assert.Equal(StorageProviderType.Memcached, store.ProviderType);
     }
 
-    [Fact] public void HazelcastCommandStore_ProviderType_IsHazelcast()
+    [Fact] public async Task HazelcastCommandStore_ProviderType_IsHazelcast()
     {
         var store = new HazelcastCommandStore(new HazelcastStoreOptions
         {
@@ -472,7 +472,7 @@ public sealed class TS03_StoreInterfaceConsistencyTests
         Assert.Equal(StorageProviderType.Hazelcast, store.ProviderType);
     }
 
-    [Fact] public void ElasticsearchCommandStore_ProviderType_IsElasticsearch()
+    [Fact] public async Task ElasticsearchCommandStore_ProviderType_IsElasticsearch()
     {
         // Use NodeUri path (CloudId="" is valid when NodeUri is provided)
         var store = new ElasticsearchCommandStore(new ElasticsearchStoreOptions
@@ -480,41 +480,41 @@ public sealed class TS03_StoreInterfaceConsistencyTests
         Assert.Equal(StorageProviderType.Elasticsearch, store.ProviderType);
     }
 
-    [Fact] public void MeilisearchCommandStore_ProviderType_IsMeilisearch()
+    [Fact] public async Task MeilisearchCommandStore_ProviderType_IsMeilisearch()
     {
         var store = new MeilisearchCommandStore(new MeilisearchStoreOptions { ApiUrl = "http://localhost:7700", ApiKey = "masterKey" });
         Assert.Equal(StorageProviderType.Meilisearch, store.ProviderType);
     }
 
-    [Fact] public void NeonCommandStore_ProviderType_IsNeon()
+    [Fact] public async Task NeonCommandStore_ProviderType_IsNeon()
     {
         var store = new NeonCommandStore(new NeonStoreOptions
             { ConnectionString = "Host=ep.neon.tech;Database=neondb" });
         Assert.Equal(StorageProviderType.Neon, store.ProviderType);
     }
 
-    [Fact] public void CockroachDbCommandStore_ProviderType_IsCockroachDB()
+    [Fact] public async Task CockroachDbCommandStore_ProviderType_IsCockroachDB()
     {
         var store = new CockroachDbCommandStore(new CockroachDbStoreOptions
             { ConnectionString = "Host=localhost;Port=26257;Database=defaultdb" });
         Assert.Equal(StorageProviderType.CockroachDB, store.ProviderType);
     }
 
-    [Fact] public void SqliteCommandStore_ProviderType_IsSQLite()
+    [Fact] public async Task SqliteCommandStore_ProviderType_IsSQLite()
     {
         using var store = new SqliteCommandStore(new SqliteStoreOptions
             { ConnectionString = "Data Source=:memory:" });
         Assert.Equal(StorageProviderType.SQLite, store.ProviderType);
     }
 
-    [Fact] public void SqlServerLocalDbCommandStore_ProviderType_IsSQLServerLocalDB()
+    [Fact] public async Task SqlServerLocalDbCommandStore_ProviderType_IsSQLServerLocalDB()
     {
         var store = new SqlServerLocalDbCommandStore(new SqlServerLocalDbStoreOptions
             { ConnectionString = @"Server=(localdb)\MSSQLLocalDB;Database=test" });
         Assert.Equal(StorageProviderType.SQLServerLocalDB, store.ProviderType);
     }
 
-    [Fact] public void AllStores_ProviderType_NotDefault()
+    [Fact] public async Task AllStores_ProviderType_NotDefault()
     {
         var values = Enum.GetValues<StorageProviderType>().Where(v => v != default).ToList();
         Assert.NotEmpty(values);

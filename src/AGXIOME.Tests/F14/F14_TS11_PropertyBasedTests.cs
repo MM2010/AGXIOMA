@@ -23,7 +23,7 @@ public sealed class TS11_ChunkerPropertiesTests
         => string.Join(" ", Enumerable.Range(0, count).Select(i => $"word{Rng.Next(0, 999):D3}"));
 
     /// <summary>Property: chunk count is always >= 1.</summary>
-    [Fact] public void Property_ChunkCount_AtLeastOne()
+    [Fact] public async Task Property_ChunkCount_AtLeastOne()
     {
         for (int trial = 0; trial < 20; trial++)
         {
@@ -34,7 +34,7 @@ public sealed class TS11_ChunkerPropertiesTests
     }
 
     /// <summary>Property: all chunk content is non-null.</summary>
-    [Fact] public void Property_ChunkContent_NeverNull()
+    [Fact] public async Task Property_ChunkContent_NeverNull()
     {
         for (int trial = 0; trial < 20; trial++)
         {
@@ -45,7 +45,7 @@ public sealed class TS11_ChunkerPropertiesTests
     }
 
     /// <summary>Property: chunk indexes start at 0 and are strictly ascending.</summary>
-    [Fact] public void Property_ChunkIndexes_Ascending()
+    [Fact] public async Task Property_ChunkIndexes_Ascending()
     {
         for (int trial = 0; trial < 10; trial++)
         {
@@ -59,7 +59,7 @@ public sealed class TS11_ChunkerPropertiesTests
     }
 
     /// <summary>Property: total content of all chunks is a superset of unique words in input.</summary>
-    [Fact] public void Property_AllWords_AppearInSomeChunk()
+    [Fact] public async Task Property_AllWords_AppearInSomeChunk()
     {
         var wordCount = 30;
         var words     = Enumerable.Range(0, wordCount).Select(i => $"uniqword{i:D3}").ToList();
@@ -71,7 +71,7 @@ public sealed class TS11_ChunkerPropertiesTests
     }
 
     /// <summary>Property: empty input always yields exactly 1 chunk.</summary>
-    [Fact] public void Property_EmptyInput_ExactlyOneChunk()
+    [Fact] public async Task Property_EmptyInput_ExactlyOneChunk()
     {
         IChunker[] chunkers = [new SentenceChunker(), new RecursiveChunker(),
             new SlidingWindowChunker(), new FixedSizeChunker(), new HeadingChunker()];
@@ -80,7 +80,7 @@ public sealed class TS11_ChunkerPropertiesTests
     }
 
     /// <summary>Property: larger maxTokens always produces fewer or equal chunks.</summary>
-    [Fact] public void Property_LargerMaxTokens_FewerOrEqualChunks()
+    [Fact] public async Task Property_LargerMaxTokens_FewerOrEqualChunks()
     {
         var text = RandomWords(200);
         var small = new SlidingWindowChunker().Chunk(text, maxTokens: 10, overlap: 0).Count;
@@ -89,7 +89,7 @@ public sealed class TS11_ChunkerPropertiesTests
     }
 
     /// <summary>Property: chunk count for same input is deterministic across multiple calls.</summary>
-    [Fact] public void Property_SameInput_DeterministicOutput()
+    [Fact] public async Task Property_SameInput_DeterministicOutput()
     {
         var text = RandomWords(100);
         var r1   = new RecursiveChunker().Chunk(text, maxTokens: 30, overlap: 5);
@@ -100,7 +100,7 @@ public sealed class TS11_ChunkerPropertiesTests
     }
 
     /// <summary>Property: increasing overlap never increases chunk count.</summary>
-    [Fact] public void Property_MoreOverlap_SameOrMoreChunks_NotLess()
+    [Fact] public async Task Property_MoreOverlap_SameOrMoreChunks_NotLess()
     {
         var text     = RandomWords(100);
         var noOverlap = new SlidingWindowChunker().Chunk(text, maxTokens: 10, overlap: 0).Count;
@@ -111,7 +111,7 @@ public sealed class TS11_ChunkerPropertiesTests
     }
 
     /// <summary>Property: all chunk token counts are <= maxTokens (approximate, word-based).</summary>
-    [Fact] public void Property_ChunkTokenCount_WithinMaxTokens()
+    [Fact] public async Task Property_ChunkTokenCount_WithinMaxTokens()
     {
         var maxTokens = 20;
         var text      = RandomWords(500);
@@ -123,7 +123,7 @@ public sealed class TS11_ChunkerPropertiesTests
     }
 
     /// <summary>Property: single-word text yields exactly one chunk.</summary>
-    [Fact] public void Property_SingleWord_OneChunk()
+    [Fact] public async Task Property_SingleWord_OneChunk()
     {
         IChunker[] chunkers = [new SentenceChunker(), new SlidingWindowChunker(), new FixedSizeChunker()];
         foreach (var c in chunkers)
@@ -285,28 +285,28 @@ public sealed class TS11_StorePropertiesTests
 public sealed class TS11_EnumAndModelPropertiesTests
 {
     /// <summary>Property: all EmbedderType values are distinct integers.</summary>
-    [Fact] public void Property_EmbedderType_AllDistinct()
+    [Fact] public async Task Property_EmbedderType_AllDistinct()
     {
         var vals = Enum.GetValues<EmbedderType>().Cast<int>().ToList();
         Assert.Equal(vals.Count, vals.Distinct().Count());
     }
 
     /// <summary>Property: all StorageProviderType values are distinct.</summary>
-    [Fact] public void Property_StorageProviderType_AllDistinct()
+    [Fact] public async Task Property_StorageProviderType_AllDistinct()
     {
         var vals = Enum.GetValues<StorageProviderType>().Cast<int>().ToList();
         Assert.Equal(vals.Count, vals.Distinct().Count());
     }
 
     /// <summary>Property: all ChunkerType values are distinct.</summary>
-    [Fact] public void Property_ChunkerType_AllDistinct()
+    [Fact] public async Task Property_ChunkerType_AllDistinct()
     {
         var vals = Enum.GetValues<ChunkerType>().Cast<int>().ToList();
         Assert.Equal(vals.Count, vals.Distinct().Count());
     }
 
     /// <summary>Property: enum parse roundtrip is stable for all values.</summary>
-    [Fact] public void Property_EmbedderType_ParseRoundtrip()
+    [Fact] public async Task Property_EmbedderType_ParseRoundtrip()
     {
         foreach (var val in Enum.GetValues<EmbedderType>())
         {
@@ -317,14 +317,14 @@ public sealed class TS11_EnumAndModelPropertiesTests
     }
 
     /// <summary>Property: all EmbedderType have names (not just numeric).</summary>
-    [Fact] public void Property_AllEmbedderTypes_HaveNames()
+    [Fact] public async Task Property_AllEmbedderTypes_HaveNames()
     {
         Assert.All(Enum.GetValues<EmbedderType>(),
             v => Assert.False(string.IsNullOrWhiteSpace(Enum.GetName(v))));
     }
 
     /// <summary>Property: F14DbRecord with-expression preserves Id.</summary>
-    [Fact] public void Property_Record_With_PreservesId()
+    [Fact] public async Task Property_Record_With_PreservesId()
     {
         var rng = new Random(42);
         for (int i = 0; i < 50; i++)
@@ -337,7 +337,7 @@ public sealed class TS11_EnumAndModelPropertiesTests
     }
 
     /// <summary>Property: record equality is value-based.</summary>
-    [Fact] public void Property_Record_ValueEquality()
+    [Fact] public async Task Property_Record_ValueEquality()
     {
         for (int i = 0; i < 20; i++)
         {
@@ -348,7 +348,7 @@ public sealed class TS11_EnumAndModelPropertiesTests
     }
 
     /// <summary>Property: record with different values is not equal.</summary>
-    [Fact] public void Property_Record_DifferentValues_NotEqual()
+    [Fact] public async Task Property_Record_DifferentValues_NotEqual()
     {
         var r1 = new F14DbRecord { Id = "x", Value = 1 };
         var r2 = new F14DbRecord { Id = "x", Value = 2 };
@@ -356,7 +356,7 @@ public sealed class TS11_EnumAndModelPropertiesTests
     }
 
     /// <summary>Property: SqliteStoreOptions ConnectionString is preserved.</summary>
-    [Fact] public void Property_SqliteOptions_StringPreserved()
+    [Fact] public async Task Property_SqliteOptions_StringPreserved()
     {
         var rng = new Random(7);
         for (int i = 0; i < 20; i++)
@@ -368,7 +368,7 @@ public sealed class TS11_EnumAndModelPropertiesTests
     }
 
     /// <summary>Property: ChunkerType.Agentic is always defined.</summary>
-    [Fact] public void Property_AgenticChunkerType_Defined()
+    [Fact] public async Task Property_AgenticChunkerType_Defined()
         => Assert.True(Enum.IsDefined(typeof(ChunkerType), ChunkerType.Agentic));
 }
 
@@ -379,7 +379,7 @@ public sealed class TS11_EnumAndModelPropertiesTests
 public sealed class TS11_StringPropertiesTests
 {
     /// <summary>Property: UTF-8 encoding followed by decoding preserves text.</summary>
-    [Fact] public void Property_Utf8_EncodeDecodeRoundtrip()
+    [Fact] public async Task Property_Utf8_EncodeDecodeRoundtrip()
     {
         var texts = new[] { "hello", "こんにちは", "αβγ", string.Empty, "   ", "123!@#" };
         foreach (var t in texts)
@@ -391,7 +391,7 @@ public sealed class TS11_StringPropertiesTests
     }
 
     /// <summary>Property: Base64 encode+decode is identity.</summary>
-    [Fact] public void Property_Base64_Roundtrip()
+    [Fact] public async Task Property_Base64_Roundtrip()
     {
         var rng = new Random(11);
         for (int i = 0; i < 20; i++)
@@ -405,14 +405,14 @@ public sealed class TS11_StringPropertiesTests
     }
 
     /// <summary>Property: Guid.NewGuid() always produces unique values.</summary>
-    [Fact] public void Property_Guid_AlwaysUnique()
+    [Fact] public async Task Property_Guid_AlwaysUnique()
     {
         var guids = Enumerable.Range(0, 1000).Select(_ => Guid.NewGuid()).ToHashSet();
         Assert.Equal(1000, guids.Count);
     }
 
     /// <summary>Property: string.Join then string.Split is near-identity for simple tokens.</summary>
-    [Fact] public void Property_JoinSplit_NearIdentity()
+    [Fact] public async Task Property_JoinSplit_NearIdentity()
     {
         for (int trial = 0; trial < 20; trial++)
         {
@@ -424,7 +424,7 @@ public sealed class TS11_StringPropertiesTests
     }
 
     /// <summary>Property: StringBuilder concatenation is equal to string concatenation.</summary>
-    [Fact] public void Property_StringBuilder_EqualsConcat()
+    [Fact] public async Task Property_StringBuilder_EqualsConcat()
     {
         var rng = new Random(33);
         for (int trial = 0; trial < 20; trial++)
@@ -437,7 +437,7 @@ public sealed class TS11_StringPropertiesTests
     }
 
     /// <summary>Property: DateTimeOffset.UtcNow is always UTC.</summary>
-    [Fact] public void Property_DateTimeOffset_AlwaysUtc()
+    [Fact] public async Task Property_DateTimeOffset_AlwaysUtc()
     {
         for (int i = 0; i < 100; i++)
         {
@@ -447,7 +447,7 @@ public sealed class TS11_StringPropertiesTests
     }
 
     /// <summary>Property: Math.Max(a,b) >= a and >= b always.</summary>
-    [Fact] public void Property_MathMax_CorrectInvariant()
+    [Fact] public async Task Property_MathMax_CorrectInvariant()
     {
         var rng = new Random(55);
         for (int i = 0; i < 1000; i++)
@@ -460,7 +460,7 @@ public sealed class TS11_StringPropertiesTests
     }
 
     /// <summary>Property: Dictionary lookup is consistent with insertion order.</summary>
-    [Fact] public void Property_Dict_ConsistentLookup()
+    [Fact] public async Task Property_Dict_ConsistentLookup()
     {
         var dict = new Dictionary<string, int>();
         var rng  = new Random(77);
@@ -470,7 +470,7 @@ public sealed class TS11_StringPropertiesTests
     }
 
     /// <summary>Property: LINQ Sum is commutative over list.</summary>
-    [Fact] public void Property_LinqSum_Commutative()
+    [Fact] public async Task Property_LinqSum_Commutative()
     {
         var rng  = new Random(88);
         var list = Enumerable.Range(0, 100).Select(_ => rng.Next(0, 1000)).ToList();
@@ -480,7 +480,7 @@ public sealed class TS11_StringPropertiesTests
     }
 
     /// <summary>Property: Array copy produces value-equal but reference-distinct copy.</summary>
-    [Fact] public void Property_ArrayCopy_ValueEqual()
+    [Fact] public async Task Property_ArrayCopy_ValueEqual()
     {
         var rng  = new Random(99);
         for (int i = 0; i < 20; i++)

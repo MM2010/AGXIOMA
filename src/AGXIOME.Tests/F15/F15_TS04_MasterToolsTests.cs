@@ -70,7 +70,7 @@ public sealed class F15_TS04_DecomposeRequestToolTests
         Assert.True(result.Success);
     }
 
-    [Fact] public void DecomposeRequest_ToJsonSchema_ReturnsObject()
+    [Fact] public async Task DecomposeRequest_ToJsonSchema_ReturnsObject()
     {
         var tool = new DecomposeRequestTool(Substitute.For<ILLMProvider>());
         var schema = tool.ToJsonSchema();
@@ -315,7 +315,7 @@ public sealed class F15_TS04_GenerateAgentsToolTests
         Assert.DoesNotContain("NOTALLOWED", json);
     }
 
-    [Fact] public void GenerateAgents_ToJsonSchema_ReturnsValid()
+    [Fact] public async Task GenerateAgents_ToJsonSchema_ReturnsValid()
     {
         var tool = new GenerateAgentsTool(Substitute.For<ILLMProvider>());
         var schema = tool.ToJsonSchema();
