@@ -1,0 +1,34 @@
+﻿# AGXIOME Web Scraper — Yahoo
+# Query     : quantum computing 2025
+# Source URL: https://search.yahoo.com/search?p=quantum%20computing%202025&n=10
+# Scraped   : 2026-05-13T00:02:33.4806441Z
+# Results   : 10
+# HTML tags : 0 (stripped)
+
+[1] Le tue scelte relative alla privacy
+    URL: https://s.yimg.com/oa/build/css/site-ltr-916a691b.css
+
+[2] La tua privacy è importante per noi
+    URL: https://s.yimg.com/oa/build/images/favicons/yahoo.png
+
+[3] Yahoo fa parte della Famiglia di brand Yahoo I siti e le app che possediamo e gestiamo, tra cui Yahoo e Engadget, e i no
+    Yahoo fa parte della Famiglia di brand Yahoo I siti e le app che possediamo e gestiamo, tra cui Yahoo e Engadget, e i nostri servizi di pubblicità digitale, Yahoo Advertising. famiglia di brand Yahoo .
+
+[4] Quando utilizzi i nostri siti e le nostre app, noi utilizziamo i Informativa sui cookie ."> Cookie I cookie (comprese te
+    Quando utilizzi i nostri siti e le nostre app, noi utilizziamo i Informativa sui cookie ."> Cookie I cookie (comprese tecnologie simili come il web storage) consentono agli operatori di siti web e app di memorizzare e leggere informazioni dal tuo dispositivo. Per saperne di più, consulta la nostra Informativa sui cookie . cookie per:
+
+[5] fornirti i nostri siti e le nostre app;
+
+[6] autenticare gli utenti, applicare misure di sicurezza e prevenire spam e abusi;
+
+[7] Misurazione Monitoriamo il numero di visitatori sulle nostre pagine, il tipo di dispositivo utilizzato (iOS o Android), 
+    Misurazione Monitoriamo il numero di visitatori sulle nostre pagine, il tipo di dispositivo utilizzato (iOS o Android), il browser impiegato e il tempo trascorso sui nostri siti web e sulle nostre app. Questi dati vengono raccolti in modo aggregato e non sono riconducibili a utenti specifici. misurare il tuo utilizzo dei nostri siti e delle nostre app
+
+[8] Le tue scelte relative alla privacy
+
+[9] Cliccando su " Accetta tutto ", autorizzi noi e i nostri partner , tra cui 249 membri che aderiscono al Framework di rif
+    Cliccando su " Accetta tutto ", autorizzi noi e i nostri partner , tra cui 249 membri che aderiscono al Framework di riferimento per la trasparenza e il consenso di IAB, a memorizzare e/o accedere alle informazioni sul tuo dispositivo (ad esempio tramite cookie) e a usare dati di geolocalizzazione precisa e altri dati personali (come Identificatori tecnici Gli identificatori tecnici sono stringhe alfanumeriche generate dal sistema che permettono di riconoscere il tuo dispositivo o la tua identità di utente. Tra questi rientrano i cookie del browser, gli ID del dispositivo e l'indirizzo IP. In alcuni casi possono essere ottenuti da indirizzi email sottoposti ad hashing o crittografia, oppure dal confronto statistico con altri identificatori. identificatori tecnici e dati di navigazione e ricerca) per l'analisi, la pubblicità e i contenuti personalizzati, la misurazione della pubblicità e dei contenuti, la ricerca sul pubblico e lo sviluppo di servizi.
+
+[10] Se non vuoi che noi e i nostri partner utilizziamo i cookie e i dati personali per questi scopi aggiuntivi, clicca su " 
+    Se non vuoi che noi e i nostri partner utilizziamo i cookie e i dati personali per questi scopi aggiuntivi, clicca su " Rifiuta tutto ".
+

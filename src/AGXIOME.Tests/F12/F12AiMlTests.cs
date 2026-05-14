@@ -1,0 +1,220 @@
+using AGXIOME.Toolkits;
+using AGXIOME.Toolkits.AiMl;
+
+namespace AGXIOME.Tests.F12;
+
+public sealed class OpenAiVisionToolkitTests
+{
+    [Fact] public void Id_IsCorrect() => Assert.Equal("openai_vision", new OpenAiVisionToolkit().Id);
+    [Fact] public void Name_IsCorrect() => Assert.Equal("OpenAI Vision", new OpenAiVisionToolkit().Name);
+    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.AiMl, new OpenAiVisionToolkit().Category);
+    [Fact] public void NotConfigured_ReturnsSkipped()
+    {
+        var r = new OpenAiVisionToolkit().ExecuteAsync("analyze_image", [], default).GetAwaiter().GetResult();
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    {
+        var cfg = new ToolkitConfig("openai_vision", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new OpenAiVisionToolkit(cfg).ExecuteAsync("analyze_image", new Dictionary<string, object?> { ["image_url"] = "https://x.com/img.png" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+}
+
+public sealed class DallEToolkitTests
+{
+    [Fact] public void Id_IsCorrect() => Assert.Equal("dalle", new DalleToolkit().Id);
+    [Fact] public void Name_IsCorrect() => Assert.Equal("DALL-E", new DalleToolkit().Name);
+    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.AiMl, new DalleToolkit().Category);
+    [Fact] public void NotConfigured_ReturnsSkipped()
+    {
+        var r = new DalleToolkit().ExecuteAsync("generate_image", [], default).GetAwaiter().GetResult();
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    {
+        var cfg = new ToolkitConfig("dall_e", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new DalleToolkit(cfg).ExecuteAsync("generate_image", new Dictionary<string, object?> { ["prompt"] = "a cat" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+}
+
+public sealed class StableDiffusionToolkitTests
+{
+    [Fact] public void Id_IsCorrect() => Assert.Equal("stable_diffusion", new StableDiffusionToolkit().Id);
+    [Fact] public void Name_IsCorrect() => Assert.Equal("Stable Diffusion", new StableDiffusionToolkit().Name);
+    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.AiMl, new StableDiffusionToolkit().Category);
+    [Fact] public void NotConfigured_ReturnsSkipped()
+    {
+        var r = new StableDiffusionToolkit().ExecuteAsync("generate_image", [], default).GetAwaiter().GetResult();
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    {
+        var cfg = new ToolkitConfig("stable_diffusion", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new StableDiffusionToolkit(cfg).ExecuteAsync("generate_image", new Dictionary<string, object?> { ["prompt"] = "a dog" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+}
+
+public sealed class WhisperToolkitTests
+{
+    [Fact] public void Id_IsCorrect() => Assert.Equal("whisper", new WhisperToolkit().Id);
+    [Fact] public void Name_IsCorrect() => Assert.Equal("Whisper", new WhisperToolkit().Name);
+    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.AiMl, new WhisperToolkit().Category);
+    [Fact] public void NotConfigured_ReturnsSkipped()
+    {
+        var r = new WhisperToolkit().ExecuteAsync("transcribe", [], default).GetAwaiter().GetResult();
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    {
+        var cfg = new ToolkitConfig("whisper", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new WhisperToolkit(cfg).ExecuteAsync("transcribe", new Dictionary<string, object?> { ["audio_url"] = "audio.mp3" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+}
+
+public sealed class ElevenLabsToolkitTests
+{
+    [Fact] public void Id_IsCorrect() => Assert.Equal("elevenlabs", new ElevenLabsToolkit().Id);
+    [Fact] public void Name_IsCorrect() => Assert.Equal("ElevenLabs TTS", new ElevenLabsToolkit().Name);
+    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.AiMl, new ElevenLabsToolkit().Category);
+    [Fact] public void NotConfigured_ReturnsSkipped()
+    {
+        var r = new ElevenLabsToolkit().ExecuteAsync("text_to_speech", [], default).GetAwaiter().GetResult();
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    {
+        var cfg = new ToolkitConfig("elevenlabs", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new ElevenLabsToolkit(cfg).ExecuteAsync("text_to_speech", new Dictionary<string, object?> { ["text"] = "hello", ["voice_id"] = "v1" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+}
+
+public sealed class HuggingFaceHubToolkitTests
+{
+    [Fact] public void Id_IsCorrect() => Assert.Equal("huggingface_hub", new HuggingFaceHubToolkit().Id);
+    [Fact] public void Name_IsCorrect() => Assert.Equal("HuggingFace Hub", new HuggingFaceHubToolkit().Name);
+    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.AiMl, new HuggingFaceHubToolkit().Category);
+    [Fact] public void NotConfigured_ReturnsSkipped()
+    {
+        var r = new HuggingFaceHubToolkit().ExecuteAsync("inference", [], default).GetAwaiter().GetResult();
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    {
+        var cfg = new ToolkitConfig("huggingface_hub", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new HuggingFaceHubToolkit(cfg).ExecuteAsync("inference", new Dictionary<string, object?> { ["model"] = "gpt2", ["inputs"] = "hello" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+}
+
+public sealed class MlNetAutoMlToolkitTests
+{
+    [Fact] public void Id_IsCorrect() => Assert.Equal("mlnet_automl", new MlNetAutoMlToolkit().Id);
+    [Fact] public void Name_IsCorrect() => Assert.Equal("ML.NET AutoML", new MlNetAutoMlToolkit().Name);
+    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.AiMl, new MlNetAutoMlToolkit().Category);
+    [Fact] public void NotConfigured_ReturnsSkipped()
+    {
+        var r = new MlNetAutoMlToolkit().ExecuteAsync("train", [], default).GetAwaiter().GetResult();
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    {
+        var cfg = new ToolkitConfig("mlnet_automl", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new MlNetAutoMlToolkit(cfg).ExecuteAsync("train", new Dictionary<string, object?> { ["dataset"] = "data.csv", ["label"] = "target" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+}
+
+public sealed class PyTorchBridgeToolkitTests
+{
+    [Fact] public void Id_IsCorrect() => Assert.Equal("pytorch", new PyTorchToolkit().Id);
+    [Fact] public void Name_IsCorrect() => Assert.Equal("PyTorch", new PyTorchToolkit().Name);
+    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.AiMl, new PyTorchToolkit().Category);
+    [Fact] public void NotConfigured_ReturnsSkipped()
+    {
+        var r = new PyTorchToolkit().ExecuteAsync("run_model", [], default).GetAwaiter().GetResult();
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    {
+        var cfg = new ToolkitConfig("pytorch_bridge", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new PyTorchToolkit(cfg).ExecuteAsync("run_model", new Dictionary<string, object?> { ["model_path"] = "model.pt", ["input"] = "data" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+}
+
+public sealed class OnnxRuntimeToolkitTests
+{
+    [Fact] public void Id_IsCorrect() => Assert.Equal("onnx", new OnnxToolkit().Id);
+    [Fact] public void Name_IsCorrect() => Assert.Equal("ONNX", new OnnxToolkit().Name);
+    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.AiMl, new OnnxToolkit().Category);
+    [Fact] public void NotConfigured_ReturnsSkipped()
+    {
+        var r = new OnnxToolkit().ExecuteAsync("infer", [], default).GetAwaiter().GetResult();
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    {
+        var cfg = new ToolkitConfig("onnx_runtime", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new OnnxToolkit(cfg).ExecuteAsync("infer", new Dictionary<string, object?> { ["model_path"] = "model.onnx", ["input"] = "data" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+}
+
+public sealed class LangChainBridgeToolkitTests
+{
+    [Fact] public void Id_IsCorrect() => Assert.Equal("langchain_bridge", new LangChainBridgeToolkit().Id);
+    [Fact] public void Name_IsCorrect() => Assert.Equal("LangChain Bridge", new LangChainBridgeToolkit().Name);
+    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.AiMl, new LangChainBridgeToolkit().Category);
+    [Fact] public void NotConfigured_ReturnsSkipped()
+    {
+        var r = new LangChainBridgeToolkit().ExecuteAsync("run_chain", [], default).GetAwaiter().GetResult();
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    {
+        var cfg = new ToolkitConfig("langchain_bridge", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new LangChainBridgeToolkit(cfg).ExecuteAsync("run_chain", new Dictionary<string, object?> { ["chain"] = "qa", ["query"] = "what?" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+}
+
+public sealed class SemanticKernelBridgeToolkitTests
+{
+    [Fact] public void Id_IsCorrect() => Assert.Equal("semantic_kernel", new SemanticKernelToolkit().Id);
+    [Fact] public void Name_IsCorrect() => Assert.Equal("Semantic Kernel", new SemanticKernelToolkit().Name);
+    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.AiMl, new SemanticKernelToolkit().Category);
+    [Fact] public void NotConfigured_ReturnsSkipped()
+    {
+        var r = new SemanticKernelToolkit().ExecuteAsync("invoke_skill", [], default).GetAwaiter().GetResult();
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    {
+        var cfg = new ToolkitConfig("semantic_kernel", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new SemanticKernelToolkit(cfg).ExecuteAsync("invoke_skill", new Dictionary<string, object?> { ["skill"] = "summarize", ["input"] = "text" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+}
+
+public sealed class MlNetScikitToolkitTests
+{
+    [Fact] public void Id_IsCorrect() => Assert.Equal("mlnet_scikit", new MlNetSkikitToolkit().Id);
+    [Fact] public void Name_IsCorrect() => Assert.Equal("ML.NET Scikit-like", new MlNetSkikitToolkit().Name);
+    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.AiMl, new MlNetSkikitToolkit().Category);
+    [Fact] public void NotConfigured_ReturnsSkipped()
+    {
+        var r = new MlNetSkikitToolkit().ExecuteAsync("predict", [], default).GetAwaiter().GetResult();
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    {
+        var cfg = new ToolkitConfig("mlnet_scikit", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new MlNetSkikitToolkit(cfg).ExecuteAsync("predict", new Dictionary<string, object?> { ["model"] = "clf", ["features"] = "1,2,3" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+}

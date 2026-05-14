@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "AGXIOME",
+  "classifications": ["AI", "Agent", "Swarm", "Routing", "Customer Support", "Web API"],
+  "identity": "AGXIOME.MultiAgentTeam",
+  "name": "AGXIOME Multi-Agent Team (ForestSwarm)",
+  "shortName": "agxioma-multi-agent-team",
+  "description": "Keyword-based intelligent routing using ForestSwarm. Automatically routes requests to the right specialist agent based on topic keywords. Pre-configured for customer support: Billing, Technical, Sales, and General agents.",
+  "tags": { "language": "C#", "type": "project" },
+  "sourceName": "AgxiomaMultiAgentTeam",
+  "preferNameDirectory": true,
+  "symbols": {
+    "agentName": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "SupportRouter",
+      "replaces": "MY_AGENT_NAME"
+    },
+    "provider": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "openai",
+      "choices": [
+        { "choice": "openai",    "description": "OpenAI (gpt-4o)" },
+        { "choice": "anthropic", "description": "Anthropic (claude-3-7-sonnet)" },
+        { "choice": "ollama",    "description": "Ollama local (llama3.2)" }
+      ]
+    },
+    "providerEnum": {
+      "type": "generated",
+      "generator": "switch",
+      "replaces": "PROVIDER_ENUM_PLACEHOLDER",
+      "parameters": {
+        "evaluator": "C++",
+        "cases": [
+          { "condition": "(provider == \"openai\")",    "value": "LLMProviderType.OpenAI" },
+          { "condition": "(provider == \"anthropic\")", "value": "LLMProviderType.Anthropic" },
+          { "condition": "(provider == \"ollama\")",    "value": "LLMProviderType.Ollama" }
+        ]
+      }
+    },
+    "modelName": {
+      "type": "generated",
+      "generator": "switch",
+      "replaces": "MODEL_PLACEHOLDER",
+      "parameters": {
+        "evaluator": "C++",
+        "cases": [
+          { "condition": "(provider == \"openai\")",    "value": "gpt-4o" },
+          { "condition": "(provider == \"anthropic\")", "value": "claude-3-7-sonnet-20250219" },
+          { "condition": "(provider == \"ollama\")",    "value": "llama3.2" }
+        ]
+      }
+    }
+  }
+}

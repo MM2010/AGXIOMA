@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <Description>AGXIOME meta-package — umbrella for all AGXIOME packages</Description>
+    <PackageTags>agxiome; ai; agents; swarm</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AGXIOME.Shared\AGXIOME.Shared.csproj" />
+    <ProjectReference Include="..\AGXIOME.LLMWIKY\AGXIOME.LLMWIKY.csproj" />
+    <ProjectReference Include="..\AGXIOME.Core\AGXIOME.Core.csproj" />
+    <ProjectReference Include="..\AGXIOME.DynamicRuntime\AGXIOME.DynamicRuntime.csproj" />
+    <ProjectReference Include="..\AGXIOME.Storage\AGXIOME.Storage.csproj" />
+  </ItemGroup>
+</Project>

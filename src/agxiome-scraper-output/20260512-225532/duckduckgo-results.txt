@@ -1,0 +1,29 @@
+﻿# AGXIOME Web Scraper — DuckDuckGo
+# Query     : quantum computing 2025
+# Source URL: https://html.duckduckgo.com/html/?q=quantum%20computing%202025
+# Scraped   : 2026-05-12T22:55:33.4269527Z
+# Results   : 10
+# HTML tags : 0 (stripped)
+
+[1] quantum computing 2025 at DuckDuckGo
+
+[2] New MIT report captures state of quantum computing
+
+[3] mitsloan.mit.edu/ideas-made-to-matter/new-mit-report-captures-state-quantum-computing
+
+[4] 2025-08-19T00:00:00.0000000
+
+[5] The " Quantum Index Report 2025 " charts the technology's momentum, with a comprehensive, data-driven assessment of the 
+    The " Quantum Index Report 2025 " charts the technology's momentum, with a comprehensive, data-driven assessment of the state of quantum technologies. The inaugural report aims to make quantum computing and networking technologies more accessible to entrepreneurs, investors, teachers, and business decision makers — all of whom will play a critical role in how quantum computing is ...
+
+[6] Quantum Technology Monitor 2025 | McKinsey
+
+[7] www.mckinsey.com/capabilities/tech-and-ai/our-insights/the-year-of-quantum-from-concept-to-reality-in-2025
+
+[8] 2025-06-23T00:00:00.0000000
+
+[9] Explore the latest advancements in quantum computing , sensing, and communication with our comprehensive Quantum Technol
+    Explore the latest advancements in quantum computing , sensing, and communication with our comprehensive Quantum Technology Monitor 2025 .
+
+[10] Quantum Computing Roadmaps & Leading Players in 2025
+

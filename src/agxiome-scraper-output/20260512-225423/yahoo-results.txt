@@ -1,0 +1,33 @@
+﻿# AGXIOME Web Scraper — Yahoo
+# Query     : artificial intelligence 2025
+# Source URL: https://search.yahoo.com/search?p=artificial%20intelligence%202025&n=10
+# Scraped   : 2026-05-12T22:54:24.3998890Z
+# Results   : 10
+# HTML tags : 0 (stripped)
+
+[1] artificial intelligence 2025 - Yahoo Search Results
+    URL: https://s.yimg.com/zz/combo?pv/static/lib/srp-header-css-scout_78cd9e66005fb8e03b0a2e6f98b93a66_1466b.css&pv/static/lib/srp-core-css-scout_afe89e438e38ffcd4d0baec5239e9877_151bb.css&pv/static/lib/master-atomic-desktop_d9da1ad1a5fd64d76ccb130a099b5b22_16d5f.css
+
+[2] Waiting for permission
+    URL: https://s.yimg.com/pv/static/lib/uds-srp_259c162b557bff99e2f318d17553be43_afaa4.css
+
+[3] Allow microphone access to enable voice search
+    URL: https://s.yimg.com/pv/static/img/y_icon_iphone_76.min.png
+
+[4] Ad related to: artificial intelligence 2025
+    URL: https://s.yimg.com/pv/static/img/y_icon_iphone_114.min.png
+
+[5] Your Vision, Realized at Scale - Generative AI - Pega GenAI
+    URL: https://s.yimg.com/pv/static/img/y_icon_iphone_120.min.png
+
+[6] Generative AI helps your enterprise automatically turn ideas into robust workflows. Discover how generative AI can boost
+    Generative AI helps your enterprise automatically turn ideas into robust workflows. Discover how generative AI can boost low-code productivity and empower developers
+
+[7] Software made simple · Enterprise low-code · Future-proof business · Manage complexity
+
+[8] PegaWorld 2026 Agenda
+
+[9] Ready experience bold innovation?
+
+[10] Check out this year's full agenda.
+

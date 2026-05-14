@@ -1,0 +1,19 @@
+﻿Subject: AGXIOMA Process Completed
+
+Body:
+
+Dear User,
+
+All processes within the AGXIOMA pipeline have been completed.
+
+Summary of tasks completed:
+1. File read task from 'c:/temp/agxioma/<guid>...' — FAILED (Error code: ERR-0101 - Agent execution failed)
+   - The SummaryWriterAgent was unable to read the source file because the path contained a placeholder (<guid>) that was not resolved to an actual directory/file.
+   - No data could be extracted for further processing.
+
+Final report path: Not available — the pipeline failed at the initial file read step.
+
+Recommendation: Please verify that the file path 'c:/temp/agxioma/<guid>...' contains a valid resolved GUID and that the file exists before retrying.
+
+Regards,
+AGXIOMA Notification Agent

@@ -1,0 +1,13 @@
+﻿# AGXIOME Web Scraper — Bing
+# Query     : quantum computing 2025
+# Source URL: https://www.bing.com/search?q=quantum%20computing%202025&count=10
+# Scraped   : 2026-05-12T22:55:32.6703368Z
+# Results   : 3
+# HTML tags : 0 (stripped)
+
+[1] quantum computing 2025 - Search
+
+[2] Accessibility Feedback
+
+[3] Please solve the challenge below to continue
+

@@ -1,0 +1,19 @@
+﻿# AGXIOME Web Scraper — DuckDuckGo
+# Query     : quantum computing 2025
+# Source URL: https://html.duckduckgo.com/html/?q=quantum%20computing%202025
+# Scraped   : 2026-05-13T00:02:31.7943059Z
+# Results   : 6
+# HTML tags : 0 (stripped)
+
+[1] Unfortunately, bots use DuckDuckGo too.
+
+[2] Please complete the following challenge to confirm this search was made by a human.
+
+[3] Select all squares containing a duck:
+
+[4] Please email the following code to:
+
+[5] error-lite@duckduckgo.com
+
+[6] Code: d4cd0dabcf4caa22ad92fab40844c786
+

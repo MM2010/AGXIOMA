@@ -1,281 +1,276 @@
-# ╔══════════════════════════════════════════════════════╗
-# ║               AGXIOME                                ║
-# ║  Agentic Generative C# X-Linked Integrated           ║
-# ║  Orchestration Memory Architecture                   ║
-# ╚══════════════════════════════════════════════════════╝
+# AGXIOME
 
-**AGXIOME** is the definitive infrastructure for **Agentic AI on .NET 10**.
-It does not _suggest_ — it _executes_ with millimetric precision.
+**Agentic Generative C# X-Linked Integrated Orchestration Memory Architecture**
 
-> **AGXIOME is the body. LLMWIKY is the mind. .NET 10 is the nervous system.**
+Framework .NET 10 per orchestrazione agentic AI.  
+Ispirato ad [Agno](https://docs.agno.com/), esteso con Zero Trust security, CQRS persistence,
+realtime SignalR, resilience enterprise-grade, e sistema errori strutturato.
 
----
-
-## Table of Contents
-
-- [Architecture Overview](#architecture-overview)
-- [LLMWIKY — Advanced AI Layer](#llmwiky--advanced-ai-layer)
-- [Persistence & Connectivity](#persistence--connectivity)
-- [Network Engineering — The X-Link](#network-engineering--the-x-link)
-- [Quickstart](#quickstart)
-- [Agent Teams](#agent-teams)
-- [Memory & Context](#memory--context)
-- [Function Calling](#function-calling)
-- [Performance Benchmarks](#performance-benchmarks)
-- [License](#license)
+> **AGXIOME è il corpo. LLMWIKY è la mente. .NET 10 è il sistema nervoso.**
 
 ---
 
-## Architecture Overview
+## Indice
 
-```
-┌─────────────────────────────────────────────────────┐
-│                    AGXIOME                           │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────┐  │
-│  │  Agent Teams │  │     X-Link   │  │ Persistence│  │
-│  │  (LLMWIKY    │◄─┤  Transport   │◄─┤   Layer   │  │
-│  │   Orchestr.) │  │  Checksummed │  │  Postgres  │  │
-│  └──────────────┘  └──────────────┘  │  SQL Server│  │
-│                                       │  Snowflake │  │
-│                                       │  MongoDB   │  │
-│                                       │  Redis     │  │
-│                                       └───────────┘  │
-└─────────────────────────────────────────────────────┘
-```
-
-AGXIOME follows the architectural principles established by [Agno](https://docs.agno.com/), adapted and extended for the **.NET 10** ecosystem:
-
-| Layer               | Technology          | Role                                |
-|----------------------|---------------------|-------------------------------------|
-| **Reasoning Engine** | LLMWIKY             | Primary inference & data-awareness  |
-| **Orchestration**    | AGXIOME Core        | Agent lifecycle, routing, state     |
-| **Transport**        | X-Link Protocol     | Checksum-validated, low-latency     |
-| **Persistence**      | PostgreSQL + others | Durable memory, embeddings, RAG     |
+- [Quick Start](#quick-start)
+- [Architettura](#architettura)
+- [Feature](#feature)
+- [Provider LLM](#provider-llm)
+- [Errori e Resilience](#errori-e-resilience)
+- [Logging](#logging)
+- [Documentazione](#documentazione)
+- [Build & Test](#build--test)
 
 ---
 
-## LLMWIKY — Advanced AI Layer
+## Quick Start
 
-LLMWIKY is the **native reasoning engine** embedded within AGXIOME. Unlike generic LLM wrappers, LLMWIKY is **optimized for data-dense operations** directly on PostgreSQL.
+### Con engine di test (nessuna API key)
 
-### Key Capabilities
+```csharp
+using AGXIOME.Core.Agent;
+using AGXIOME.Shared.Models;
 
-- **Native PostgreSQL Embedding** — LLMWIKY stores and queries embeddings directly in PostgreSQL using `pgvector`, eliminating the need for external vector databases.
-- **Semantic Search at Source** — Retrieval-Augmented Generation (RAG) happens _inside_ the database, dramatically reducing latency compared to out-of-process vector stores.
-- **Metadata-Aware Filtering** — Advanced metadata predicates are pushed down to PostgreSQL query plans, ensuring only relevant context reaches the inference pipeline.
-- **Zero-Copy Memory** — Agent state, conversation history, and long-term memory are managed as first-class PostgreSQL rows — no JSON serialization overhead, no file I/O.
-
+var agent = AgentFactory.CreateTestAgent("demo");
+var result = await agent.RunAsync(new AgentRequest("Ciao!"));
+Console.WriteLine(result.Content); // "Test response"
 ```
-LLMWIKY Query Flow (RAG)
 
-   Agent Request
-       │
-       ▼
-┌──────────────────┐
-│  LLMWIKY Engine  │
-│  ┌────────────┐  │
-│  │ Embedding   │──┼──► PostgreSQL (pgvector)
-│  │  Generator  │  │      │
-│  └────────────┘  │      │ semantic_search()
-│  ┌────────────┐  │      │ filter(metadata)
-│  │  Context    │◄─┼──────┘
-│  │  Aggregator │  │
-│  └────────────┘  │
-│  ┌────────────┐  │
-│  │  Inference  │──┼──► Response
-│  │  Engine     │  │
-│  └────────────┘  │
-└──────────────────┘
+### Con LLM reale (OpenAI)
+
+```csharp
+using AGXIOME.Core.Agent;
+using AGXIOME.Shared.Config;
+using AGXIOME.Shared.Models;
+
+var agent = AgentFactory.Create("assistente", cfg =>
+{
+    cfg.ReasoningEngine = new LLMWIKYConfig
+    {
+        Provider = "OpenAI",
+        Model = "gpt-4o-mini",
+        ApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
+    };
+});
+
+var result = await agent.RunAsync(new AgentRequest("Qual è la capitale d'Italia?"));
+Console.WriteLine(result.Content); // "Roma"
+```
+
+### Con Ollama (locale)
+
+```csharp
+cfg.ReasoningEngine = new LLMWIKYConfig
+{
+    Provider = "Ollama",
+    Model = "llama3.2",
+    Endpoint = "http://localhost:11434"
+};
 ```
 
 ---
 
-## Persistence & Connectivity
+## Architettura
 
-AGXIOME treats every supported data source as a **First-Class Citizen** — no inefficient bridges, no half-baked adapters.
-
-### SQL Ecosystem
-
-| Database       | Support Level          | LLMWIKY Integration                        |
-|----------------|------------------------|--------------------------------------------|
-| **PostgreSQL** | ✅ Optimized (native)  | pgvector embeddings, semantic search, RAG  |
-| **SQL Server** | ✅ Full                | Structured memory, function-call results   |
-| **MySQL**      | ✅ Full                | Relational agent state                     |
-| **MariaDB**    | ✅ Full                | Drop-in compatibility with MySQL workloads  |
-
-### Big Data & NoSQL
-
-| Database    | Support Level | Notes                                    |
-|-------------|---------------|------------------------------------------|
-| **Snowflake** | ✅ Full     | Columnar analytics for agent telemetry   |
-| **MongoDB**   | ✅ Full     | Document store for unstructured memory   |
-| **Redis**     | ✅ Optimized| Batch & async cache management, pub/sub  |
-
----
-
-## Network Engineering — The X-Link
-
-The **X-Link** is AGXIOME's proprietary transport protocol, engineered to eliminate wasteful overhead.
-
-### Bandwidth Reduction
-
-| Transport Mode         | Overhead (per packet) | Bandwidth Savings |
-|------------------------|-----------------------|-------------------|
-| Standard HTTP/JSON     | ~350–500 bytes        | —                 |
-| X-Link (optimized)     | ~120 bytes            | **25–40%**        |
-| X-Link + Compression   | ~60 bytes             | **40–55%**        |
-
-### Checksum Validated Transport
-
-Every single transaction — whether between two LLMWIKY agents, or between an agent and its database — is protected by **mandatory checksum validation**.
-
-- ✅ **No silent corruption** — every byte is verified end-to-end.
-- ✅ **Tamper detection** — any modification in transit is immediately rejected.
-- ✅ **Idempotent delivery** — retries are safe and guaranteed.
+```
+┌──────────────────────────────────────────────────────────┐
+│                    APPLICATION LAYER                      │
+│  (Console, Web, Blazor, API Gateway, SignalR Client)     │
+├──────────────────────────────────────────────────────────┤
+│                    AGXIOME CORE                           │
+│  Agent │ Teams │ Workflows │ Memory │ Context │ Learning  │
+├──────────────────────────────────────────────────────────┤
+│              TOOL & FUNCTION REGISTRY                     │
+├──────────────────────────────────────────────────────────┤
+│              LLMWIKY REASONING ENGINE                     │
+│  (OpenAI, Anthropic, DeepSeek, Ollama, Local, Azure,     │
+│   Gemini, Custom)                                        │
+├──────────────────────────────────────────────────────────┤
+│  X-LINK TRANSPORT  │  STORAGE (CQRS)  │  REALTIME (WS)   │
+├──────────────────────────────────────────────────────────┤
+│  SECURITY  │  RESILIENCE  │  LOGGING  │  TELEMETRY        │
+│  (Crypto,  │  (Retry,     │  (Seq,    │  (OpenTelemetry,  │
+│   HMAC,    │   Circuit    │   NLog,   │   Prometheus,     │
+│   JWT,     │   Breaker,   │   Graylog,│   Metrics)        │
+│   Audit)   │   Fallback)  │   Serilog)│                    │
+└──────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Quickstart
+## Feature
 
-### Prerequisites
+| Area | Feature | Stato |
+|------|---------|-------|
+| **Agent** | Run, Stream, EventStream, ContinueRun, HITL resume | ✅ |
+| **Tools** | Registry (global + per-agent), CallableFactory, MCP adapter, Auto JSON Schema | ✅ |
+| **LLM** | 8 provider con fallback chain, cost tracking | ✅ |
+| **Teams** | 4 modalità: Coordinate, Route, Broadcast, Tasks | ✅ |
+| **Workflows** | DAG engine, Condition, Loop, Parallel, Router, CEL expressions | ✅ |
+| **Storage** | PostgreSQL, MySQL, MariaDB, MongoDB, Redis — CQRS, UoW, Outbox, RAG | ✅ |
+| **RAG** | KnowledgeBase, 3 chunker, ANN search, metadata filtering | ✅ |
+| **Session** | Lifecycle, mutable state, chat history, summary | ✅ |
+| **Context** | System prompt, instructions, few-shot, dependency injection | ✅ |
+| **Guardrails** | PII detection, prompt injection, moderation — input/output | ✅ |
+| **Hooks** | Pre/Post/Background/Tool — sincroni e async | ✅ |
+| **HITL** | Confirmation, user input, external execution, approval audit | ✅ |
+| **Learning** | User memory, profile, entity, session context, learned knowledge, decision log | ✅ |
+| **Skills** | Registry, derivazione, composizione, download remoto | ✅ |
+| **Scheduler** | Cron scheduling, run history, pause/resume | ✅ |
+| **X-Link** | Checksum HMAC, compressione adattiva, MCP integration | ✅ |
+| **Realtime** | 3 SignalR hub + Redis backplane + reconnect replay | ✅ |
+| **Security** | ECDsa P-256, HMAC-SHA256, JWT middleware, audit logger | ✅ |
+| **Logging** | 5 provider, per-modulo log level con wildcard | ✅ |
+| **Resilience** | Retry (429/500/502/503), exponential backoff, circuit breaker, fallback | ✅ |
+| **Errors** | 70+ codici strutturati, stack trace mai esposto all'utente | ✅ |
+| **Telemetry** | OpenTelemetry metrics, OpenTelemetry Protocol export | ✅ |
+| **Testing** | 164 test, 0 falliti — unità, edge, concorrenza, resilience | ✅ |
 
-- .NET 10 SDK
-- PostgreSQL 16+ (with `pgvector` extension)
-- An LLMWIKY-compatible inference endpoint
+---
 
-### 1. Create a new project
+## Provider LLM
+
+AGXIOME supporta **8 provider LLM** con un'interfaccia unificata:
+
+| Provider | Streaming | Function Calling | Embedding | Configurazione |
+|----------|-----------|-----------------|-----------|---------------|
+| **OpenAI** (GPT-4o, o1, o3, GPT-4.1) | ✅ | ✅ | ✅ | `Provider: "OpenAI"` |
+| **Anthropic** (Claude 4, Sonnet, Haiku) | ✅ | ✅ (tool_use) | ❌ (fallback) | `Provider: "Anthropic"` |
+| **DeepSeek** (V3, R1, Coder) | ✅ | ✅ | ✅ | `Provider: "DeepSeek"` |
+| **Ollama** (locale) | ✅ | ✅ | ✅ | `Provider: "Ollama"` |
+| **Local** (vLLM, TGI, llama.cpp) | ✅ | ✅ | ✅ | `Provider: "Local"` |
+| **Azure OpenAI** | ✅ | ✅ | ✅ | `Provider: "AzureOpenAI"` |
+| **Gemini** (2.0 Flash, Pro) | ✅ | ✅ | ✅ | `Provider: "Gemini"` |
+| **Custom** (endpoint OpenAI-compat) | ✅ | ✅ | ✅ | `Provider: "Custom"` |
+
+### Fallback chain
+
+```csharp
+cfg.ReasoningEngine = new LLMWIKYConfig
+{
+    Provider = "DeepSeek",
+    Model = "deepseek-chat",
+    ApiKey = "sk-...",
+    FallbackProviders = new()
+    {
+        new() { Provider = "OpenAI", Model = "gpt-4o-mini", ApiKey = "sk-..." },
+        new() { Provider = "Anthropic", Model = "claude-haiku-3-5", ApiKey = "sk-ant-..." }
+    }
+};
+```
+
+---
+
+## Errori e Resilience
+
+### Errori strutturati
+
+Tutti gli errori AGXIOME usano `AgxiomeException` con codici categorizzati.
+Lo **stack trace non è mai esposto all'utente** — solo loggato internamente.
+
+```csharp
+try { await agent.RunAsync(request); }
+catch (AgxiomeException ex)
+{
+    Console.WriteLine(ex.UserMessage);   // "Servizio AI non disponibile."
+    Console.WriteLine(ex.ErrorCode);     // LLM_ProviderUnavailable
+    Log.Error(ex.TechnicalMessage);      // include stack trace
+}
+```
+
+### Categorie errore
+
+| Range | Categoria | Esempi |
+|-------|-----------|--------|
+| 100 | Agent Engine | RunFailed, MaxIterations, Disposed |
+| 200 | LLM Provider | RateLimited(429), ServerError(500/502/503), AuthFailed |
+| 300 | Tools | NotFound, ExecutionFailed, HITLRejected |
+| 400 | Database | ConnectionFailed, Deadlock, CircuitBreakerOpen |
+| 600 | X-Link | ChecksumMismatch, PayloadCorrupted |
+| 700 | RAG | IngestFailed, EmbeddingFailed |
+| 800 | Security | AuthFailed, SignatureFailed, RateLimitExceeded |
+| 900 | Guardrails | InputBlocked, PIIDetected |
+| 1200 | Network | BadGateway(502), ServiceUnavailable(503) |
+
+### Resilience
+
+- **Retry** con exponential backoff + jitter su 429/500/502/503/timeout
+- **Circuit breaker** — dopo N fallimenti consecutivi, salta operazioni
+- **Fallback chain** — provider secondario se primario non risponde
+- **Tutto loggato** — ogni tentativo, delay, successo/fallimento
+
+---
+
+## Logging
+
+Supporto nativo per i principali sistemi di logging .NET:
+
+```
+Console ──── colori per livello (default)
+Seq     ──── structured JSON su HTTP
+NLog    ──── configurazione NLog nativa
+Graylog ──── GELF su HTTP
+Serilog ──── Serilog sink
+```
+
+### Per-modulo log level
+
+```csharp
+var config = new LoggingConfig
+{
+    DefaultMinimumLevel = LogLevel.Error,
+    ModuleOverrides = new()
+    {
+        new() { Module = "AGXIOME.Core.Agent.*", MinimumLevel = LogLevel.Debug },
+        new() { Module = "AGXIOME.LLMWIKY*", MinimumLevel = LogLevel.Warning }
+    }
+};
+factory.Configure(config);
+```
+
+---
+
+## Documentazione
+
+| Guida | Descrizione |
+|-------|-------------|
+| [Getting Started](docs/GETTING_STARTED.md) | Crea il primo agente, connetti LLM |
+| [Core Concepts](docs/CORE_CONCEPTS.md) | Agenti, Tools, Teams, Workflows |
+| [LLM Providers](docs/PROVIDERS.md) | Provider, configurazione, costi |
+| [Error Handling](docs/ERROR_HANDLING.md) | Codici errore, resilience, circuit breaker |
+| [Logging](docs/LOGGING.md) | Provider logger, per-modulo, configurazione |
+| [Storage & RAG](docs/STORAGE.md) | PostgreSQL, MySQL, MariaDB, MongoDB, Redis — CQRS, RAG |
+| [Realtime](docs/REALTIME.md) | SignalR hub, backplane, reconnect |
+| [Interfaces](docs/INTERFACES.md) | Slack, Telegram, WhatsApp, Discord, AG-UI, A2A, MCP |
+| [Security](docs/SECURITY.md) | Crypto, HMAC, JWT, audit |
+| [Testing](docs/TESTING.md) | Strategia, copertura, 164 test |
+
+---
+
+## Build & Test
 
 ```bash
-dotnet new console -n MyAgxiomeApp
-cd MyAgxiomeApp
-dotnet add package AGXIOME.Core
-dotnet add package AGXIOME.LLMWIKY
-dotnet add package AGXIOME.Storage.Postgres
+cd src
+dotnet restore
+dotnet build          # 0 errors
+dotnet test           # 164 passed, 0 failed
 ```
 
-### 2. Configure and run an agent
+## Struttura progetto
 
-```csharp
-using AGXIOME.Core;
-using AGXIOME.LLMWIKY;
-using AGXIOME.Storage.Postgres;
-
-// Build the AGXIOME runtime
-var agxiome = AgxiomeBuilder
-    .Create()
-    .WithReasoningEngine<LLMWIKYEngine>(cfg =>
-    {
-        cfg.Endpoint = "https://api.llmwikydemo.com/v1";
-        cfg.ApiKey = Environment.GetEnvironmentVariable("LLMWIKY_API_KEY");
-    })
-    .WithPersistence<PostgresProvider>(cfg =>
-    {
-        cfg.ConnectionString = "Host=localhost;Database=agxiome_memory";
-        cfg.EnableVectorSearch = true;      // pgvector for embeddings
-        cfg.EnableSemanticSearch = true;    // LLMWIKY RAG at DB level
-    })
-    .Build();
-
-// Create an agent with persistent memory
-var agent = agxiome.CreateAgent("research-agent");
-
-// Assign a task
-var result = await agent.RunAsync(
-    "Analyze the latest market trends and cross-reference with historical data."
-);
-
-Console.WriteLine(result);
 ```
-
-### 3. Multi-agent orchestration
-
-```csharp
-// Form a team of specialized LLMWIKY agents
-var team = agxiome.CreateTeam("data-intelligence");
-
-var researcher = team.AddAgent("researcher", role: "Data Retrieval");
-var analyst   = team.AddAgent("analyst",   role: "Pattern Analysis");
-var reporter  = team.AddAgent("reporter",  role: "Report Generation");
-
-var finalReport = await team.ExecuteAsync(
-    "Compile a quarterly earnings summary with risk assessment."
-);
+src/
+├── AGXIOME.Shared/      → Records, enum, interfacce, error codes, resilience
+├── AGXIOME.Core/        → Agent, tools, teams, workflows, session, hooks, guardrails, HITL, learning
+├── AGXIOME.LLMWIKY/     → Engine, factory, 8 provider, cost tracker
+├── AGXIOME.Storage/     → PostgreSQL, MySQL, MariaDB, MongoDB, Redis, CQRS, RAG
+├── AGXIOME.XLink/       → Trasporto checksum, compressione, MCP adapter
+├── AGXIOME.Realtime/    → SignalR hub (Agent, Notification, Presence)
+├── AGXIOME.Security/    → ECDsa, HMAC, audit logger
+├── AGXIOME.Telemetry/   → OpenTelemetry metrics, health checks
+├── AGXIOME.CLI/         → Entry point applicazione
+└── AGXIOME.Tests/       → 164 test (13 file)
 ```
-
----
-
-## Agent Teams
-
-AGXIOME supports **hierarchical and swarm-style agent teams**, where multiple LLMWIKY instances collaborate on complex, multi-step tasks.
-
-| Pattern       | Description                                         | Use Case                      |
-|---------------|-----------------------------------------------------|-------------------------------|
-| **Router**    | A lead agent delegates sub-tasks to specialists     | Research & analysis pipelines |
-| **Swarm**     | Peers distribute work and aggregate results         | Parallel data processing      |
-| **Pipeline**  | Sequential hand-off from one specialist to the next | ETL + reporting workflows     |
-| **Supervisor**| A supervisor agent validates and merges outputs     | Quality-gated production      |
-
----
-
-## Memory & Context
-
-Agent memory is managed directly on **PostgreSQL** with enterprise-level performance characteristics.
-
-| Memory Type   | Storage          | Latency (p99) | Persistence |
-|---------------|------------------|---------------|-------------|
-| Short-term    | PostgreSQL row   | < 5 ms        | Session     |
-| Long-term     | PostgreSQL + vec | < 15 ms       | Permanent   |
-| Episodic      | pgvector index   | < 25 ms       | Permanent   |
-| Semantic      | pgvector + RAG   | < 40 ms       | Permanent   |
-
-All memory operations are transactional, ACID-compliant, and fully recoverable.
-
----
-
-## Function Calling
-
-LLMWIKY interacts with the outside world through **rigorously typed C# function definitions**. Every callable tool is mapped with full type safety — no dynamic dispatch, no runtime surprises.
-
-```csharp
-using AGXIOME.Core.Functions;
-
-// Define a typed function
-public sealed class GetStockPrice : AgxiomeFunction
-{
-    public override string Name => "get_stock_price";
-    public override string Description => "Retrieve the current price of a stock symbol";
-
-    [Parameter(Required = true, Description = "Stock ticker symbol (e.g., MSFT)")]
-    public string Symbol { get; set; }
-
-    public override async Task<FunctionResult> ExecuteAsync(CancellationToken ct)
-    {
-        var price = await StockApi.GetPriceAsync(Symbol, ct);
-        return new FunctionResult { Value = price, MimeType = "application/json" };
-    }
-}
-
-// Register with the agent
-agent.RegisterFunction<GetStockPrice>();
-```
-
----
-
-## Performance Benchmarks
-
-| Metric                          | AGXIOME + LLMWIKY | Standard LLM Orchestrator |
-|---------------------------------|-------------------|---------------------------|
-| RAG Latency (p95)               | 38 ms             | 210 ms                    |
-| Memory Retrieval (p99)          | 12 ms             | 95 ms                     |
-| Multi-agent handoff overhead    | 0.8 ms            | 12 ms                     |
-| Network bandwidth per 1K tx     | 120 KB            | 420 KB                    |
-| Embedding query throughput      | 2,400 QPS         | 600 QPS                   |
-
----
-
-## License
-
-AGXIOME is distributed under the **MIT License**. See [LICENSE](LICENSE) for details.
 
 ---
 

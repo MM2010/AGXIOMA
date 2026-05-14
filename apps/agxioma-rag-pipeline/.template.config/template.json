@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "AGXIOME",
+  "classifications": ["AI", "Agent", "RAG", "Knowledge Base", "Web API"],
+  "identity": "AGXIOME.RagPipeline",
+  "name": "AGXIOME RAG Pipeline",
+  "shortName": "agxioma-rag-pipeline",
+  "description": "A complete Retrieval-Augmented Generation pipeline. Ingest documents (markdown, txt), embed with OpenAI/Ollama, store in an in-memory HNSW vector index, then query via a chat endpoint that injects retrieved context into the LLM prompt.",
+  "tags": { "language": "C#", "type": "project" },
+  "sourceName": "AgxiomaRagPipeline",
+  "preferNameDirectory": true,
+  "symbols": {
+    "agentName": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "RagAgent",
+      "replaces": "MY_AGENT_NAME"
+    },
+    "provider": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "openai",
+      "choices": [
+        { "choice": "openai",    "description": "OpenAI (gpt-4o + text-embedding-3-small)" },
+        { "choice": "anthropic", "description": "Anthropic (claude-3-7-sonnet + OpenAI embeddings)" },
+        { "choice": "ollama",    "description": "Ollama local (llama3.2 + nomic-embed-text)" }
+      ]
+    },
+    "providerEnum": {
+      "type": "generated",
+      "generator": "switch",
+      "replaces": "PROVIDER_ENUM_PLACEHOLDER",
+      "parameters": {
+        "evaluator": "C++",
+        "cases": [
+          { "condition": "(provider == \"openai\")",    "value": "LLMProviderType.OpenAI" },
+          { "condition": "(provider == \"anthropic\")", "value": "LLMProviderType.Anthropic" },
+          { "condition": "(provider == \"ollama\")",    "value": "LLMProviderType.Ollama" }
+        ]
+      }
+    },
+    "llmModel": {
+      "type": "generated",
+      "generator": "switch",
+      "replaces": "LLM_MODEL_PLACEHOLDER",
+      "parameters": {
+        "evaluator": "C++",
+        "cases": [
+          { "condition": "(provider == \"openai\")",    "value": "gpt-4o" },
+          { "condition": "(provider == \"anthropic\")", "value": "claude-3-7-sonnet-20250219" },
+          { "condition": "(provider == \"ollama\")",    "value": "llama3.2" }
+        ]
+      }
+    },
+    "useOllama": {
+      "type": "computed",
+      "value": "(provider == \"ollama\")"
+    }
+  }
+}

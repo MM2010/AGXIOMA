@@ -1,0 +1,67 @@
+# AGXIOME Helm values
+replicaCount: 2
+
+image:
+  repository: ghcr.io/agxiome/agxiome
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: api.agxiome.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: agxiome-tls
+      hosts:
+        - api.agxiome.local
+
+config:
+  environment: production
+  logLevel: Warning
+  deepseekApiKey: ""
+  openaiApiKey: ""
+
+resources:
+  limits:
+    cpu: 2
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+postgresql:
+  enabled: true
+  auth:
+    database: agxiome
+    username: agxiome
+    password: changeme
+  primary:
+    persistence:
+      size: 10Gi
+
+redis:
+  enabled: true
+  auth:
+    enabled: false
+  master:
+    persistence:
+      size: 5Gi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

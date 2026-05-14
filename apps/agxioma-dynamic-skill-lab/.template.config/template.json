@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "AGXIOME",
+  "classifications": ["AI", "Agent", "Dynamic", "Roslyn", "Skill", "Self-Extension", "Web API"],
+  "identity": "AGXIOME.DynamicSkillLab",
+  "name": "AGXIOME Dynamic Skill Lab (Self-Extension Runtime)",
+  "shortName": "agxioma-dynamic-skill-lab",
+  "description": "Advanced runtime self-extension system: detects missing capabilities, generates C# tools via LLM, compiles with Roslyn, validates security, sandboxes execution, and optionally promotes to persistent skills. Uses AGXIOME.DynamicRuntime's AgentCodeGenerator pipeline.",
+  "tags": { "language": "C#", "type": "project" },
+  "sourceName": "AgxiomaDynamicSkillLab",
+  "preferNameDirectory": true,
+  "symbols": {
+    "provider": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "openai",
+      "choices": [
+        { "choice": "openai",    "description": "OpenAI (gpt-4o)" },
+        { "choice": "anthropic", "description": "Anthropic (claude-3-7-sonnet)" },
+        { "choice": "ollama",    "description": "Ollama local (llama3.2)" }
+      ]
+    },
+    "providerEnum": {
+      "type": "generated",
+      "generator": "switch",
+      "replaces": "PROVIDER_ENUM",
+      "parameters": {
+        "evaluator": "C++",
+        "cases": [
+          { "condition": "(provider == \"openai\")",    "value": "LLMProviderType.OpenAI" },
+          { "condition": "(provider == \"anthropic\")", "value": "LLMProviderType.Anthropic" },
+          { "condition": "(provider == \"ollama\")",    "value": "LLMProviderType.Ollama" }
+        ]
+      }
+    },
+    "modelName": {
+      "type": "generated",
+      "generator": "switch",
+      "replaces": "MODEL_PLACEHOLDER",
+      "parameters": {
+        "evaluator": "C++",
+        "cases": [
+          { "condition": "(provider == \"openai\")",    "value": "gpt-4o" },
+          { "condition": "(provider == \"anthropic\")", "value": "claude-3-7-sonnet-20250219" },
+          { "condition": "(provider == \"ollama\")",    "value": "llama3.2" }
+        ]
+      }
+    }
+  }
+}

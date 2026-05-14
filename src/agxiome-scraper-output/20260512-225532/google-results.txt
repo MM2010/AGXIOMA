@@ -1,0 +1,11 @@
+﻿# AGXIOME Web Scraper — Google
+# Query     : quantum computing 2025
+# Source URL: https://www.google.com/search?q=quantum%20computing%202025&num=10&hl=en
+# Scraped   : 2026-05-12T22:55:32.6290040Z
+# Results   : 2
+# HTML tags : 0 (stripped)
+
+[1] Please click here if you are not redirected within a few seconds.
+
+[2] If you're having trouble accessing Google Search, please  click here , or send  feedback .
+
