@@ -1,102 +1,258 @@
 // T-68..T-79 — AI/ML Toolkits
+using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace AGXIOME.Toolkits.AiMl;
 
-// T-68
+// ── shared HTTP client ─────────────────────────────────────────────────────
+file static class Http
+{
+    internal static readonly HttpClient Client = new() { Timeout = TimeSpan.FromSeconds(120) }; // models are slow
+}
+
+// T-68 — OpenAI Vision (GPT-4o / gpt-4-vision — api_key required)
 [Toolkit("openai_vision","OpenAI Vision",ToolkitCategory.AiMl)]
 public sealed class OpenAiVisionToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override string Id=>"openai_vision";public override string Name=>"OpenAI Vision";
     public override ToolkitCategory Category=>ToolkitCategory.AiMl;
-    protected override Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct)
-        =>Task.FromResult(ToolkitResult.Success(new{action=a,imageUrl=GetParam<string>(p,"image_url"),description="stub"}));
+    public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
+    protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
+        var key=GetSetting("api_key")??throw new InvalidOperationException("OpenAI api_key not set");
+        var model=GetParam<string>(p,"model")??GetSetting("model")??"gpt-4o";
+        var prompt=GetParam<string>(p,"prompt")??"Describe this image.";
+        var imageUrl=GetParam<string>(p,"image_url")??GetParam<string>(p,"url");
+        var imageBase64=GetParam<string>(p,"image_base64");
+        object imageContent=imageUrl!=null
+            ?(object)new{type="image_url",image_url=new{url=imageUrl}}
+            :new{type="image_url",image_url=new{url=$"data:image/jpeg;base64,{imageBase64}"}};
+        var payload=new{model,messages=new[]{new{role="user",content=new object[]{new{type="text",text=prompt},imageContent}}},max_tokens=GetParam<int?>(p,"max_tokens")??500};
+        return await OaiPost("chat/completions",payload,key,ct).ConfigureAwait(false);
+    }
+    internal static async Task<ToolkitResult> OaiPost(string path,object payload,string key,CancellationToken ct){
+        var req=new HttpRequestMessage(HttpMethod.Post,$"https://api.openai.com/v1/{path}"){Content=JsonContent.Create(payload)};
+        req.Headers.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",key);
+        var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);
+        resp.EnsureSuccessStatusCode();
+        return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
+    }
 }
-// T-69
+
+// T-69 — DALL-E Image Generation (api_key required)
 [Toolkit("dalle","DALL-E",ToolkitCategory.AiMl)]
 public sealed class DalleToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override string Id=>"dalle";public override string Name=>"DALL-E";
     public override ToolkitCategory Category=>ToolkitCategory.AiMl;
-    protected override Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct)
-        =>Task.FromResult(ToolkitResult.Success(new{prompt=GetParam<string>(p,"prompt"),imageUrl="https://example.com/stub.png"}));
+    public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
+    protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
+        var key=GetSetting("api_key")??throw new InvalidOperationException("OpenAI api_key not set");
+        return a switch{
+            "generate" or "create" =>await OpenAiVisionToolkit.OaiPost("images/generations",new{model=GetParam<string>(p,"model")??"dall-e-3",prompt=GetParam<string>(p,"prompt")??"A beautiful landscape",size=GetParam<string>(p,"size")??"1024x1024",quality=GetParam<string>(p,"quality")??"standard",n=GetParam<int?>(p,"n")??1},key,ct).ConfigureAwait(false),
+            "edit"                 =>await OpenAiVisionToolkit.OaiPost("images/edits",new{prompt=GetParam<string>(p,"prompt")??"",n=GetParam<int?>(p,"n")??1,size=GetParam<string>(p,"size")??"1024x1024"},key,ct).ConfigureAwait(false),
+            "variation"            =>await OpenAiVisionToolkit.OaiPost("images/variations",new{n=GetParam<int?>(p,"n")??1,size=GetParam<string>(p,"size")??"1024x1024"},key,ct).ConfigureAwait(false),
+            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: generate|create|edit|variation")
+        };
+    }
 }
-// T-70
+
+// T-70 — Stable Diffusion (Stability AI API — api_key required, or local endpoint)
 [Toolkit("stable_diffusion","Stable Diffusion",ToolkitCategory.AiMl)]
 public sealed class StableDiffusionToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override string Id=>"stable_diffusion";public override string Name=>"Stable Diffusion";
     public override ToolkitCategory Category=>ToolkitCategory.AiMl;
-    protected override Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct)
-        =>Task.FromResult(ToolkitResult.Success(new{prompt=GetParam<string>(p,"prompt"),model=GetParam<string>(p,"model")}));
+    public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"))||!string.IsNullOrWhiteSpace(GetSetting("base_url"));
+    protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
+        var localBase=GetSetting("base_url"); // local Automatic1111/SDAPI
+        if(!string.IsNullOrWhiteSpace(localBase)){
+            // Local AUTOMATIC1111 API
+            var resp2=await Http.Client.PostAsJsonAsync($"{localBase.TrimEnd('/')}/sdapi/v1/txt2img",new{prompt=GetParam<string>(p,"prompt"),negative_prompt=GetParam<string>(p,"negative_prompt"),steps=GetParam<int?>(p,"steps")??20,width=GetParam<int?>(p,"width")??512,height=GetParam<int?>(p,"height")??512},ct).ConfigureAwait(false);
+            resp2.EnsureSuccessStatusCode();
+            return ToolkitResult.Success(await resp2.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
+        }
+        // Stability AI cloud API
+        var key=GetSetting("api_key")??throw new InvalidOperationException("Stable Diffusion api_key not set");
+        var engineId=GetParam<string>(p,"engine")??"stable-diffusion-v1-6";
+        var payload=new{text_prompts=new[]{new{text=GetParam<string>(p,"prompt")??""},},cfg_scale=GetParam<int?>(p,"cfg_scale")??7,height=GetParam<int?>(p,"height")??512,width=GetParam<int?>(p,"width")??512,steps=GetParam<int?>(p,"steps")??30,samples=GetParam<int?>(p,"samples")??1};
+        var req=new HttpRequestMessage(HttpMethod.Post,$"https://api.stability.ai/v1/generation/{engineId}/text-to-image"){Content=JsonContent.Create(payload)};
+        req.Headers.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",key);
+        req.Headers.Add("Accept","application/json");
+        var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);
+        resp.EnsureSuccessStatusCode();
+        return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
+    }
 }
-// T-71
-[Toolkit("whisper","Whisper",ToolkitCategory.AiMl)]
+
+// T-71 — Whisper (OpenAI speech-to-text — api_key required)
+[Toolkit("whisper","Whisper STT",ToolkitCategory.AiMl)]
 public sealed class WhisperToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
-    public override string Id=>"whisper";public override string Name=>"Whisper";
+    public override string Id=>"whisper";public override string Name=>"Whisper STT";
     public override ToolkitCategory Category=>ToolkitCategory.AiMl;
-    protected override Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct)
-        =>Task.FromResult(ToolkitResult.Success(new{audio=GetParam<string>(p,"audio_url"),transcript="stub transcript"}));
+    public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"))||!string.IsNullOrWhiteSpace(GetSetting("base_url"));
+    protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
+        var filePath=GetParam<string>(p,"file")?? throw new ArgumentException("file parameter required (path to audio file)");
+        var language=GetParam<string>(p,"language")??"";
+        var prompt=GetParam<string>(p,"prompt")??"";
+        var endpoint=(GetSetting("base_url")??$"https://api.openai.com").TrimEnd('/')+"/v1/audio/transcriptions";
+        var key=GetSetting("api_key")??"";
+        var fileBytes=await File.ReadAllBytesAsync(filePath,ct).ConfigureAwait(false);
+        using var form=new MultipartFormDataContent();
+        form.Add(new ByteArrayContent(fileBytes),"file",Path.GetFileName(filePath));
+        form.Add(new StringContent(GetParam<string>(p,"model")??"whisper-1"),"model");
+        if(!string.IsNullOrWhiteSpace(language))form.Add(new StringContent(language),"language");
+        if(!string.IsNullOrWhiteSpace(prompt))form.Add(new StringContent(prompt),"prompt");
+        form.Add(new StringContent(GetParam<string>(p,"response_format")??"json"),"response_format");
+        var req=new HttpRequestMessage(HttpMethod.Post,endpoint){Content=form};
+        if(!string.IsNullOrWhiteSpace(key))req.Headers.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",key);
+        var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);
+        resp.EnsureSuccessStatusCode();
+        return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
+    }
 }
-// T-72
+
+// T-72 — ElevenLabs TTS (api_key required)
 [Toolkit("elevenlabs","ElevenLabs TTS",ToolkitCategory.AiMl)]
 public sealed class ElevenLabsToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override string Id=>"elevenlabs";public override string Name=>"ElevenLabs TTS";
     public override ToolkitCategory Category=>ToolkitCategory.AiMl;
-    protected override Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct)
-        =>Task.FromResult(ToolkitResult.Success(new{text=GetParam<string>(p,"text"),voiceId=GetParam<string>(p,"voice_id")}));
+    public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
+    protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
+        var key=GetSetting("api_key")??throw new InvalidOperationException("ElevenLabs api_key not set");
+        return a switch{
+            "list_voices" =>await ElGet("voices",key,ct).ConfigureAwait(false),
+            "get_models"  =>await ElGet("models",key,ct).ConfigureAwait(false),
+            "synthesize" or "tts" =>await ElSynthesize(p,key,ct).ConfigureAwait(false),
+            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_voices|get_models|synthesize|tts")
+        };
+    }
+    private static async Task<ToolkitResult> ElSynthesize(Dictionary<string,object?> p,string key,CancellationToken ct){
+        var voiceId=p.TryGetValue("voice_id",out var v)?v?.ToString()??"21m00Tcm4TlvDq8ikWAM":"21m00Tcm4TlvDq8ikWAM";
+        var text=p.TryGetValue("text",out var t)?t?.ToString()??"":"";
+        var model=p.TryGetValue("model_id",out var m)?m?.ToString()??"eleven_monolingual_v1":"eleven_monolingual_v1";
+        var payload=new{text,model_id=model,voice_settings=new{stability=0.5,similarity_boost=0.5}};
+        var req=new HttpRequestMessage(HttpMethod.Post,$"https://api.elevenlabs.io/v1/text-to-speech/{voiceId}"){Content=JsonContent.Create(payload)};
+        req.Headers.Add("xi-api-key",key);
+        var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);
+        resp.EnsureSuccessStatusCode();
+        var audioBytes=await resp.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
+        // save to temp file
+        var outPath=p.TryGetValue("output_file",out var o)?o?.ToString()??"":Path.Combine(Path.GetTempPath(),$"el_{Guid.NewGuid():N}.mp3");
+        await File.WriteAllBytesAsync(outPath,audioBytes,ct).ConfigureAwait(false);
+        return ToolkitResult.Success(new{outputFile=outPath,sizeBytes=audioBytes.Length,voiceId,model});
+    }
+    private static async Task<ToolkitResult> ElGet(string path,string key,CancellationToken ct){
+        var req=new HttpRequestMessage(HttpMethod.Get,$"https://api.elevenlabs.io/v1/{path}");
+        req.Headers.Add("xi-api-key",key);
+        var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);
+        resp.EnsureSuccessStatusCode();
+        return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
+    }
 }
-// T-73
-[Toolkit("huggingface_hub","HuggingFace Hub",ToolkitCategory.AiMl)]
+
+// T-73 — Hugging Face Inference API (api_key optional for public models)
+[Toolkit("huggingface","Hugging Face",ToolkitCategory.AiMl)]
 public sealed class HuggingFaceHubToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
-    public override string Id=>"huggingface_hub";public override string Name=>"HuggingFace Hub";
+    public override string Id=>"huggingface";public override string Name=>"Hugging Face";
     public override ToolkitCategory Category=>ToolkitCategory.AiMl;
-    protected override Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct)
-        =>Task.FromResult(ToolkitResult.Success(new{model=GetParam<string>(p,"model"),task=a}));
+    public override bool IsConfigured=>true;
+    protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
+        var key=GetSetting("api_key");
+        var model=GetParam<string>(p,"model")??"gpt2";
+        var inputs=GetParam<object?>(p,"inputs")??GetParam<string>(p,"text")??"";
+        var parameters=GetParam<object?>(p,"parameters");
+        object payload=parameters!=null?new{inputs,parameters}:new{inputs};
+        var req=new HttpRequestMessage(HttpMethod.Post,$"https://api-inference.huggingface.co/models/{model}"){Content=JsonContent.Create(payload)};
+        if(!string.IsNullOrWhiteSpace(key))req.Headers.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",key);
+        var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);
+        if(resp.StatusCode==System.Net.HttpStatusCode.ServiceUnavailable){
+            return ToolkitResult.Fail($"Model {model} is loading. Retry in 20 seconds.");
+        }
+        resp.EnsureSuccessStatusCode();
+        return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
+    }
 }
-// T-74
-[Toolkit("mlnet_automl","ML.NET AutoML",ToolkitCategory.AiMl)]
+
+// T-74 — ML.NET AutoML (BCL — no extra packages, works with Microsoft.ML)
+[Toolkit("mlnet","ML.NET AutoML",ToolkitCategory.AiMl)]
 public sealed class MlNetAutoMlToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
-    public override string Id=>"mlnet_automl";public override string Name=>"ML.NET AutoML";
+    public override string Id=>"mlnet";public override string Name=>"ML.NET AutoML";
     public override ToolkitCategory Category=>ToolkitCategory.AiMl;
     public override bool IsConfigured=>true;
     protected override Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct)
-        =>Task.FromResult(ToolkitResult.Success(new{task=a,bestModel="stub",score=0.0}));
+        =>Task.FromResult(ToolkitResult.Fail("ML.NET AutoML requires package Microsoft.ML and Microsoft.ML.AutoML. Add them and use MLContext for training (binary/multiclass/regression). No HTTP calls needed — all local computation."));
 }
-// T-75
+
+// T-75 — PyTorch (requires Python + PyTorch — run via PythonRunnerToolkit or REST)
 [Toolkit("pytorch","PyTorch",ToolkitCategory.AiMl)]
 public sealed class PyTorchToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override string Id=>"pytorch";public override string Name=>"PyTorch";
     public override ToolkitCategory Category=>ToolkitCategory.AiMl;
-    protected override Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct)
-        =>Task.FromResult(ToolkitResult.Success(new{action=a,model=GetParam<string>(p,"model")}));
+    public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("endpoint"));
+    protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
+        var endpoint=GetSetting("endpoint")??throw new InvalidOperationException("PyTorch endpoint not set. Options: 1) Set endpoint to a TorchServe REST URL. 2) Use PythonRunnerToolkit with enabled=true.");
+        var payload=GetParam<object?>(p,"inputs")??GetParam<object?>(p,"data")??new{};
+        var resp=await Http.Client.PostAsJsonAsync(endpoint,payload,ct).ConfigureAwait(false);
+        resp.EnsureSuccessStatusCode();
+        return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
+    }
 }
-// T-76
-[Toolkit("onnx","ONNX",ToolkitCategory.AiMl)]
+
+// T-76 — ONNX Runtime (local inference — requires Microsoft.ML.OnnxRuntime)
+[Toolkit("onnx","ONNX Runtime",ToolkitCategory.AiMl)]
 public sealed class OnnxToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
-    public override string Id=>"onnx";public override string Name=>"ONNX";
+    public override string Id=>"onnx";public override string Name=>"ONNX Runtime";
     public override ToolkitCategory Category=>ToolkitCategory.AiMl;
+    public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("model_path"));
     protected override Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct)
-        =>Task.FromResult(ToolkitResult.Success(new{modelPath=GetParam<string>(p,"model_path"),action=a}));
+        =>Task.FromResult(ToolkitResult.Fail("ONNX inference requires package Microsoft.ML.OnnxRuntime. Add it and use InferenceSession to load model from model_path setting, then run inference with input tensors."));
 }
-// T-77
-[Toolkit("langchain_bridge","LangChain Bridge",ToolkitCategory.AiMl)]
+
+// T-77 — LangChain Bridge (call LangChain-powered Python/Node endpoint)
+[Toolkit("langchain","LangChain Bridge",ToolkitCategory.AiMl)]
 public sealed class LangChainBridgeToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
-    public override string Id=>"langchain_bridge";public override string Name=>"LangChain Bridge";
+    public override string Id=>"langchain";public override string Name=>"LangChain Bridge";
     public override ToolkitCategory Category=>ToolkitCategory.AiMl;
-    protected override Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct)
-        =>Task.FromResult(ToolkitResult.Success(new{chain=GetParam<string>(p,"chain"),action=a}));
+    public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("endpoint"));
+    protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
+        var endpoint=GetSetting("endpoint")??throw new InvalidOperationException("LangChain endpoint not set (e.g. LangServe FastAPI URL)");
+        var payload=new{input=GetParam<object?>(p,"input")??GetParam<string>(p,"query"),config=GetParam<object?>(p,"config")};
+        var req=new HttpRequestMessage(HttpMethod.Post,$"{endpoint.TrimEnd('/')}/invoke"){Content=JsonContent.Create(payload)};
+        var apiKey=GetSetting("api_key");
+        if(!string.IsNullOrWhiteSpace(apiKey))req.Headers.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",apiKey);
+        var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);
+        resp.EnsureSuccessStatusCode();
+        return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
+    }
 }
-// T-78
+
+// T-78 — Semantic Kernel Bridge (call SK-powered .NET endpoint or invoke directly)
 [Toolkit("semantic_kernel","Semantic Kernel",ToolkitCategory.AiMl)]
 public sealed class SemanticKernelToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override string Id=>"semantic_kernel";public override string Name=>"Semantic Kernel";
     public override ToolkitCategory Category=>ToolkitCategory.AiMl;
-    protected override Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct)
-        =>Task.FromResult(ToolkitResult.Success(new{skill=GetParam<string>(p,"skill"),action=a}));
+    public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("endpoint"))||!string.IsNullOrWhiteSpace(GetSetting("api_key"));
+    protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
+        var endpoint=GetSetting("endpoint");
+        if(!string.IsNullOrWhiteSpace(endpoint)){
+            // REST bridge mode
+            var payload=new{action=a,parameters=p};
+            var resp=await Http.Client.PostAsJsonAsync($"{endpoint.TrimEnd('/')}/invoke",payload,ct).ConfigureAwait(false);
+            resp.EnsureSuccessStatusCode();
+            return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
+        }
+        // Direct OpenAI call through SK-style chat
+        return await OpenAiVisionToolkit.OaiPost("chat/completions",new{
+            model=GetParam<string>(p,"model")??"gpt-4o-mini",
+            messages=new[]{new{role="system",content=GetParam<string>(p,"system_prompt")??"You are a helpful assistant."},new{role="user",content=GetParam<string>(p,"prompt")??GetParam<string>(p,"input")??""}}
+        },GetSetting("api_key")??throw new InvalidOperationException("api_key or endpoint required"),ct).ConfigureAwait(false);
+    }
 }
-// T-79
+
+// T-79 — ML.NET Scikit-like (informative stub)
 [Toolkit("mlnet_scikit","ML.NET Scikit-like",ToolkitCategory.AiMl)]
 public sealed class MlNetSkikitToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override string Id=>"mlnet_scikit";public override string Name=>"ML.NET Scikit-like";
     public override ToolkitCategory Category=>ToolkitCategory.AiMl;
     public override bool IsConfigured=>true;
     protected override Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct)
-        =>Task.FromResult(ToolkitResult.Success(new{action=a,algorithm=GetParam<string>(p,"algorithm")}));
+        =>Task.FromResult(ToolkitResult.Fail("ML.NET classification/regression/clustering: add packages Microsoft.ML, Microsoft.ML.FastTree, Microsoft.ML.LightGbm. Use MLContext.Regression/Classification/Clustering trainers. No HTTP calls — fully local."));
 }
+
