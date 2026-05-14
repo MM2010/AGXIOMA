@@ -1,6 +1,7 @@
 using AGXIOME.Core.Agent;
 using AGXIOME.Core.Patterns;
 using AGXIOME.Core.Routing;
+using AGXIOME.Core.Teams;
 using AGXIOME.LLMWIKY;
 using AGXIOME.LLMWIKY.Providers;
 using AGXIOME.Shared.Config;
@@ -41,6 +42,7 @@ public sealed class AgxiomeBuilder
         private readonly string _name;
         private string? _systemPrompt;
         private int _maxIterations = 10;
+        private MaxIterationsMode _maxIterationsMode = MaxIterationsMode.Fixed;
         private TimeSpan _timeout = TimeSpan.FromSeconds(60);
         private LLMWIKYConfig _llmConfig = new();
         private readonly List<IAgxiomeTool> _tools = new();
@@ -133,6 +135,8 @@ public sealed class AgxiomeBuilder
 
         public AgentBuilder WithSystemPrompt(string prompt) { _systemPrompt = prompt; return this; }
         public AgentBuilder WithMaxIterations(int n) { _maxIterations = n; return this; }
+        public AgentBuilder WithAutoLoops(int upperBound = 50) { _maxIterations = upperBound; _maxIterationsMode = MaxIterationsMode.Auto; return this; }
+        public AgentBuilder WithInfiniteLoops(int maxSafe = 1000) { _maxIterations = maxSafe; _maxIterationsMode = MaxIterationsMode.Infinite; return this; }
         public AgentBuilder WithTimeout(TimeSpan t) { _timeout = t; return this; }
         public AgentBuilder WithTool(IAgxiomeTool tool) { _tools.Add(tool); return this; }
         public AgentBuilder WithLogging(ILoggerFactory lf) { _loggerFactory = lf; return this; }
@@ -151,6 +155,7 @@ public sealed class AgxiomeBuilder
                 Id = _name,
                 SystemPrompt = _systemPrompt,
                 MaxIterations = _maxIterations,
+                MaxIterationsMode = _maxIterationsMode,
                 Timeout = _timeout,
                 ReasoningEngine = _llmConfig
             };
@@ -174,6 +179,10 @@ public sealed class AgxiomeBuilder
         private SpeakerPolicy _speakerPolicy = SpeakerPolicy.RoundRobin;
         private VotingMode _votingMode = VotingMode.SimpleCount;
         private int _maxLoops = 20;
+        private string? _flow;
+        private Func<string, IReadOnlyList<IAgxiomeAgent>, CancellationToken, Task<TeamResponse>>? _socialCallable;
+        private string? _goal;
+        private int _maxAgents = 8;
 
         internal SwarmBuilder() { }
 
@@ -206,6 +215,18 @@ public sealed class AgxiomeBuilder
         public SwarmBuilder AutoSelect()
         { _swarmType = SwarmType.Auto; return this; }
 
+        /// <summary>AutoSwarm: LLM-driven goal analysis + team generation.</summary>
+        public SwarmBuilder AutoSwarm(string goal, int maxAgents = 8)
+        { _swarmType = SwarmType.AutoSwarm; _goal = goal; _maxAgents = maxAgents; return this; }
+
+        /// <summary>AgentRearrange: einsum-style flow "A -> B, C".</summary>
+        public SwarmBuilder WithRearrangeFlow(string flow)
+        { _swarmType = SwarmType.Rearrange; _flow = flow; return this; }
+
+        /// <summary>SocialAlgorithm: custom callable orchestrates team interactions.</summary>
+        public SwarmBuilder WithSocialAlgorithm(Func<string, IReadOnlyList<IAgxiomeAgent>, CancellationToken, Task<TeamResponse>> callable)
+        { _swarmType = SwarmType.SocialAlgorithm; _socialCallable = callable; return this; }
+
         public object Build()
         {
             if (_agents.Count == 0) throw new InvalidOperationException("No agents added to swarm.");
@@ -216,12 +237,30 @@ public sealed class AgxiomeBuilder
                 SwarmType.Hierarchical => SwarmFactory.Hierarchical(_agents[0], _agents.Count > 1 ? _agents[1..] : _agents),
                 SwarmType.MajorityVoting => SwarmFactory.MajorityVoting(_agents, _votingMode),
                 SwarmType.PlannerWorker => SwarmFactory.PlannerWorker(_agents[0], _agents.Count > 1 ? _agents[1..] : _agents),
+                SwarmType.Rearrange => new Workflows.AgentRearrange(_flow ?? "A -> B", _agents).BuildDagFromFlow(),
+                SwarmType.SocialAlgorithm => BuildSocialTeam(),
+                SwarmType.AutoSwarm => BuildAutoSwarmAsync().GetAwaiter().GetResult(),
                 SwarmType.Sequential or SwarmType.Auto or _ => SwarmFactory.AutoSwarm("execute", _agents),
             };
         }
+
+        private object BuildSocialTeam()
+        {
+            var leader = _agents.FirstOrDefault() ?? throw new InvalidOperationException("No agents for SocialAlgorithm");
+            var team = new Teams.AgxiomeTeam("social", new Shared.Config.TeamConfig { Mode = TeamMode.SocialAlgorithm }, leader);
+            foreach (var a in _agents.Skip(1)) { var _ = team.AddAgent(a.Id, ""); }
+            team.SocialAlgorithmCallable = _socialCallable;
+            return team;
+        }
+
+        private async Task<object> BuildAutoSwarmAsync()
+        {
+            // Use LLMWIKYEngine from first agent if available, else fallback to keyword-based
+            return SwarmFactory.AutoSwarm(_goal ?? "execute", _agents);
+        }
     }
 
-    private enum SwarmType { Sequential, MixtureOfAgents, GroupChat, Hierarchical, MajorityVoting, PlannerWorker, Auto }
+    private enum SwarmType { Sequential, MixtureOfAgents, GroupChat, Hierarchical, MajorityVoting, PlannerWorker, Auto, Rearrange, SocialAlgorithm, AutoSwarm }
 }
 
 /// <summary>

@@ -1,4 +1,4 @@
-# Core Concepts — AGXIOME
+ # Core Concepts — AGXIOME
 
 Agenti, Tools, Teams, Workflows, Session, Context, Learning.
 

@@ -9,6 +9,8 @@ public record AgentConfig
     public string? Role { get; set; }
     public string? SystemPrompt { get; init; }
     public int MaxIterations { get; init; } = 20;
+    public MaxIterationsMode MaxIterationsMode { get; init; } = MaxIterationsMode.Fixed;
+    public AutoStopCriteria? AutoStopCriteria { get; init; }
     public int MaxHistorySize { get; init; } = 50;
     public TimeSpan Timeout { get; init; } = TimeSpan.FromSeconds(30);
     public LLMWIKYConfig ReasoningEngine { get; init; } = new();
@@ -43,11 +45,20 @@ public record LLMWIKYConfig
     public bool EnableCostTracking { get; init; } = true;
 }
 
+public record MarkdownMemoryConfig
+{
+    public string BasePath { get; init; } = "./memory";
+    public bool UseKnowledgeBase { get; init; } = false;
+    public string FilePattern { get; init; } = "*.md";
+}
+
 public record StorageConfig
 {
     /// <summary>Typed default storage provider.</summary>
     public StorageProviderType DefaultProvider { get; init; } = StorageProviderType.PostgreSQL;
     public Dictionary<string, ProviderConfig> Providers { get; init; } = new();
+    public MemoryBackend MemoryBackend { get; init; } = MemoryBackend.InMemory;
+    public MarkdownMemoryConfig? MarkdownMemory { get; init; }
 }
 
 public record ProviderConfig

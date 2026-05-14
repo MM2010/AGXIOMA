@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "AGXIOME",
+  "classifications": ["AI", "Agent", "Swarm", "Research", "Web API"],
+  "identity": "AGXIOME.ResearchAgent",
+  "name": "AGXIOME Research Agent (HeavySwarm)",
+  "shortName": "agxioma-research-agent",
+  "description": "5-phase deep research pipeline using HeavySwarm. Phases: QuestionGen → parallel Research workers → Analysis → Alternatives → Synthesis. Produces comprehensive research reports on any topic.",
+  "tags": { "language": "C#", "type": "project" },
+  "sourceName": "AgxiomaResearchAgent",
+  "preferNameDirectory": true,
+  "symbols": {
+    "agentName": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "ResearchAgent",
+      "replaces": "MY_AGENT_NAME"
+    },
+    "workerCount": {
+      "type": "parameter",
+      "datatype": "integer",
+      "defaultValue": "3",
+      "replaces": "WORKER_COUNT_PLACEHOLDER"
+    },
+    "provider": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "openai",
+      "choices": [
+        { "choice": "openai",    "description": "OpenAI (gpt-4o orchestration + gpt-4o-mini workers)" },
+        { "choice": "anthropic", "description": "Anthropic (claude-3-7 orchestration + claude-haiku workers)" },
+        { "choice": "ollama",    "description": "Ollama local (all llama3.2)" }
+      ]
+    },
+    "providerEnum": {
+      "type": "generated",
+      "generator": "switch",
+      "replaces": "PROVIDER_ENUM_PLACEHOLDER",
+      "parameters": {
+        "evaluator": "C++",
+        "cases": [
+          { "condition": "(provider == \"openai\")",    "value": "LLMProviderType.OpenAI" },
+          { "condition": "(provider == \"anthropic\")", "value": "LLMProviderType.Anthropic" },
+          { "condition": "(provider == \"ollama\")",    "value": "LLMProviderType.Ollama" }
+        ]
+      }
+    },
+    "orchestratorModel": {
+      "type": "generated",
+      "generator": "switch",
+      "replaces": "ORCHESTRATOR_MODEL_PLACEHOLDER",
+      "parameters": {
+        "evaluator": "C++",
+        "cases": [
+          { "condition": "(provider == \"openai\")",    "value": "gpt-4o" },
+          { "condition": "(provider == \"anthropic\")", "value": "claude-3-7-sonnet-20250219" },
+          { "condition": "(provider == \"ollama\")",    "value": "llama3.2" }
+        ]
+      }
+    },
+    "workerModel": {
+      "type": "generated",
+      "generator": "switch",
+      "replaces": "WORKER_MODEL_PLACEHOLDER",
+      "parameters": {
+        "evaluator": "C++",
+        "cases": [
+          { "condition": "(provider == \"openai\")",    "value": "gpt-4o-mini" },
+          { "condition": "(provider == \"anthropic\")", "value": "claude-haiku-20240307" },
+          { "condition": "(provider == \"ollama\")",    "value": "llama3.2" }
+        ]
+      }
+    }
+  }
+}

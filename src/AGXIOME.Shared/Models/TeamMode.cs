@@ -5,5 +5,6 @@ public enum TeamMode
     Coordinate,
     Route,
     Broadcast,
-    Tasks
+    Tasks,
+    SocialAlgorithm
 }

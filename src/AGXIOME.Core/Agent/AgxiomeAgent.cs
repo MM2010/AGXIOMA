@@ -140,7 +140,17 @@ public sealed class AgxiomeAgent : IAgxiomeAgent, IAsyncDisposable
         var sw = System.Diagnostics.Stopwatch.StartNew();
         string? lastToolResult = null; // fallback when max-iters hit mid tool-chain
 
-        while (iter < _config.MaxIterations && !ct.IsCancellationRequested)
+        // Determine effective max iterations based on mode
+        var maxMode = _config.MaxIterationsMode;
+        int effectiveMax = maxMode switch
+        {
+            MaxIterationsMode.Auto => Math.Max(_config.MaxIterations, 50),
+            MaxIterationsMode.Infinite => 1_000_000,
+            _ => _config.MaxIterations
+        };
+        var stopEvaluator = _config.AutoStopCriteria;
+
+        while (iter < effectiveMax && !ct.IsCancellationRequested)
         {
             iter++;
             LLMWIKYResponse llm;
@@ -148,11 +158,26 @@ public sealed class AgxiomeAgent : IAgxiomeAgent, IAsyncDisposable
             catch (Exception ex) { _axiomeLog.Exception(ex, "LLM fail iter {I}", iter); throw; }
 
             // Accumulate token usage across all LLM calls in this run
-            totalPromptTokens     += llm.Usage.PromptTokens;
-            totalCompletionTokens += llm.Usage.CompletionTokens;
+            if (llm.Usage is not null)
+            {
+                totalPromptTokens     += llm.Usage.PromptTokens;
+                totalCompletionTokens += llm.Usage.CompletionTokens;
+            }
 
             if (llm.ToolName != null)
             {
+                // Auto mode: check StopAfterToolEvaluator for termination
+                if (maxMode == MaxIterationsMode.Auto)
+                {
+                    var eval = StopAfterToolEvaluator.Global.Evaluate(llm.ToolName, true);
+                    if (eval.ShouldStop)
+                    {
+                        _axiomeLog.Information("Auto stop triggered by tool '{T}': {E}", llm.ToolName, eval.ExitMessage);
+                        last = eval.ExitMessage ?? $"Auto stopped after tool '{llm.ToolName}'";
+                        break;
+                    }
+                }
+
                 // OpenAI/DeepSeek requires: user → assistant(tool_calls) → tool(result)
                 // The user prompt is always the last message added by BuildChatBody on iter 1,
                 // but it is NOT in history. Insert it once so iter 2+ sees a proper user turn
@@ -227,14 +252,16 @@ public sealed class AgxiomeAgent : IAgxiomeAgent, IAsyncDisposable
         // When max iterations is hit while still in tool-call chain (last==null),
         // use the last tool result rather than returning an empty "No response".
         var finalResponse = last ?? lastToolResult;
-        if (iter >= _config.MaxIterations && finalResponse == null)
-            _axiomeLog.Warning("Max iterations ({M}) reached with no output", _config.MaxIterations);
-        else if (iter >= _config.MaxIterations && last == null)
-            _axiomeLog.Warning("Max iterations ({M}) reached — returning last tool result", _config.MaxIterations);
+        if (iter >= effectiveMax && finalResponse == null)
+            _axiomeLog.Warning("Max iterations ({M}) reached with no output", effectiveMax);
+        else if (iter >= effectiveMax && last == null)
+            _axiomeLog.Warning("Max iterations ({M}) reached — returning last tool result", effectiveMax);
         var totalTokens = totalPromptTokens + totalCompletionTokens;
+        // Auto mode: if LLM returned text (no tool call), we're done regardless of iter count
+        bool hitLimit = iter >= effectiveMax && last == null;
         return new(
             finalResponse ?? "No response",
-            iter >= _config.MaxIterations && last == null ? AgentStatus.Error : AgentStatus.Completed,
+            hitLimit ? AgentStatus.Error : AgentStatus.Completed,
             Metadata: new(iter, 0, sw.Elapsed, TotalTokens: totalTokens > 0 ? totalTokens : null));
     }
 

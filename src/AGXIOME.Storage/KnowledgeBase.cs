@@ -7,7 +7,7 @@ namespace AGXIOME.Storage;
 ///
 /// Architecture note: each Document is stored in its own vector collection (collection name = docId).
 /// This gives O(1) delete and clean isolation per document.
-/// SearchAsync iterates all known collections in parallel — acceptable for moderate corpus sizes.
+/// SearchAsync iterates all known collections in parallel ï¿½ acceptable for moderate corpus sizes.
 /// For large corpora (1M+ chunks) switch to a single-collection model with metadata filtering.</summary>
 public sealed class KnowledgeBase : IKnowledgeBase
 {
@@ -78,6 +78,24 @@ public sealed class KnowledgeBase : IKnowledgeBase
             .OrderByDescending(c => c.Score)
             .Take(opts.TopK)
             .ToList();
+    }
+
+    /// <summary>Read a markdown file from disk and ingest it as a document.</summary>
+    public async Task IngestMarkdownFileAsync(string filePath, CancellationToken ct = default)
+    {
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException("Markdown file not found", filePath);
+
+        var content = await File.ReadAllTextAsync(filePath, ct);
+        var docId = Path.GetFileNameWithoutExtension(filePath);
+        var metadata = new Dictionary<string, string>
+        {
+            ["source"] = filePath,
+            ["type"] = "markdown",
+            ["ingested_at"] = DateTime.UtcNow.ToString("o")
+        };
+
+        await IngestAsync(new Document(docId, content, DocumentType.Markdown, metadata), ct);
     }
 
     public async Task DeleteAsync(string documentId, CancellationToken ct = default)

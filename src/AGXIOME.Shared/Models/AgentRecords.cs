@@ -33,10 +33,63 @@ public record AgentMessage(
     string Content,
     string? ToolCallId = null,
     string? ToolName = null,
-    string? ToolArguments = null
+    string? ToolArguments = null,
+    IReadOnlyList<MediaContent>? Media = null
 );
 
 /// <summary>Options for agent request execution.</summary>
+public record AutoStopCriteria(
+    int? MaxTokens = null,
+    double? MinConfidence = null,
+    string[]? StopPhrases = null,
+    bool StopOnNoToolCall = true
+);
+
+public record MediaContent(
+    MediaType MediaType,
+    string Data,
+    string MimeType,
+    string? AltText = null,
+    MediaSource Source = MediaSource.Base64
+);
+
+public record HeavySwarmResult(
+    string Question,
+    List<string> ResearchFindings,
+    string Analysis,
+    List<string> Alternatives,
+    string Synthesis,
+    Dictionary<string, TimeSpan> PhaseTiming
+);
+
+/// <summary>Result of a 4-agent Grok-mode swarm (Captain + Harper/Benjamin/Lucas).</summary>
+public record GrokSwarmResult(
+    string Task,
+    string HarperOutput,
+    string BenjaminOutput,
+    string LucasOutput,
+    string CaptainSynthesis,
+    Dictionary<string, TimeSpan> PhaseTiming
+);
+
+/// <summary>Result of a 16-agent Grok-Heavy-mode swarm (Captain + 15 domain specialists).</summary>
+public record GrokHeavySwarmResult(
+    string Task,
+    IReadOnlyDictionary<string, string> SpecialistOutputs,
+    string CaptainSynthesis,
+    Dictionary<string, TimeSpan> PhaseTiming
+);
+
+/// <summary>Result of a ForestSwarm routing and execution.</summary>
+public record ForestSwarmResult(
+    string Task,
+    string SelectedTree,
+    string SelectedAgent,
+    string Output,
+    IReadOnlyList<string> MatchedKeywords,
+    TimeSpan Duration
+);
+
 public record AgentRequestOptions(
     bool? EnableStreaming = null,
     bool? EnableRetry = null,

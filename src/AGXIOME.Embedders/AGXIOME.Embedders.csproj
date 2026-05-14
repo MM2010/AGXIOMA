@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.21.0" />
-    <PackageReference Include="Microsoft.ML.Tokenizers" Version="0.22.0-preview.25222.1" />
+    <PackageReference Include="Microsoft.ML.Tokenizers" Version="0.22.0" />
   </ItemGroup>
 
 </Project>

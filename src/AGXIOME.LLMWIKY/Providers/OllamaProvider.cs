@@ -33,7 +33,31 @@ public sealed class OllamaProvider : ILLMProvider
         };
         if (request.History != null)
             foreach (var m in request.History)
-                messages.Add(new JsonObject { ["role"] = m.Role, ["content"] = m.Content });
+            {
+                if (m.Role == "assistant" && m.ToolName != null)
+                    messages.Add(new JsonObject
+                    {
+                        ["role"] = "assistant",
+                        ["content"] = "",
+                        ["tool_calls"] = new JsonArray(new JsonObject
+                        {
+                            ["type"] = "function",
+                            ["function"] = new JsonObject
+                            {
+                                ["name"] = m.ToolName,
+                                ["arguments"] = JsonNode.Parse(m.ToolArguments ?? "{}")
+                            }
+                        })
+                    });
+                else if (m.Role == "tool")
+                    messages.Add(new JsonObject
+                    {
+                        ["role"] = "tool",
+                        ["content"] = m.Content
+                    });
+                else
+                    messages.Add(new JsonObject { ["role"] = m.Role, ["content"] = m.Content });
+            }
         messages.Add(new JsonObject { ["role"] = "user", ["content"] = request.UserPrompt });
 
         var body = new JsonObject
@@ -48,12 +72,32 @@ public sealed class OllamaProvider : ILLMProvider
             }
         };
 
-        var content = new StringContent(body.ToJsonString(), System.Text.Encoding.UTF8, "application/json");
+        // Tool schemas — Ollama /api/chat supports tools array (OpenAI-compatible format)
+        if (request.Tools?.Count > 0)
+            body["tools"] = new JsonArray(request.Tools.Select(t => (JsonNode)new JsonObject
+            {
+                ["type"] = "function",
+                ["function"] = t.DeepClone()
+            }).ToArray());
+
+        var jsonStr = body.ToJsonString();
+        var content = new StringContent(jsonStr, System.Text.Encoding.UTF8, "application/json");
         var response = await _http.PostAsync("/api/chat", content, ct);
         response.EnsureSuccessStatusCode();
 
         using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
         var msg = doc.RootElement.GetProperty("message");
+
+        // Check for tool_calls in Ollama response
+        if (msg.TryGetProperty("tool_calls", out var tcs) && tcs.GetArrayLength() > 0)
+        {
+            var call = tcs[0];
+            var func = call.GetProperty("function");
+            var toolName = func.GetProperty("name").GetString();
+            var toolArgs = func.GetProperty("arguments").GetRawText();
+            var toolCallId = call.TryGetProperty("id", out var id) ? id.GetString() : $"call_{Guid.NewGuid():N[..16]}";
+            return new LLMWIKYResponse("", toolCallId, toolName, toolArgs, default);
+        }
 
         return new LLMWIKYResponse(msg.GetProperty("content").GetString() ?? "");
     }

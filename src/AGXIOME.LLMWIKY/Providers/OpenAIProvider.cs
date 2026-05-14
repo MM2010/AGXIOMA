@@ -87,6 +87,35 @@ public sealed class OpenAIProvider : ILLMProvider
             toolArgs = call.GetProperty("function").GetProperty("arguments").GetString();
         }
 
+        // ═══ DeepSeek legacy format ═══
+        // DeepSeek-v4-flash sometimes returns function calls as XML in content
+        // instead of the standard OpenAI tool_calls array, e.g.:
+        //   <functioncall>
+        //   <invoke name="web_search">
+        //   <parameter name="query" string="true">AI news</parameter>
+        //   </invoke>
+        //   </functioncall>
+        if (content is not null && content.Contains("<functioncall>", StringComparison.OrdinalIgnoreCase))
+        {
+            var nameMatch = System.Text.RegularExpressions.Regex.Match(content,
+                @"<invoke\s+name=""([^""]+)""",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            var argsMatch = System.Text.RegularExpressions.Regex.Matches(content,
+                @"<parameter\s+name=""([^""]+)""\s+string=""([^""]*)""",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            if (nameMatch.Success)
+            {
+                toolName = nameMatch.Groups[1].Value;
+                var argsDict = new System.Text.Json.Nodes.JsonObject();
+                foreach (System.Text.RegularExpressions.Match m in argsMatch)
+                    if (m.Success) argsDict[m.Groups[1].Value] = m.Groups[2].Value;
+                toolArgs = argsDict.ToJsonString();
+                toolCallId = $"call_legacy_{Guid.NewGuid():N[..16]}";
+                content = string.Empty;
+            }
+        }
+
         return new LLMWIKYResponse(content ?? "", toolCallId, toolName, toolArgs,
             new LLMWIKYUsage(usage.GetProperty("prompt_tokens").GetInt32(),
                              usage.GetProperty("completion_tokens").GetInt32(),
@@ -185,7 +214,7 @@ public sealed class OpenAIProvider : ILLMProvider
                     messages.Add(new JsonObject
                     {
                         ["role"]       = "assistant",
-                        ["content"]    = (JsonNode?)null,
+                        ["content"]    = "",
                         ["tool_calls"] = new JsonArray(toolCallNode)
                     });
                 }

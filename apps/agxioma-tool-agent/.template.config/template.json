@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "AGXIOME",
+  "classifications": ["AI", "Agent", "Tools", "Web API"],
+  "identity": "AGXIOME.ToolAgent",
+  "name": "AGXIOME Tool Agent",
+  "shortName": "agxioma-tool-agent",
+  "description": "An AI agent with real tool calling: web search (DuckDuckGo, no API key) and local file reading. Demonstrates AgxiomeFunction, ToolParameterAttribute, and RegisterFunction.",
+  "tags": { "language": "C#", "type": "project" },
+  "sourceName": "AgxiomaToolAgent",
+  "preferNameDirectory": true,
+  "symbols": {
+    "agentName": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "ToolAgent",
+      "replaces": "MY_AGENT_NAME"
+    },
+    "provider": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "openai",
+      "choices": [
+        { "choice": "openai",    "description": "OpenAI (gpt-4o)" },
+        { "choice": "anthropic", "description": "Anthropic (claude-3-7-sonnet)" },
+        { "choice": "ollama",    "description": "Ollama local (llama3.2)" }
+      ]
+    },
+    "providerEnum": {
+      "type": "generated",
+      "generator": "switch",
+      "replaces": "PROVIDER_ENUM_PLACEHOLDER",
+      "parameters": {
+        "evaluator": "C++",
+        "cases": [
+          { "condition": "(provider == \"openai\")",    "value": "LLMProviderType.OpenAI" },
+          { "condition": "(provider == \"anthropic\")", "value": "LLMProviderType.Anthropic" },
+          { "condition": "(provider == \"ollama\")",    "value": "LLMProviderType.Ollama" }
+        ]
+      }
+    },
+    "openaiModel": {
+      "type": "generated",
+      "generator": "switch",
+      "replaces": "PROVIDER_MODEL_PLACEHOLDER",
+      "parameters": {
+        "evaluator": "C++",
+        "cases": [
+          { "condition": "(provider == \"openai\")",    "value": "gpt-4o" },
+          { "condition": "(provider == \"anthropic\")", "value": "claude-3-7-sonnet-20250219" },
+          { "condition": "(provider == \"ollama\")",    "value": "llama3.2" }
+        ]
+      }
+    }
+  }
+}

@@ -68,8 +68,8 @@ public sealed class DynamicAgentController(
         return Accepted();
     }
 
-    /// <summary>DELETE /api/agents/{agentId} — rimuove agente dal registry.</summary>
-    [HttpDelete("{agentId}")]
+    /// <summary>DELETE /api/agents/{agentId}/remove — rimuove agente dal registry.</summary>
+    [HttpDelete("{agentId}/remove")]
     public IActionResult DeleteAgent(string agentId, [FromQuery] string userId)
     {
         if (string.IsNullOrWhiteSpace(userId))

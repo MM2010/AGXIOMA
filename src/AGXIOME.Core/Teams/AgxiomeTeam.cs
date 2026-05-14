@@ -14,6 +14,9 @@ public sealed class AgxiomeTeam : IAgxiomeTeam
     public TeamMode Mode { get; }
     public IReadOnlyList<IAgxiomeAgent> Agents => _members.AsReadOnly();
 
+    /// <summary>Custom callable for SocialAlgorithm mode.</summary>
+    public Func<string, IReadOnlyList<IAgxiomeAgent>, CancellationToken, Task<TeamResponse>>? SocialAlgorithmCallable { get; set; }
+
     private readonly IAgxiomeAgent _leader;
     private readonly List<IAgxiomeAgent> _members = new();
     private readonly TeamConfig _config;
@@ -27,6 +30,7 @@ public sealed class AgxiomeTeam : IAgxiomeTeam
             TeamMode.Route => TeamTopology.Router,
             TeamMode.Broadcast => TeamTopology.Swarm,
             TeamMode.Tasks => TeamTopology.Supervisor,
+            TeamMode.SocialAlgorithm => TeamTopology.Supervisor,
             _ => TeamTopology.Router
         };
     }
@@ -81,6 +85,12 @@ public sealed class AgxiomeTeam : IAgxiomeTeam
                 for (int i = 0; i < responses.Length; i++)
                     results.Add(new AgentResult(_members[i].Id, "broadcast", responses[i].Status, responses[i].Content, sw.Elapsed));
                 break;
+
+            case TeamMode.SocialAlgorithm:
+                if (SocialAlgorithmCallable == null)
+                    throw new InvalidOperationException("SocialAlgorithm mode requires SocialAlgorithmCallable to be set.");
+                var socialResult = await SocialAlgorithmCallable(objective, _members.AsReadOnly(), ct);
+                return socialResult;
         }
 
         sw.Stop();

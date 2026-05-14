@@ -4,7 +4,7 @@ using System.Reflection;
 namespace AGXIOME.Shared.Interfaces;
 
 /// <summary>Abstract base for typed tools with auto JSON schema generation.</summary>
-public abstract class AgxiomeFunction : IAgxiomeTool
+public abstract class AgxiomeFunction : IAgxiomeTool, IAgxiomeExecutableTool
 {
     public abstract string Name { get; }
     public abstract string Description { get; }

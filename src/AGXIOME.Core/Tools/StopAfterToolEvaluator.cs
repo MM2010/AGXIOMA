@@ -81,6 +81,8 @@ public interface IStopAfterToolEvaluator
 /// </summary>
 public sealed class StopAfterToolEvaluator : IStopAfterToolEvaluator
 {
+    /// <summary>Global singleton evaluator used by Auto mode.</summary>
+    public static readonly StopAfterToolEvaluator Global = new();
     private readonly ConcurrentDictionary<string, StopAfterToolRule> _rules = new();
 
     public void AddRule(StopAfterToolRule rule)

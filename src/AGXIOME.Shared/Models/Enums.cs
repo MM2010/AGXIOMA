@@ -24,6 +24,10 @@ public enum RAGMode { Agentic, Traditional }
 public enum SearchType { Vector, Keyword, Hybrid }
 public enum DocumentType { PlainText, Markdown, Code, Pdf, Html, Csv }
 public enum ReasoningMode { None, ReasoningModel, ReasoningAgent, ReasoningTools }
+public enum MaxIterationsMode { Fixed, Auto, Infinite }
+public enum MemoryBackend { InMemory, Postgres, MarkdownFiles, Hybrid }
+public enum MediaType { Image, Audio, Video, Document }
+public enum MediaSource { Base64, Url, FilePath }
 public enum MCPTransport { Stdio, SSE, StreamableHttp }
 public enum RunEvent { RunStart, RunContent, ToolCallStart, ToolCallEnd, RunPaused, RunCompleted, RunError }
 public enum StepType { Agent, Function, Condition, Parallel, Loop, Router, Human, Delay }

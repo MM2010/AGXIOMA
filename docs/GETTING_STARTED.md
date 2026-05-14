@@ -124,6 +124,17 @@ if (result.Status == AgentStatus.Error)
 }
 ```
 
+## Nuove funzionalità (v1.1)
+
+| Funzionalità | Descrizione |
+|-------------|-------------|
+| [AutoSwarm](TUTORIALS/AUTO_SWARM.md) | Swarm zero-config con analisi goal via LLM |
+| [AgentRearrange](TUTORIALS/MCP_INTEGRATION.md) | DAG flow con sintassi einsum-style "A -> B, C" |
+| [Markdown Memory](TUTORIALS/MARKDOWN_MEMORY.md) | RAG con file Markdown + full-text search |
+| [HeavySwarm](docs riferimento) | Analisi 5-fasi Grok-style |
+| [SocialAlgorithm](docs riferimento) | Callable custom per orchestrazione team |
+| [MCP Integration](TUTORIALS/MCP_INTEGRATION.md) | Supporto Streamable HTTP + resources/list |
+
 ## Prossimi passi
 
 | Guida | Contenuto |
@@ -134,3 +145,6 @@ if (result.Status == AgentStatus.Error)
 | [Logging](LOGGING.md) | Provider logger, per-modulo |
 | [Storage & RAG](STORAGE.md) | PostgreSQL, RAG, knowledge base |
 | [Testing](TESTING.md) | Strategia e copertura test |
+| [Tutorial: AutoSwarm](TUTORIALS/AUTO_SWARM.md) | Swarm automatico |
+| [Tutorial: Markdown Memory](TUTORIALS/MARKDOWN_MEMORY.md) | RAG memory |
+| [Tutorial: MCP](TUTORIALS/MCP_INTEGRATION.md) | MCP Integration |

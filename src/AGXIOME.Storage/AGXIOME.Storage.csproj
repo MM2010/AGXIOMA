@@ -8,22 +8,22 @@
     <PackageReference Include="AWSSDK.DynamoDBv2" Version="*" />
     <PackageReference Include="AWSSDK.S3" Version="*" />
     <PackageReference Include="Azure.Storage.Blobs" Version="*" />
-    <PackageReference Include="ClosedXML" Version="*" />
-    <PackageReference Include="CsvHelper" Version="*" />
-    <PackageReference Include="DocumentFormat.OpenXml" Version="*" />
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
+    <PackageReference Include="CsvHelper" Version="33.0.1" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.3.0" />
     <PackageReference Include="Google.Cloud.Storage.V1" Version="*" />
-    <PackageReference Include="HtmlAgilityPack" Version="*" />
-    <PackageReference Include="Markdig" Version="*" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.12.0" />
+    <PackageReference Include="Markdig" Version="0.40.0" />
     <PackageReference Include="Microsoft.Graph" Version="*" />
-    <PackageReference Include="PdfPig" Version="*" />
-    <PackageReference Include="RtfPipe" Version="*" />
+    <PackageReference Include="PdfPig" Version="0.1.9" />
+    <PackageReference Include="RtfPipe" Version="2.0.0" />
     <PackageReference Include="Tesseract" Version="*" />
-    <PackageReference Include="VersOne.Epub" Version="*" />
-    <PackageReference Include="YamlDotNet" Version="*" />
+    <PackageReference Include="VersOne.Epub" Version="3.3.6" />
+    <PackageReference Include="YamlDotNet" Version="16.3.0" />
     <PackageReference Include="Qdrant.Client" Version="*" />
     <PackageReference Include="RocksDbSharp" Version="*" />
     <PackageReference Include="ClickHouse.Client" Version="*" />
-    <PackageReference Include="CouchbaseNetClient" Version="*" />
+    <PackageReference Include="CouchbaseNetClient" Version="3.6.6" />
     <PackageReference Include="Dapper" Version="2.1.66" />
     <PackageReference Include="dotnet-etcd" Version="*" />
     <PackageReference Include="DuckDB.NET.Data.Full" Version="*" />
@@ -34,12 +34,15 @@
     <PackageReference Include="Meilisearch" Version="*" />
     <PackageReference Include="Microsoft.Azure.Cosmos" Version="*" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="*" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="*" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0" />
     <PackageReference Include="MongoDB.Driver" Version="3.3.0" />
     <PackageReference Include="MySqlConnector" Version="*" />
     <PackageReference Include="Npgsql" Version="9.0.3" />
     <PackageReference Include="RavenDB.Client" Version="*" />
-    <PackageReference Include="StackExchange.Redis" Version="2.8.31" />
+    <PackageReference Include="StackExchange.Redis" Version="2.8.37" />
+    <PackageReference Include="Microsoft.Kiota.Abstractions" Version="*" />
+    <PackageReference Include="SharpCompress" Version="0.39.0" />
+    <PackageReference Include="Snappier" Version="1.2.0" />
   </ItemGroup>
 
   <PropertyGroup>

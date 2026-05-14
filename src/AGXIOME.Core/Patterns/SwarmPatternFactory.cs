@@ -151,4 +151,59 @@ public static class SwarmFactory
             ? (object)Hierarchical(agents[0], agents.Skip(1).ToList())
             : MixtureOfAgents(agents, layers: 1);
     }
+
+    // ─── HeavySwarm (5-Phase Grok-Style) ───────────────────────────────────
+
+    /// <summary>
+    /// HeavySwarm — 5-phase deep analysis: QuestionGen → Research → Analysis → Alternatives → Synthesis.
+    /// </summary>
+    public static HeavySwarm HeavySwarm(
+        HeavySwarmConfig config,
+        IAgxiomeAgent questionAgent,
+        IReadOnlyList<IAgxiomeAgent> workers,
+        IAgxiomeAgent synthesizer)
+        => new(config, questionAgent, workers, synthesizer);
+
+    // ─── GrokSwarm (4-Agent Debate Mode) ────────────────────────────────────
+
+    /// <summary>
+    /// GrokSwarm — 4-agent debate-style pattern.
+    /// Captain decomposes task → Harper/Benjamin/Lucas work in parallel → Captain synthesizes.
+    /// Parity with Swarms Python: HeavySwarm(use_grok_agents=True).
+    /// </summary>
+    public static GrokSwarm GrokSwarm(
+        IAgxiomeAgent captain,
+        IAgxiomeAgent harper,
+        IAgxiomeAgent benjamin,
+        IAgxiomeAgent lucas,
+        int maxLoops = 1)
+        => new(new GrokSwarmConfig { MaxLoops = maxLoops }, captain, harper, benjamin, lucas);
+
+    // ─── GrokHeavySwarm (16-Agent Domain Specialist Mode) ────────────────────
+
+    /// <summary>
+    /// GrokHeavySwarm — 16-agent domain-specialist analysis pattern.
+    /// Grok Captain + 15 domain specialists (Harper, Benjamin, Lucas, Olivia, James, Charlotte,
+    /// Henry, Mia, William, Sebastian, Jack, Owen, Luna, Elizabeth, Noah).
+    /// Parity with Swarms Python: HeavySwarm(use_grok_heavy=True).
+    /// </summary>
+    public static GrokHeavySwarm GrokHeavySwarm(
+        IAgxiomeAgent captain,
+        IReadOnlyDictionary<string, IAgxiomeAgent> specialists,
+        int maxLoops = 1)
+        => new(new GrokHeavySwarmConfig { MaxLoops = maxLoops }, captain, specialists);
+
+    // ─── ForestSwarm (Tree-Based Routing) ────────────────────────────────────
+
+    /// <summary>
+    /// ForestSwarm — keyword-based task routing across multiple agent trees.
+    /// Routes the task to the agent with the highest keyword overlap score.
+    /// Parity with Swarms Python: ForestSwarm(trees=[Tree(agents=[TreeAgent(...)])]).
+    /// </summary>
+    public static ForestSwarm ForestSwarm(
+        IReadOnlyList<ForestTree> trees,
+        string name = "forest-swarm",
+        string description = "Multi-tree agent routing swarm",
+        int minMatchScore = 0)
+        => new(new ForestSwarmConfig { MinMatchScore = minMatchScore }, trees, name, description);
 }
