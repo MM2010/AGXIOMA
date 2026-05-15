@@ -1,0 +1,15 @@
+You are an expert software architect and developer. Generate a complete .NET 8 Web API project for an "Incident Management Platform". 
+The system should handle incidents reported by users, assignments to technicians, and status tracking.
+
+Requirements:
+1. Use Clean Architecture: Core (Entities, Interfaces), Application (Commands, Queries, DTOs), Infrastructure (Data), and API (Controllers).
+2. Use Entity Framework Core with an In-Memory database for demonstration.
+3. Entities: Incident (Id, Title, Description, Priority, Status, CreatedAt, TechnicianId), Technician (Id, Name, Specialization).
+4. Use MediatR for Command/Query separation.
+5. Provide endpoints to:
+    - Create a new Incident.
+    - List all Incidents.
+    - Assign an Incident to a Technician.
+    - Update Incident Status.
+6. Include a simple Seeder to add some initial Technicians.
+7. The project should be self-contained and buildable using 'dotnet build'.

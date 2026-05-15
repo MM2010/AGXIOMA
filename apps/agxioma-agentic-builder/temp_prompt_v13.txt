@@ -1,0 +1,10 @@
+Create a sophisticated Incident Management Platform with a DAG-based orchestration engine.
+Key features:
+1. Incident lifecycle: detected -> investigated -> remediated -> closed.
+2. Workflow Automation: Define steps as a Directed Acyclic Graph.
+3. Integration with external monitoring alerts.
+4. Role-based access control (Admin, Responder, Viewer).
+5. Audit logging for all actions.
+6. Real-time updates via SignalR.
+7. Persistence using PostgreSQL.
+8. Cache layer using Redis.
