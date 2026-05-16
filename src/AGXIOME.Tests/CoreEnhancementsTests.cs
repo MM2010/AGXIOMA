@@ -1,6 +1,7 @@
 using AGXIOME.Core.Agent;
 using AGXIOME.Core.Execution;
 using AGXIOME.Core.LLM;
+using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Models;
 using System.Net;
@@ -22,19 +23,30 @@ public class BackgroundRunWorkerTests
         new(id, BackgroundJobType.RunExecution, "agent-1", prompt);
 
     [Fact]
-    public void Enqueue_ReturnsJobId()
+    public async Task Enqueue_ReturnsJobId_AndCompletesRealWorker()
     {
-        var agent = Substitute.For<IBackgroundRunWorker>();
-        agent.Enqueue(Arg.Any<RunJob>()).Returns("job-1");
-        Assert.Equal("job-1", agent.Enqueue(MakeJob("job-1")));
+        var agent = Substitute.For<IAgxiomeAgent>();
+        agent.RunAsync(Arg.Any<AgentRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new AgentResponse("done", AgentStatus.Completed)));
+
+        using var worker = new AGXIOME.Core.Execution.BackgroundRunWorker(agent);
+
+        var jobId = worker.Enqueue(MakeJob("job-1"));
+        var state = await WaitForStateAsync(worker, jobId, BackgroundJobStatus.Completed);
+
+        Assert.Equal("job-1", jobId);
+        Assert.NotNull(state);
+        Assert.Equal(BackgroundJobStatus.Completed, state!.Status);
+        Assert.Equal("done", state.ResultText);
     }
 
     [Fact]
     public void GetState_UnknownJob_ReturnsNull()
     {
-        var agent = Substitute.For<IBackgroundRunWorker>();
-        agent.GetState("missing").Returns((RunJobState?)null);
-        Assert.Null(agent.GetState("missing"));
+        var agent = Substitute.For<IAgxiomeAgent>();
+        using var worker = new AGXIOME.Core.Execution.BackgroundRunWorker(agent);
+
+        Assert.Null(worker.GetState("missing"));
     }
 
     [Fact]
@@ -72,17 +84,53 @@ public class BackgroundRunWorkerTests
     [Fact]
     public void ListJobs_EmptyByDefault()
     {
-        var worker = Substitute.For<IBackgroundRunWorker>();
-        worker.ListJobs().Returns([]);
+        var agent = Substitute.For<IAgxiomeAgent>();
+        using var worker = new AGXIOME.Core.Execution.BackgroundRunWorker(agent);
+
         Assert.Empty(worker.ListJobs());
     }
 
     [Fact]
-    public void Cancel_UnknownJob_ReturnsFalse()
+    public async Task Cancel_RunningJob_ReturnsTrue_AndTransitionsToCancelled()
     {
-        var worker = Substitute.For<IBackgroundRunWorker>();
-        worker.Cancel("unknown").Returns(false);
-        Assert.False(worker.Cancel("unknown"));
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var agent = Substitute.For<IAgxiomeAgent>();
+        agent.RunAsync(Arg.Any<AgentRequest>(), Arg.Any<CancellationToken>())
+            .Returns(async call =>
+            {
+                var ct = call.Arg<CancellationToken>();
+                started.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+                return new AgentResponse("never", AgentStatus.Completed);
+            });
+
+        using var worker = new AGXIOME.Core.Execution.BackgroundRunWorker(agent);
+        var jobId = worker.Enqueue(MakeJob("job-cancel"));
+        await started.Task;
+
+        Assert.True(worker.Cancel(jobId));
+
+        var state = await WaitForStateAsync(worker, jobId, BackgroundJobStatus.Cancelled);
+        Assert.NotNull(state);
+        Assert.Equal(BackgroundJobStatus.Cancelled, state!.Status);
+    }
+
+    [Fact]
+    public async Task WatchAsync_YieldsStateTransitions_ForKnownJob()
+    {
+        var agent = Substitute.For<IAgxiomeAgent>();
+        agent.RunAsync(Arg.Any<AgentRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new AgentResponse("done", AgentStatus.Completed)));
+
+        using var worker = new AGXIOME.Core.Execution.BackgroundRunWorker(agent);
+        var jobId = worker.Enqueue(MakeJob("job-watch"));
+
+        var states = new List<RunJobState>();
+        await foreach (var state in worker.WatchAsync(jobId))
+            states.Add(state);
+
+        Assert.Contains(states, state => state.Status == BackgroundJobStatus.Running);
+        Assert.Contains(states, state => state.Status == BackgroundJobStatus.Completed && state.ResultText == "done");
     }
 
     [Fact]
@@ -97,6 +145,24 @@ public class BackgroundRunWorkerTests
     {
         Assert.True(Enum.IsDefined(BackgroundJobStatus.Cancelled));
         Assert.True(Enum.IsDefined(BackgroundJobStatus.Retrying));
+    }
+
+    private static async Task<RunJobState?> WaitForStateAsync(
+        AGXIOME.Core.Execution.BackgroundRunWorker worker,
+        string jobId,
+        BackgroundJobStatus expected,
+        int attempts = 50)
+    {
+        for (var i = 0; i < attempts; i++)
+        {
+            var state = worker.GetState(jobId);
+            if (state?.Status == expected)
+                return state;
+
+            await Task.Delay(20);
+        }
+
+        return worker.GetState(jobId);
     }
 }
 

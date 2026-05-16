@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Web;
 using System.Xml.Linq;
+using AGXIOME.Shared.Errors;
 
 namespace AGXIOME.Toolkits.SearchKnowledge;
 
@@ -20,8 +21,8 @@ public sealed class GoogleSearchToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg
     public override ToolkitCategory Category=>ToolkitCategory.SearchKnowledge;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"))&&!string.IsNullOrWhiteSpace(GetSetting("cx"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var key=GetSetting("api_key")??throw new InvalidOperationException("Google Search api_key not set");
-        var cx=GetSetting("cx")??throw new InvalidOperationException("Google Search cx not set");
+        var key=GetRequiredSetting("api_key");
+        var cx=GetRequiredSetting("cx");
         var query=HttpUtility.UrlEncode(GetParam<string>(p,"query")??"");
         var num=GetParam<int?>(p,"num")??10;
         var url=$"https://www.googleapis.com/customsearch/v1?key={key}&cx={cx}&q={query}&num={num}";
@@ -41,7 +42,7 @@ public sealed class BingSearchToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.SearchKnowledge;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var key=GetSetting("api_key")??throw new InvalidOperationException("Bing api_key not set");
+        var key=GetRequiredSetting("api_key");
         var query=HttpUtility.UrlEncode(GetParam<string>(p,"query")??"");
         var count=GetParam<int?>(p,"count")??10;
         var req=new HttpRequestMessage(HttpMethod.Get,$"https://api.bing.microsoft.com/v7.0/search?q={query}&count={count}");
@@ -65,7 +66,7 @@ public sealed class SearXngToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.SearchKnowledge;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("base_url"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var base_=GetSetting("base_url")?.TrimEnd('/')??throw new InvalidOperationException("SearXNG base_url not set");
+        var base_=GetRequiredSetting("base_url").TrimEnd('/');
         var query=HttpUtility.UrlEncode(GetParam<string>(p,"query")??"");
         var format=GetParam<string>(p,"format")??"json";
         var json=await Http.Client.GetFromJsonAsync<JsonElement>($"{base_}/search?q={query}&format={format}",ct).ConfigureAwait(false);
@@ -84,7 +85,7 @@ public sealed class TavilyToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.SearchKnowledge;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var key=GetSetting("api_key")??throw new InvalidOperationException("Tavily api_key not set");
+        var key=GetRequiredSetting("api_key");
         var query=GetParam<string>(p,"query")??"";
         var depth=GetParam<string>(p,"search_depth")??"basic";
         var maxResults=GetParam<int?>(p,"max_results")??5;
@@ -110,7 +111,7 @@ public sealed class ExaToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.SearchKnowledge;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var key=GetSetting("api_key")??throw new InvalidOperationException("Exa api_key not set");
+        var key=GetRequiredSetting("api_key");
         var query=GetParam<string>(p,"query")??"";
         var numResults=GetParam<int?>(p,"num_results")??5;
         var useAutoprompt=GetParam<bool?>(p,"use_autoprompt")??true;
@@ -138,7 +139,7 @@ public sealed class BraveSearchToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg)
     public override ToolkitCategory Category=>ToolkitCategory.SearchKnowledge;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var key=GetSetting("api_key")??throw new InvalidOperationException("Brave api_key not set");
+        var key=GetRequiredSetting("api_key");
         var query=HttpUtility.UrlEncode(GetParam<string>(p,"query")??"");
         var count=GetParam<int?>(p,"count")??10;
         var req=new HttpRequestMessage(HttpMethod.Get,$"https://api.search.brave.com/res/v1/web/search?q={query}&count={count}");
@@ -164,7 +165,7 @@ public sealed class SerpApiToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.SearchKnowledge;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var key=GetSetting("api_key")??throw new InvalidOperationException("SerpAPI api_key not set");
+        var key=GetRequiredSetting("api_key");
         var q=HttpUtility.UrlEncode(GetParam<string>(p,"q")??"");
         var engine=GetParam<string>(p,"engine")??"google";
         var num=GetParam<int?>(p,"num")??10;
@@ -186,7 +187,7 @@ public sealed class SerperToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.SearchKnowledge;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var key=GetSetting("api_key")??throw new InvalidOperationException("Serper api_key not set");
+        var key=GetRequiredSetting("api_key");
         var query=GetParam<string>(p,"query")??"";
         var type=GetParam<string>(p,"type")??"search"; // search|news|images
         var num=GetParam<int?>(p,"num")??10;
@@ -215,8 +216,8 @@ public sealed class FirecrawlToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.SearchKnowledge;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var key=GetSetting("api_key")??throw new InvalidOperationException("Firecrawl api_key not set");
-        var url=GetParam<string>(p,"url")??"";
+        var key=GetRequiredSetting("api_key");
+        var url=GetRequiredParam<string>(p,"url");
         var endpoint=a switch{"crawl"=>"crawl","map"=>"map",_=>"scrape"};
         var formats=GetParam<string[]?>(p,"formats")??["markdown"];
         object body=endpoint=="scrape"?new{url,formats}:new{url};

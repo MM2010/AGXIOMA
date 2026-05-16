@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Xml.Linq;
+using AGXIOME.Shared.Errors;
 
 namespace AGXIOME.Toolkits.WebSocial;
 
@@ -19,13 +20,13 @@ public sealed class TwitterToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.WebSocial;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("bearer_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("bearer_token")??throw new InvalidOperationException("Twitter bearer_token not set");
+        var token=GetRequiredSetting("bearer_token");
         return a switch{
             "search"       =>await TwGet($"tweets/search/recent?query={Uri.EscapeDataString(GetParam<string>(p,"query")??"")}"+$"&max_results={GetParam<int?>(p,"max_results")??10}&tweet.fields=created_at,author_id,public_metrics",token,ct).ConfigureAwait(false),
             "get_tweet"    =>await TwGet($"tweets/{GetParam<string>(p,"id")}?tweet.fields=created_at,author_id,public_metrics",token,ct).ConfigureAwait(false),
             "get_user"     =>await TwGet($"users/by/username/{GetParam<string>(p,"username")}?user.fields=public_metrics,description",token,ct).ConfigureAwait(false),
             "user_timeline"=>await TwGet($"users/{GetParam<string>(p,"user_id")}/tweets?max_results={GetParam<int?>(p,"max_results")??10}&tweet.fields=created_at,public_metrics",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: search|get_tweet|get_user|user_timeline")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> TwGet(string path,string token,CancellationToken ct){
@@ -52,7 +53,7 @@ public sealed class RedditToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             "search"   =>await RedditGet($"r/{sub}/search.json?q={Uri.EscapeDataString(GetParam<string>(p,"query")??"")}"+$"&sort={sort}&limit={limit}",ct).ConfigureAwait(false),
             "comments" =>await RedditGet($"r/{sub}/comments/{GetParam<string>(p,"post_id")}.json?limit={limit}",ct).ConfigureAwait(false),
             "info"     =>await RedditGet($"r/{sub}/about.json",ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: posts|search|comments|info")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> RedditGet(string path,CancellationToken ct){
@@ -71,12 +72,12 @@ public sealed class LinkedInToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.WebSocial;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("access_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("access_token")??throw new InvalidOperationException("LinkedIn access_token not set");
+        var token=GetRequiredSetting("access_token");
         return a switch{
             "get_profile"  =>await LiGet("v2/me",token,ct).ConfigureAwait(false),
             "get_email"    =>await LiGet("v2/emailAddress?q=members&projection=(elements*(handle~))",token,ct).ConfigureAwait(false),
             "get_network"  =>await LiGet("v2/connections?q=viewer&start=0&count=50",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: get_profile|get_email|get_network")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> LiGet(string path,string token,CancellationToken ct){
@@ -95,13 +96,13 @@ public sealed class InstagramToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.WebSocial;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("access_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("access_token")??throw new InvalidOperationException("Instagram access_token not set");
+        var token=GetRequiredSetting("access_token");
         var userId=GetSetting("user_id")??"me";
         return a switch{
             "get_profile" =>await IgGet($"{userId}?fields=id,username,name,biography,followers_count,media_count",token,ct).ConfigureAwait(false),
             "list_media"  =>await IgGet($"{userId}/media?fields=id,caption,media_type,thumbnail_url,permalink,timestamp&limit={GetParam<int?>(p,"limit")??12}",token,ct).ConfigureAwait(false),
-            "get_insights"=>await IgGet($"{userId}/insights?metric=impressions,reach,profile_views&period=day&since={GetParam<string>(p,"since")?? throw new ArgumentException("since required")}&until={GetParam<string>(p,"until")?? throw new ArgumentException("until required")}",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: get_profile|list_media|get_insights")
+            "get_insights"=>await IgGet($"{userId}/insights?metric=impressions,reach,profile_views&period=day&since={GetRequiredParam<string>(p,"since")}&until={GetRequiredParam<string>(p,"until")}",token,ct).ConfigureAwait(false),
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> IgGet(string path,string token,CancellationToken ct){
@@ -117,13 +118,13 @@ public sealed class YouTubeToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.WebSocial;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var key=GetSetting("api_key")??throw new InvalidOperationException("YouTube api_key not set");
+        var key=GetRequiredSetting("api_key");
         return a switch{
             "search"       =>await YtGet($"search?part=snippet&q={Uri.EscapeDataString(GetParam<string>(p,"query")??"")}"+$"&type={GetParam<string>(p,"type")??"video"}&maxResults={GetParam<int?>(p,"max_results")??10}",key,ct).ConfigureAwait(false),
             "video_info"   =>await YtGet($"videos?part=snippet,statistics&id={GetParam<string>(p,"video_id")}",key,ct).ConfigureAwait(false),
             "channel_info" =>await YtGet($"channels?part=snippet,statistics&id={GetParam<string>(p,"channel_id")}",key,ct).ConfigureAwait(false),
             "playlist_items"=>await YtGet($"playlistItems?part=snippet&playlistId={GetParam<string>(p,"playlist_id")}&maxResults={GetParam<int?>(p,"max_results")??50}",key,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: search|video_info|channel_info|playlist_items")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> YtGet(string path,string key,CancellationToken ct){
@@ -153,9 +154,9 @@ public sealed class MediumToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
         return a switch{
             "get_user"    when token!=null =>await MediumGet("me",token,ct).ConfigureAwait(false),
             "get_publications" when token!=null =>await MediumGet("me/publications",token,ct).ConfigureAwait(false),
-            "feed"        =>await ReadRss($"https://medium.com/feed/{GetParam<string>(p,"username")?? throw new ArgumentException("username required")}",ct).ConfigureAwait(false),
-            "tag_feed"    =>await ReadRss($"https://medium.com/feed/tag/{GetParam<string>(p,"tag")?? throw new ArgumentException("tag required")}",ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: get_user|get_publications (needs integration_token)|feed|tag_feed")
+            "feed"        =>await ReadRss($"https://medium.com/feed/{GetRequiredParam<string>(p,"username")}",ct).ConfigureAwait(false),
+            "tag_feed"    =>await ReadRss($"https://medium.com/feed/tag/{GetRequiredParam<string>(p,"tag")}",ct).ConfigureAwait(false),
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> MediumGet(string path,string token,CancellationToken ct){
@@ -183,7 +184,7 @@ public sealed class DevToToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             "list_tags"      =>await DtGet("tags",key,ct).ConfigureAwait(false),
             "list_podcasts"  =>await DtGet("podcast_episodes",key,ct).ConfigureAwait(false),
             "get_user"       =>await DtGet($"users/{GetParam<string>(p,"username")??GetParam<string>(p,"id")??"me"}",key,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_articles|get_article|search_articles|list_tags|list_podcasts|get_user")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> DtGet(string path,string? key,CancellationToken ct){
@@ -206,7 +207,7 @@ public sealed class HashnodeToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
         var query=a switch{
             "list_posts"=>"{ feed(type: BEST, first: 10) { edges { node { id title brief publishedAt url } } } }",
             "get_post"  =>$"{{ post(id: \"{GetParam<string>(p,"id")}\") {{ id title content {{ markdown }} publishedAt author {{ name }} }} }}",
-            _=>GetParam<string>(p,"query")??throw new ArgumentException($"Unknown action '{a}'. Valid: list_posts|get_post|pass custom query via 'query' param")
+            _=>GetRequiredParam<string>(p,"query")
         };
         var token=GetSetting("token");
         var req=new HttpRequestMessage(HttpMethod.Post,"https://gql.hashnode.com"){Content=JsonContent.Create(new{query})};
@@ -234,7 +235,7 @@ public sealed class WordPressToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             "list_categories"=>await WpGet($"{base_}/categories",creds,ct).ConfigureAwait(false),
             "list_tags"     =>await WpGet($"{base_}/tags",creds,ct).ConfigureAwait(false),
             "search"        =>await WpGet($"{base_}/search?search={Uri.EscapeDataString(GetParam<string>(p,"query")??"")}",creds,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_posts|get_post|list_pages|list_categories|list_tags|search")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> WpGet(string url,string? creds,CancellationToken ct){
@@ -254,7 +255,7 @@ public sealed class ShopifyToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("store"))&&!string.IsNullOrWhiteSpace(GetSetting("access_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         var store=(GetSetting("store")??"").TrimEnd('/');
-        var token=GetSetting("access_token")??throw new InvalidOperationException("Shopify access_token not set");
+        var token=GetRequiredSetting("access_token");
         var base_=$"https://{store}/admin/api/2024-01";
         return a switch{
             "list_products" =>await ShGet($"{base_}/products.json?limit={GetParam<int?>(p,"limit")??25}",token,ct).ConfigureAwait(false),
@@ -263,7 +264,7 @@ public sealed class ShopifyToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             "get_order"     =>await ShGet($"{base_}/orders/{GetParam<string>(p,"id")}.json",token,ct).ConfigureAwait(false),
             "list_customers"=>await ShGet($"{base_}/customers.json?limit={GetParam<int?>(p,"limit")??25}",token,ct).ConfigureAwait(false),
             "shop_info"     =>await ShGet($"{base_}/shop.json",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_products|get_product|list_orders|get_order|list_customers|shop_info")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> ShGet(string url,string token,CancellationToken ct){
@@ -283,7 +284,7 @@ public sealed class WooCommerceToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg)
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("site_url"))&&!string.IsNullOrWhiteSpace(GetSetting("consumer_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         var site=(GetSetting("site_url")??"").TrimEnd('/');
-        var ck=GetSetting("consumer_key")??throw new InvalidOperationException("WooCommerce consumer_key not set");
+        var ck=GetRequiredSetting("consumer_key");
         var cs=GetSetting("consumer_secret")??"";
         var creds=Convert.ToBase64String(Encoding.UTF8.GetBytes($"{ck}:{cs}"));
         var base_=$"{site}/wp-json/wc/v3";
@@ -292,7 +293,7 @@ public sealed class WooCommerceToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg)
             "get_product"   =>await WcGet($"{base_}/products/{GetParam<string>(p,"id")}",creds,ct).ConfigureAwait(false),
             "list_orders"   =>await WcGet($"{base_}/orders?per_page={GetParam<int?>(p,"per_page")??10}&status={GetParam<string>(p,"status")??"processing"}",creds,ct).ConfigureAwait(false),
             "list_customers"=>await WcGet($"{base_}/customers?per_page={GetParam<int?>(p,"per_page")??10}",creds,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_products|get_product|list_orders|list_customers")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> WcGet(string url,string creds,CancellationToken ct){
@@ -321,7 +322,7 @@ public sealed class ZapierToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.WebSocial;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("webhook_url"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var url=GetSetting("webhook_url")??throw new InvalidOperationException("Zapier webhook_url not set");
+        var url=GetRequiredSetting("webhook_url");
         var payload=GetParam<object?>(p,"payload")??p.Where(kv=>kv.Key!="url").ToDictionary(kv=>kv.Key,kv=>kv.Value);
         var resp=await Http.Client.PostAsJsonAsync(url,payload,ct).ConfigureAwait(false);
         resp.EnsureSuccessStatusCode();
@@ -336,7 +337,7 @@ public sealed class IftttToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.WebSocial;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("webhook_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var key=GetSetting("webhook_key")??throw new InvalidOperationException("IFTTT webhook_key not set");
+        var key=GetRequiredSetting("webhook_key");
         var ev=GetParam<string>(p,"event")??a;
         var body=new{value1=GetParam<string>(p,"value1"),value2=GetParam<string>(p,"value2"),value3=GetParam<string>(p,"value3")};
         var resp=await Http.Client.PostAsJsonAsync($"https://maker.ifttt.com/trigger/{ev}/with/key/{key}",body,ct).ConfigureAwait(false);
@@ -352,7 +353,7 @@ public sealed class MakeComToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.WebSocial;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("webhook_url"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var url=GetSetting("webhook_url")??throw new InvalidOperationException("Make.com webhook_url not set");
+        var url=GetRequiredSetting("webhook_url");
         var payload=GetParam<object?>(p,"payload")??p.Where(kv=>kv.Key!="url").ToDictionary(kv=>kv.Key,kv=>kv.Value);
         var resp=await Http.Client.PostAsJsonAsync(url,payload,ct).ConfigureAwait(false);
         resp.EnsureSuccessStatusCode();
@@ -367,13 +368,13 @@ public sealed class WebScraperToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.WebSocial;
     public override bool IsConfigured=>true;
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var url=GetParam<string>(p,"url")?? throw new ArgumentException("url required");
+        var url=GetRequiredParam<string>(p,"url");
         return a switch{
             "scrape"        =>await Scrape(url,ct).ConfigureAwait(false),
             "extract_text"  =>await ExtractText(url,ct).ConfigureAwait(false),
             "extract_links" =>await ExtractLinks(url,ct).ConfigureAwait(false),
             "extract_meta"  =>await ExtractMeta(url,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: scrape|extract_text|extract_links|extract_meta")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> Scrape(string url,CancellationToken ct){
@@ -417,18 +418,18 @@ public sealed class RssToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.WebSocial;
     public override bool IsConfigured=>true;
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var url=GetParam<string>(p,"url")??GetSetting("feed_url")?? throw new ArgumentException("url or feed_url required");
+        var url=GetParam<string>(p,"url")??GetSetting("feed_url")?? throw AgxiomeToolkitException.MissingParameter(Id, "url");
         return a switch{
             "fetch" or "parse" =>await FetchAndParseRss(url,Http.Client,ct).ConfigureAwait(false),
             "search"           =>await SearchRss(url,GetParam<string>(p,"query")??"",ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: fetch|parse|search")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     internal static async Task<ToolkitResult> FetchAndParseRss(string url,HttpClient client,CancellationToken ct){
         var req=new HttpRequestMessage(HttpMethod.Get,url);req.Headers.Add("User-Agent","AGXIOMA-Agent/1.0");
         var resp=await client.SendAsync(req,ct).ConfigureAwait(false);resp.EnsureSuccessStatusCode();
         var xml=await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-        XDocument doc;try{doc=XDocument.Parse(xml);}catch(Exception e){return ToolkitResult.Fail($"Invalid XML/RSS: {e.Message}");}
+        XDocument doc;try{doc=XDocument.Parse(xml);}catch(Exception){return ToolkitResult.Fail("Invalid XML/RSS content.");}
         var ns=doc.Root?.GetDefaultNamespace();
         // detect Atom vs RSS
         if(doc.Root?.Name.LocalName=="feed"){

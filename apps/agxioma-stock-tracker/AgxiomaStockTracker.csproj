@@ -6,7 +6,8 @@
     <RootNamespace>AgxiomaStockTracker</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="AGXIOME"                  Version="1.0.0-*" />
-    <PackageReference Include="Microsoft.Data.Sqlite"    Version="10.0.0-preview.*" />
+    <ProjectReference Include="..\..\src\AGXIOME.Core\AGXIOME.Core.csproj" />
+    <ProjectReference Include="..\..\src\AGXIOME.Runtime\AGXIOME.Runtime.csproj" />
+    <PackageReference Include="Microsoft.Data.Sqlite"    Version="10.0.8" />
   </ItemGroup>
 </Project>

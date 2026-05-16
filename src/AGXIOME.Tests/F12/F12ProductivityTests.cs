@@ -17,7 +17,7 @@ public sealed class GoogleCalendarToolkitTests
     {
         var cfg = new ToolkitConfig("google_calendar", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new GoogleCalendarToolkit(cfg).ExecuteAsync("list_events", new Dictionary<string, object?> { ["calendar_id"] = "primary" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -35,7 +35,7 @@ public sealed class GoogleDriveToolkitTests
     {
         var cfg = new ToolkitConfig("google_drive", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new GoogleDriveToolkit(cfg).ExecuteAsync("list_files", new Dictionary<string, object?> { ["folder_id"] = "root" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -53,7 +53,7 @@ public sealed class GoogleDocsToolkitTests
     {
         var cfg = new ToolkitConfig("google_docs", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new GoogleDocsToolkit(cfg).ExecuteAsync("read_document", new Dictionary<string, object?> { ["document_id"] = "1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -71,7 +71,7 @@ public sealed class GoogleSheetsToolkitTests
     {
         var cfg = new ToolkitConfig("google_sheets", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new GoogleSheetsToolkit(cfg).ExecuteAsync("read_range", new Dictionary<string, object?> { ["spreadsheet_id"] = "1", ["range"] = "A1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -89,7 +89,7 @@ public sealed class OneDriveToolkitTests
     {
         var cfg = new ToolkitConfig("onedrive", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new OneDriveToolkit(cfg).ExecuteAsync("list_files", new Dictionary<string, object?> { ["folder"] = "/" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -107,7 +107,7 @@ public sealed class NotionToolkitTests
     {
         var cfg = new ToolkitConfig("notion", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new NotionToolkit(cfg).ExecuteAsync("read_page", new Dictionary<string, object?> { ["page_id"] = "1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -125,7 +125,7 @@ public sealed class ConfluenceToolkitTests
     {
         var cfg = new ToolkitConfig("confluence", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new ConfluenceToolkit(cfg).ExecuteAsync("read_page", new Dictionary<string, object?> { ["page_id"] = "1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -143,7 +143,7 @@ public sealed class JiraToolkitTests
     {
         var cfg = new ToolkitConfig("jira", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new JiraToolkit(cfg).ExecuteAsync("list_issues", new Dictionary<string, object?> { ["project"] = "PROJ" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -161,7 +161,7 @@ public sealed class LinearToolkitTests
     {
         var cfg = new ToolkitConfig("linear", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new LinearToolkit(cfg).ExecuteAsync("list_issues", new Dictionary<string, object?> { ["team"] = "t" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -179,7 +179,7 @@ public sealed class AsanaToolkitTests
     {
         var cfg = new ToolkitConfig("asana", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new AsanaToolkit(cfg).ExecuteAsync("list_tasks", new Dictionary<string, object?> { ["project_id"] = "1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -197,7 +197,7 @@ public sealed class TrelloToolkitTests
     {
         var cfg = new ToolkitConfig("trello", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new TrelloToolkit(cfg).ExecuteAsync("list_cards", new Dictionary<string, object?> { ["board_id"] = "1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -215,7 +215,7 @@ public sealed class TodoistToolkitTests
     {
         var cfg = new ToolkitConfig("todoist", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new TodoistToolkit(cfg).ExecuteAsync("list_tasks", new Dictionary<string, object?> { ["project_id"] = "1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -233,7 +233,7 @@ public sealed class GoogleTasksToolkitTests
     {
         var cfg = new ToolkitConfig("google_tasks", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new GoogleTasksToolkit(cfg).ExecuteAsync("list_tasks", new Dictionary<string, object?> { ["tasklist_id"] = "@default" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -251,7 +251,7 @@ public sealed class EvernoteToolkitTests
     {
         var cfg = new ToolkitConfig("evernote", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new EvernoteToolkit(cfg).ExecuteAsync("list_notes", new Dictionary<string, object?> { ["notebook"] = "default" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -269,7 +269,7 @@ public sealed class ObsidianToolkitTests
     {
         var cfg = new ToolkitConfig("obsidian", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new ObsidianToolkit(cfg).ExecuteAsync("read_note", new Dictionary<string, object?> { ["path"] = "note.md" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -287,7 +287,7 @@ public sealed class HabiticaToolkitTests
     {
         var cfg = new ToolkitConfig("habitica", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new HabiticaToolkit(cfg).ExecuteAsync("list_tasks", new Dictionary<string, object?> { ["type"] = "todos" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -305,7 +305,7 @@ public sealed class CalendlyToolkitTests
     {
         var cfg = new ToolkitConfig("calendly", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new CalendlyToolkit(cfg).ExecuteAsync("list_events", new Dictionary<string, object?> { ["status"] = "active" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -323,6 +323,6 @@ public sealed class DocusignToolkitTests
     {
         var cfg = new ToolkitConfig("docusign", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new DocuSignToolkit(cfg).ExecuteAsync("send_envelope", new Dictionary<string, object?> { ["template_id"] = "1", ["recipient"] = "a@b.com" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }

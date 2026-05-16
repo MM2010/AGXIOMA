@@ -289,6 +289,14 @@ public sealed class SkillLabOrchestrator
     public async Task<ToolDescriptor> PromoteSkillAsync(
         ToolDescriptor tool, string sessionId, CancellationToken ct = default)
     {
+        var policyErrors = SkillPromotionPolicy.Validate(tool);
+        if (policyErrors.Count > 0)
+        {
+            await _store.AuditAsync(sessionId, tool.Id, "promote-skill",
+                "failed", string.Join("; ", policyErrors), ct);
+            throw new PromotionPolicyViolationException(policyErrors);
+        }
+
         await _store.PromoteSkillAsync(tool, ct);
         _store.UpdateStatus(tool.Id, ToolStatus.Promoted);
 

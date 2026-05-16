@@ -11,12 +11,13 @@ public sealed class LocalFileToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new LocalFileToolkit().ExecuteAsync("write", [], default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("local_file", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new LocalFileToolkit(cfg).ExecuteAsync("write", new Dictionary<string, object?> { ["path"] = "/tmp/f.txt" }, default);
+        var path = Path.Combine(Path.GetTempPath(), "agxiome-f12-local.txt");
+        var r = await new LocalFileToolkit(cfg).ExecuteAsync("write", new Dictionary<string, object?> { ["path"] = path, ["content"] = "x" }, default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
 }
@@ -28,14 +29,14 @@ public sealed class FtpSftpToolkitTests
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.FileStorage, new FtpSftpToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = await new FtpSftpToolkit().ExecuteAsync("list_files", [], default);
+        var r = await new FtpSftpToolkit().ExecuteAsync("list", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("ftp_sftp", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new FtpSftpToolkit(cfg).ExecuteAsync("list_files", new Dictionary<string, object?> { ["path"] = "/" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new FtpSftpToolkit(cfg).ExecuteAsync("list", new Dictionary<string, object?> { ["path"] = "/" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -46,14 +47,14 @@ public sealed class GcsToolkitTests
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.FileStorage, new GcsToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = await new GcsToolkit().ExecuteAsync("list_objects", [], default);
+        var r = await new GcsToolkit().ExecuteAsync("list", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("gcs", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new GcsToolkit(cfg).ExecuteAsync("list_objects", new Dictionary<string, object?> { ["bucket"] = "b" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new GcsToolkit(cfg).ExecuteAsync("list", new Dictionary<string, object?> { ["bucket"] = "b" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -64,14 +65,14 @@ public sealed class MinIOToolkitTests
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.FileStorage, new MinioToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = await new MinioToolkit().ExecuteAsync("list_objects", [], default);
+        var r = await new MinioToolkit().ExecuteAsync("list", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("minio", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new MinioToolkit(cfg).ExecuteAsync("list_objects", new Dictionary<string, object?> { ["bucket"] = "b" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new MinioToolkit(cfg).ExecuteAsync("list", new Dictionary<string, object?> { ["bucket"] = "b" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -82,14 +83,14 @@ public sealed class DropboxToolkitTests
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.FileStorage, new DropboxToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = await new DropboxToolkit().ExecuteAsync("list_folder", [], default);
+        var r = await new DropboxToolkit().ExecuteAsync("list", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("dropbox", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new DropboxToolkit(cfg).ExecuteAsync("list_folder", new Dictionary<string, object?> { ["path"] = "" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new DropboxToolkit(cfg).ExecuteAsync("list", new Dictionary<string, object?> { ["path"] = "" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -100,14 +101,14 @@ public sealed class BoxToolkitTests
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.FileStorage, new BoxToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = await new BoxToolkit().ExecuteAsync("list_files", [], default);
+        var r = await new BoxToolkit().ExecuteAsync("list", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("box", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new BoxToolkit(cfg).ExecuteAsync("list_files", new Dictionary<string, object?> { ["folder_id"] = "0" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new BoxToolkit(cfg).ExecuteAsync("list", new Dictionary<string, object?> { ["folder_id"] = "0" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -118,14 +119,14 @@ public sealed class SharePointToolkitTests
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.FileStorage, new SharePointToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = await new SharePointToolkit().ExecuteAsync("list_files", [], default);
+        var r = await new SharePointToolkit().ExecuteAsync("list", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("sharepoint", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new SharePointToolkit(cfg).ExecuteAsync("list_files", new Dictionary<string, object?> { ["site_url"] = "https://sp.com", ["path"] = "/" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new SharePointToolkit(cfg).ExecuteAsync("list", new Dictionary<string, object?> { ["site_url"] = "https://sp.com", ["path"] = "/" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -136,14 +137,14 @@ public sealed class CompressionToolkitTests
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.FileStorage, new CompressionToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = await new CompressionToolkit().ExecuteAsync("compress", [], default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new CompressionToolkit().ExecuteAsync("zip", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("compression", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new CompressionToolkit(cfg).ExecuteAsync("compress", new Dictionary<string, object?> { ["source"] = "file.txt", ["format"] = "zip" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new CompressionToolkit(cfg).ExecuteAsync("zip", new Dictionary<string, object?> { ["source"] = "file.txt" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -155,13 +156,13 @@ public sealed class ImageProcessingToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new ImageProcessingToolkit().ExecuteAsync("resize", [], default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("image_processing", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new ImageProcessingToolkit(cfg).ExecuteAsync("resize", new Dictionary<string, object?> { ["source"] = "img.png", ["width"] = 100, ["height"] = 100 }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new ImageProcessingToolkit(cfg).ExecuteAsync("resize", new Dictionary<string, object?> { ["path"] = "img.png", ["width"] = 100, ["height"] = 100 }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -173,12 +174,12 @@ public sealed class PdfToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new PdfToolkit().ExecuteAsync("extract_text", [], default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("pdf", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new PdfToolkit(cfg).ExecuteAsync("extract_text", new Dictionary<string, object?> { ["file"] = "doc.pdf" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }

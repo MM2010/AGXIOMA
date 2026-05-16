@@ -9,6 +9,10 @@ public record AgentSettings
     public string SandboxTempPath { get; init; } = "sandbox_temp";
     public int CompilationTimeoutMs { get; init; } = 15_000;
     public int ExecutionTimeoutMs { get; init; } = 10_000;
+    public int MaxDynamicSourceChars { get; init; } = 32_768;
+    public int MaxExecutionInputChars { get; init; } = 4_096;
+    public int MaxExecutionOutputChars { get; init; } = 16_384;
+    public int MaxConcurrentExecutions { get; init; } = 1;
 }
 
 // ── Tool Lifecycle ───────────────────────────────────────────────────────────

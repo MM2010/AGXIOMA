@@ -2,6 +2,7 @@
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using AGXIOME.Shared.Errors;
 
 namespace AGXIOME.Toolkits.Productivity;
 
@@ -15,14 +16,14 @@ public sealed class GoogleCalendarToolkit(ToolkitConfig? config=null):ToolkitBas
     public override ToolkitCategory Category=>ToolkitCategory.Productivity;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("access_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("access_token")??throw new InvalidOperationException("Google access_token not set");
+        var token=GetRequiredSetting("access_token");
         var calId=GetParam<string>(p,"calendar_id")??"primary";
         return a switch{
             "list_calendars"=>await GcGet("calendar/v3/users/me/calendarList",token,ct).ConfigureAwait(false),
             "list_events"   =>await GcGet($"calendar/v3/calendars/{Uri.EscapeDataString(calId)}/events?maxResults={GetParam<int?>(p,"max_results")??10}&singleEvents=true&orderBy=startTime&timeMin={Uri.EscapeDataString(GetParam<string>(p,"time_min")??DateTime.UtcNow.ToString("O"))}",token,ct).ConfigureAwait(false),
-            "get_event"     =>await GcGet($"calendar/v3/calendars/{Uri.EscapeDataString(calId)}/events/{GetParam<string>(p,"event_id")?? throw new ArgumentException("event_id required")}",token,ct).ConfigureAwait(false),
-            "create_event"  =>await GcPost($"calendar/v3/calendars/{Uri.EscapeDataString(calId)}/events",new{summary=GetParam<string>(p,"summary"),start=new{dateTime=GetParam<string>(p,"start")?? throw new ArgumentException("start required")},end=new{dateTime=GetParam<string>(p,"end")?? throw new ArgumentException("end required")}},token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_calendars|list_events|get_event|create_event")
+            "get_event"     =>await GcGet($"calendar/v3/calendars/{Uri.EscapeDataString(calId)}/events/{GetRequiredParam<string>(p,"event_id")}",token,ct).ConfigureAwait(false),
+            "create_event"  =>await GcPost($"calendar/v3/calendars/{Uri.EscapeDataString(calId)}/events",new{summary=GetParam<string>(p,"summary"),start=new{dateTime=GetRequiredParam<string>(p,"start")},end=new{dateTime=GetRequiredParam<string>(p,"end")}},token,ct).ConfigureAwait(false),
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     internal static async Task<ToolkitResult> GcGet(string path,string token,CancellationToken ct){
@@ -46,13 +47,13 @@ public sealed class GoogleDriveToolkit(ToolkitConfig? config=null):ToolkitBase(c
     public override ToolkitCategory Category=>ToolkitCategory.Productivity;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("access_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("access_token")??throw new InvalidOperationException("Google access_token not set");
+        var token=GetRequiredSetting("access_token");
         return a switch{
             "list_files"    =>await GoogleCalendarToolkit.GcGet($"drive/v3/files?pageSize={GetParam<int?>(p,"page_size")??10}&fields=files(id,name,mimeType,size,modifiedTime)&q={Uri.EscapeDataString(GetParam<string>(p,"q")??"trashed=false")}",token,ct).ConfigureAwait(false),
-            "get_file"      =>await GoogleCalendarToolkit.GcGet($"drive/v3/files/{GetParam<string>(p,"id")?? throw new ArgumentException("id required")}?fields=id,name,mimeType,size,webViewLink",token,ct).ConfigureAwait(false),
-            "create_folder" =>await GoogleCalendarToolkit.GcPost("drive/v3/files",new{name=GetParam<string>(p,"name")?? throw new ArgumentException("name required"),mimeType="application/vnd.google-apps.folder"},token,ct).ConfigureAwait(false),
-            "delete_file"   =>await DriveDelete(GetParam<string>(p,"id")?? throw new ArgumentException("id required"),token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_files|get_file|create_folder|delete_file")
+            "get_file"      =>await GoogleCalendarToolkit.GcGet($"drive/v3/files/{GetRequiredParam<string>(p,"id")}?fields=id,name,mimeType,size,webViewLink",token,ct).ConfigureAwait(false),
+            "create_folder" =>await GoogleCalendarToolkit.GcPost("drive/v3/files",new{name=GetRequiredParam<string>(p,"name"),mimeType="application/vnd.google-apps.folder"},token,ct).ConfigureAwait(false),
+            "delete_file"   =>await DriveDelete(GetRequiredParam<string>(p,"id"),token,ct).ConfigureAwait(false),
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> DriveDelete(string id,string token,CancellationToken ct){
@@ -70,11 +71,11 @@ public sealed class GoogleDocsToolkit(ToolkitConfig? config=null):ToolkitBase(co
     public override ToolkitCategory Category=>ToolkitCategory.Productivity;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("access_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("access_token")??throw new InvalidOperationException("Google access_token not set");
+        var token=GetRequiredSetting("access_token");
         return a switch{
-            "get_doc"    =>await GoogleCalendarToolkit.GcGet($"docs/v1/documents/{GetParam<string>(p,"id")?? throw new ArgumentException("id required")}",token,ct).ConfigureAwait(false),
+            "get_doc"    =>await GoogleCalendarToolkit.GcGet($"docs/v1/documents/{GetRequiredParam<string>(p,"id")}",token,ct).ConfigureAwait(false),
             "create_doc" =>await GoogleCalendarToolkit.GcPost("docs/v1/documents",new{title=GetParam<string>(p,"title")??"Untitled"},token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: get_doc|create_doc. For editing use batchUpdate endpoint.")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
 }
@@ -86,14 +87,14 @@ public sealed class GoogleSheetsToolkit(ToolkitConfig? config=null):ToolkitBase(
     public override ToolkitCategory Category=>ToolkitCategory.Productivity;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("access_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("access_token")??throw new InvalidOperationException("Google access_token not set");
-        var spreadsheetId=GetParam<string>(p,"spreadsheet_id")?? throw new ArgumentException("spreadsheet_id required");
+        var token=GetRequiredSetting("access_token");
+        var spreadsheetId=GetRequiredParam<string>(p,"spreadsheet_id");
         var range=GetParam<string>(p,"range")??"Sheet1";
         return a switch{
             "read_values"  =>await GoogleCalendarToolkit.GcGet($"sheets/v4/spreadsheets/{spreadsheetId}/values/{Uri.EscapeDataString(range)}",token,ct).ConfigureAwait(false),
-            "write_values" =>await GoogleCalendarToolkit.GcPost($"sheets/v4/spreadsheets/{spreadsheetId}/values/{Uri.EscapeDataString(range)}:append?valueInputOption=RAW",new{values=GetParam<object?>(p,"values")?? throw new ArgumentException("values required")},token,ct).ConfigureAwait(false),
+            "write_values" =>await GoogleCalendarToolkit.GcPost($"sheets/v4/spreadsheets/{spreadsheetId}/values/{Uri.EscapeDataString(range)}:append?valueInputOption=RAW",new{values=GetRequiredParam<object?>(p,"values")},token,ct).ConfigureAwait(false),
             "get_metadata" =>await GoogleCalendarToolkit.GcGet($"sheets/v4/spreadsheets/{spreadsheetId}",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: read_values|write_values|get_metadata")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
 }
@@ -105,13 +106,13 @@ public sealed class OneDriveToolkit(ToolkitConfig? config=null):ToolkitBase(conf
     public override ToolkitCategory Category=>ToolkitCategory.Productivity;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("access_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("access_token")??throw new InvalidOperationException("OneDrive access_token not set");
+        var token=GetRequiredSetting("access_token");
         return a switch{
             "list_files"    =>await OdGet($"me/drive/root/children?$top={GetParam<int?>(p,"top")??20}",token,ct).ConfigureAwait(false),
-            "get_item"      =>await OdGet($"me/drive/items/{GetParam<string>(p,"id")?? throw new ArgumentException("id required")}",token,ct).ConfigureAwait(false),
+            "get_item"      =>await OdGet($"me/drive/items/{GetRequiredParam<string>(p,"id")}",token,ct).ConfigureAwait(false),
             "list_shared"   =>await OdGet("me/drive/sharedWithMe",token,ct).ConfigureAwait(false),
             "get_drive"     =>await OdGet("me/drive",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_files|get_item|list_shared|get_drive")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> OdGet(string path,string token,CancellationToken ct){
@@ -129,14 +130,14 @@ public sealed class NotionToolkit(ToolkitConfig? config=null):ToolkitBase(config
     public override ToolkitCategory Category=>ToolkitCategory.Productivity;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("token")??throw new InvalidOperationException("Notion token not set");
+        var token=GetRequiredSetting("token");
         return a switch{
             "search"           =>await NoPost("search",new{query=GetParam<string>(p,"query")??""} ,token,ct).ConfigureAwait(false),
-            "get_page"         =>await NoGet($"pages/{GetParam<string>(p,"page_id")?? throw new ArgumentException("page_id required")}",token,ct).ConfigureAwait(false),
-            "get_database"     =>await NoGet($"databases/{GetParam<string>(p,"database_id")?? throw new ArgumentException("database_id required")}",token,ct).ConfigureAwait(false),
-            "query_database"   =>await NoPost($"databases/{GetParam<string>(p,"database_id")?? throw new ArgumentException("database_id required")}/query",GetParam<object?>(p,"filter")??new{},token,ct).ConfigureAwait(false),
-            "get_block_children"=>await NoGet($"blocks/{GetParam<string>(p,"block_id")?? throw new ArgumentException("block_id required")}/children",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: search|get_page|get_database|query_database|get_block_children")
+            "get_page"         =>await NoGet($"pages/{GetRequiredParam<string>(p,"page_id")}",token,ct).ConfigureAwait(false),
+            "get_database"     =>await NoGet($"databases/{GetRequiredParam<string>(p,"database_id")}",token,ct).ConfigureAwait(false),
+            "query_database"   =>await NoPost($"databases/{GetRequiredParam<string>(p,"database_id")}/query",GetParam<object?>(p,"filter")??new{},token,ct).ConfigureAwait(false),
+            "get_block_children"=>await NoGet($"blocks/{GetRequiredParam<string>(p,"block_id")}/children",token,ct).ConfigureAwait(false),
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> NoGet(string path,string token,CancellationToken ct){
@@ -163,15 +164,15 @@ public sealed class ConfluenceToolkit(ToolkitConfig? config=null):ToolkitBase(co
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("domain"))&&!string.IsNullOrWhiteSpace(GetSetting("api_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         var domain=(GetSetting("domain")??"").TrimEnd('/');
-        var email=GetSetting("email")??throw new InvalidOperationException("Confluence email not set");
-        var apiToken=GetSetting("api_token")??throw new InvalidOperationException("Confluence api_token not set");
+        var email=GetRequiredSetting("email");
+        var apiToken=GetRequiredSetting("api_token");
         var creds=Convert.ToBase64String(Encoding.UTF8.GetBytes($"{email}:{apiToken}"));
         return a switch{
             "list_spaces"   =>await CfGet($"{domain}/wiki/rest/api/space?limit={GetParam<int?>(p,"limit")??25}",creds,ct).ConfigureAwait(false),
-            "list_pages"    =>await CfGet($"{domain}/wiki/rest/api/content?spaceKey={GetParam<string>(p,"space_key")?? throw new ArgumentException("space_key required")}&type=page&limit={GetParam<int?>(p,"limit")??25}",creds,ct).ConfigureAwait(false),
-            "get_page"      =>await CfGet($"{domain}/wiki/rest/api/content/{GetParam<string>(p,"id")?? throw new ArgumentException("id required")}?expand=body.storage",creds,ct).ConfigureAwait(false),
-            "search"        =>await CfGet($"{domain}/wiki/rest/api/search?cql={Uri.EscapeDataString(GetParam<string>(p,"cql")?? throw new ArgumentException("cql required"))}&limit={GetParam<int?>(p,"limit")??10}",creds,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_spaces|list_pages|get_page|search")
+            "list_pages"    =>await CfGet($"{domain}/wiki/rest/api/content?spaceKey={GetRequiredParam<string>(p,"space_key")}&type=page&limit={GetParam<int?>(p,"limit")??25}",creds,ct).ConfigureAwait(false),
+            "get_page"      =>await CfGet($"{domain}/wiki/rest/api/content/{GetRequiredParam<string>(p,"id")}?expand=body.storage",creds,ct).ConfigureAwait(false),
+            "search"        =>await CfGet($"{domain}/wiki/rest/api/search?cql={Uri.EscapeDataString(GetRequiredParam<string>(p,"cql"))}&limit={GetParam<int?>(p,"limit")??10}",creds,ct).ConfigureAwait(false),
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> CfGet(string url,string creds,CancellationToken ct){
@@ -190,16 +191,16 @@ public sealed class JiraToolkit(ToolkitConfig? config=null):ToolkitBase(config){
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("domain"))&&!string.IsNullOrWhiteSpace(GetSetting("api_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         var domain=(GetSetting("domain")??"").TrimEnd('/');
-        var email=GetSetting("email")??throw new InvalidOperationException("Jira email not set");
-        var apiToken=GetSetting("api_token")??throw new InvalidOperationException("Jira api_token not set");
+        var email=GetRequiredSetting("email");
+        var apiToken=GetRequiredSetting("api_token");
         var creds=Convert.ToBase64String(Encoding.UTF8.GetBytes($"{email}:{apiToken}"));
         var api=$"{domain}/rest/api/3";
         return a switch{
             "list_issues"   =>await JrGet($"{api}/search?jql={Uri.EscapeDataString(GetParam<string>(p,"jql")??"project IS NOT EMPTY ORDER BY updated DESC")}&maxResults={GetParam<int?>(p,"max_results")??10}",creds,ct).ConfigureAwait(false),
-            "get_issue"     =>await JrGet($"{api}/issue/{GetParam<string>(p,"key")?? throw new ArgumentException("key required")}",creds,ct).ConfigureAwait(false),
+            "get_issue"     =>await JrGet($"{api}/issue/{GetRequiredParam<string>(p,"key")}",creds,ct).ConfigureAwait(false),
             "list_projects" =>await JrGet($"{api}/project?maxResults={GetParam<int?>(p,"max_results")??20}",creds,ct).ConfigureAwait(false),
-            "get_project"   =>await JrGet($"{api}/project/{GetParam<string>(p,"key")?? throw new ArgumentException("key required")}",creds,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_issues|get_issue|list_projects|get_project")
+            "get_project"   =>await JrGet($"{api}/project/{GetRequiredParam<string>(p,"key")}",creds,ct).ConfigureAwait(false),
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> JrGet(string url,string creds,CancellationToken ct){
@@ -217,13 +218,13 @@ public sealed class LinearToolkit(ToolkitConfig? config=null):ToolkitBase(config
     public override ToolkitCategory Category=>ToolkitCategory.Productivity;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var key=GetSetting("api_key")??throw new InvalidOperationException("Linear api_key not set");
+        var key=GetRequiredSetting("api_key");
         var query=a switch{
             "list_issues" =>"{ issues(first: 25) { nodes { id title state { name } priority assignee { name } createdAt } } }",
             "list_teams"  =>"{ teams { nodes { id name key } } }",
             "list_projects"=>"{ projects { nodes { id name description } } }",
-            "get_issue"   =>$"{{ issue(id: \"{GetParam<string>(p,"id")?? throw new ArgumentException("id required")}\") {{ id title description state {{ name }} priority assignee {{ name }} createdAt }} }}",
-            _=>GetParam<string>(p,"query")??throw new ArgumentException($"Unknown action '{a}'. Pass custom GraphQL via 'query' param.")
+            "get_issue"   =>$"{{ issue(id: \"{GetRequiredParam<string>(p,"id")}\") {{ id title description state {{ name }} priority assignee {{ name }} createdAt }} }}",
+            _=>GetParam<string>(p,"query")??throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
         var req=new HttpRequestMessage(HttpMethod.Post,"https://api.linear.app/graphql"){Content=JsonContent.Create(new{query})};
         req.Headers.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",key);
@@ -239,13 +240,13 @@ public sealed class AsanaToolkit(ToolkitConfig? config=null):ToolkitBase(config)
     public override ToolkitCategory Category=>ToolkitCategory.Productivity;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("token")??throw new InvalidOperationException("Asana token not set");
+        var token=GetRequiredSetting("token");
         return a switch{
             "list_workspaces"=>await AsGet("workspaces",token,ct).ConfigureAwait(false),
-            "list_projects"  =>await AsGet($"projects?workspace={GetParam<string>(p,"workspace")?? throw new ArgumentException("workspace required")}",token,ct).ConfigureAwait(false),
-            "list_tasks"     =>await AsGet($"tasks?project={GetParam<string>(p,"project")?? throw new ArgumentException("project required")}&opt_fields=id,name,completed,due_on,assignee",token,ct).ConfigureAwait(false),
-            "get_task"       =>await AsGet($"tasks/{GetParam<string>(p,"id")?? throw new ArgumentException("id required")}",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_workspaces|list_projects|list_tasks|get_task")
+            "list_projects"  =>await AsGet($"projects?workspace={GetRequiredParam<string>(p,"workspace")}",token,ct).ConfigureAwait(false),
+            "list_tasks"     =>await AsGet($"tasks?project={GetRequiredParam<string>(p,"project")}&opt_fields=id,name,completed,due_on,assignee",token,ct).ConfigureAwait(false),
+            "get_task"       =>await AsGet($"tasks/{GetRequiredParam<string>(p,"id")}",token,ct).ConfigureAwait(false),
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> AsGet(string path,string token,CancellationToken ct){
@@ -263,16 +264,16 @@ public sealed class TrelloToolkit(ToolkitConfig? config=null):ToolkitBase(config
     public override ToolkitCategory Category=>ToolkitCategory.Productivity;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"))&&!string.IsNullOrWhiteSpace(GetSetting("token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var key=GetSetting("api_key")??throw new InvalidOperationException("Trello api_key not set");
-        var tok=GetSetting("token")??throw new InvalidOperationException("Trello token not set");
+        var key=GetRequiredSetting("api_key");
+        var tok=GetRequiredSetting("token");
         var auth=$"key={key}&token={tok}";
         return a switch{
             "list_boards"  =>await TrGet($"members/me/boards?{auth}&fields=id,name,desc,url",ct).ConfigureAwait(false),
-            "get_board"    =>await TrGet($"boards/{GetParam<string>(p,"id")?? throw new ArgumentException("id required")}?{auth}",ct).ConfigureAwait(false),
-            "list_lists"   =>await TrGet($"boards/{GetParam<string>(p,"board_id")?? throw new ArgumentException("board_id required")}/lists?{auth}",ct).ConfigureAwait(false),
-            "list_cards"   =>await TrGet($"lists/{GetParam<string>(p,"list_id")?? throw new ArgumentException("list_id required")}/cards?{auth}",ct).ConfigureAwait(false),
-            "get_card"     =>await TrGet($"cards/{GetParam<string>(p,"id")?? throw new ArgumentException("id required")}?{auth}",ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_boards|get_board|list_lists|list_cards|get_card")
+            "get_board"    =>await TrGet($"boards/{GetRequiredParam<string>(p,"id")}?{auth}",ct).ConfigureAwait(false),
+            "list_lists"   =>await TrGet($"boards/{GetRequiredParam<string>(p,"board_id")}/lists?{auth}",ct).ConfigureAwait(false),
+            "list_cards"   =>await TrGet($"lists/{GetRequiredParam<string>(p,"list_id")}/cards?{auth}",ct).ConfigureAwait(false),
+            "get_card"     =>await TrGet($"cards/{GetRequiredParam<string>(p,"id")}?{auth}",ct).ConfigureAwait(false),
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> TrGet(string path,CancellationToken ct)=>ToolkitResult.Success(await Http.Client.GetFromJsonAsync<JsonElement>($"https://api.trello.com/1/{path}",ct).ConfigureAwait(false));
@@ -285,13 +286,13 @@ public sealed class TodoistToolkit(ToolkitConfig? config=null):ToolkitBase(confi
     public override ToolkitCategory Category=>ToolkitCategory.Productivity;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("token")??throw new InvalidOperationException("Todoist token not set");
+        var token=GetRequiredSetting("token");
         return a switch{
             "list_tasks"    =>await TdGet($"tasks?project_id={GetParam<string>(p,"project_id")??""}",token,ct).ConfigureAwait(false),
-            "get_task"      =>await TdGet($"tasks/{GetParam<string>(p,"id")?? throw new ArgumentException("id required")}",token,ct).ConfigureAwait(false),
+            "get_task"      =>await TdGet($"tasks/{GetRequiredParam<string>(p,"id")}",token,ct).ConfigureAwait(false),
             "list_projects" =>await TdGet("projects",token,ct).ConfigureAwait(false),
-            "close_task"    =>await TdPost($"tasks/{GetParam<string>(p,"id")?? throw new ArgumentException("id required")}/close",null,token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_tasks|get_task|list_projects|close_task")
+            "close_task"    =>await TdPost($"tasks/{GetRequiredParam<string>(p,"id")}/close",null,token,ct).ConfigureAwait(false),
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> TdGet(string path,string token,CancellationToken ct){
@@ -315,13 +316,13 @@ public sealed class GoogleTasksToolkit(ToolkitConfig? config=null):ToolkitBase(c
     public override ToolkitCategory Category=>ToolkitCategory.Productivity;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("access_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("access_token")??throw new InvalidOperationException("Google access_token not set");
+        var token=GetRequiredSetting("access_token");
         var listId=GetParam<string>(p,"tasklist_id")??"@default";
         return a switch{
             "list_tasklists"=>await GoogleCalendarToolkit.GcGet("tasks/v1/users/@me/lists",token,ct).ConfigureAwait(false),
             "list_tasks"    =>await GoogleCalendarToolkit.GcGet($"tasks/v1/lists/{Uri.EscapeDataString(listId)}/tasks",token,ct).ConfigureAwait(false),
-            "get_task"      =>await GoogleCalendarToolkit.GcGet($"tasks/v1/lists/{Uri.EscapeDataString(listId)}/tasks/{GetParam<string>(p,"id")?? throw new ArgumentException("id required")}",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_tasklists|list_tasks|get_task")
+            "get_task"      =>await GoogleCalendarToolkit.GcGet($"tasks/v1/lists/{Uri.EscapeDataString(listId)}/tasks/{GetRequiredParam<string>(p,"id")}",token,ct).ConfigureAwait(false),
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
 }
@@ -347,23 +348,21 @@ public sealed class ObsidianToolkit(ToolkitConfig? config=null):ToolkitBase(conf
         var apiKey=GetSetting("api_key")??"";
         return a switch{
             "list_files"  =>await ObGet($"{base_}/vault/",apiKey,ct).ConfigureAwait(false),
-            "read_note"   =>await ObGet($"{base_}/vault/{Uri.EscapeDataString(GetParam<string>(p,"path")?? throw new ArgumentException("path required"))}",apiKey,ct).ConfigureAwait(false),
-            "search"      =>await ObPost($"{base_}/search/",new{query=GetParam<string>(p,"query")?? throw new ArgumentException("query required")},apiKey,ct).ConfigureAwait(false),
+            "read_note"   =>await ObGet($"{base_}/vault/{Uri.EscapeDataString(GetRequiredParam<string>(p,"path"))}",apiKey,ct).ConfigureAwait(false),
+            "search"      =>await ObPost($"{base_}/search/",new{query=GetRequiredParam<string>(p,"query")},apiKey,ct).ConfigureAwait(false),
             "active_note" =>await ObGet($"{base_}/active/",apiKey,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_files|read_note|search|active_note. Requires obsidian-local-rest-api plugin: https://github.com/coddingtonbear/obsidian-local-rest-api")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> ObGet(string url,string key,CancellationToken ct){
         var req=new HttpRequestMessage(HttpMethod.Get,url);
         if(!string.IsNullOrWhiteSpace(key))req.Headers.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",key);
-        var handler=new HttpClientHandler{ServerCertificateCustomValidationCallback=(_,_,_,_)=>true};
-        using var client=new HttpClient(handler){Timeout=TimeSpan.FromSeconds(10)};
+        using var client=new HttpClient{Timeout=TimeSpan.FromSeconds(10)};
         var resp=await client.SendAsync(req,ct).ConfigureAwait(false);resp.EnsureSuccessStatusCode();
         return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
     }
     private static async Task<ToolkitResult> ObPost(string url,object body,string key,CancellationToken ct){
-        var handler=new HttpClientHandler{ServerCertificateCustomValidationCallback=(_,_,_,_)=>true};
-        using var client=new HttpClient(handler){Timeout=TimeSpan.FromSeconds(10)};
+        using var client=new HttpClient{Timeout=TimeSpan.FromSeconds(10)};
         var req=new HttpRequestMessage(HttpMethod.Post,url){Content=JsonContent.Create(body)};
         if(!string.IsNullOrWhiteSpace(key))req.Headers.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",key);
         var resp=await client.SendAsync(req,ct).ConfigureAwait(false);resp.EnsureSuccessStatusCode();
@@ -378,14 +377,14 @@ public sealed class HabiticaToolkit(ToolkitConfig? config=null):ToolkitBase(conf
     public override ToolkitCategory Category=>ToolkitCategory.Productivity;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_user"))&&!string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var user=GetSetting("api_user")??throw new InvalidOperationException("Habitica api_user not set");
-        var key=GetSetting("api_key")??throw new InvalidOperationException("Habitica api_key not set");
+        var user=GetRequiredSetting("api_user");
+        var key=GetRequiredSetting("api_key");
         return a switch{
             "get_user"    =>await HbGet("user",user,key,ct).ConfigureAwait(false),
             "list_tasks"  =>await HbGet($"tasks/user?type={GetParam<string>(p,"type")??"todos"}",user,key,ct).ConfigureAwait(false),
-            "score_task"  =>await HbPost($"tasks/{GetParam<string>(p,"task_id")?? throw new ArgumentException("task_id required")}/score/{GetParam<string>(p,"direction")??"up"}",null,user,key,ct).ConfigureAwait(false),
+            "score_task"  =>await HbPost($"tasks/{GetRequiredParam<string>(p,"task_id")}/score/{GetParam<string>(p,"direction")??"up"}",null,user,key,ct).ConfigureAwait(false),
             "list_party"  =>await HbGet("groups/party",user,key,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: get_user|list_tasks|score_task|list_party")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> HbGet(string path,string user,string key,CancellationToken ct){
@@ -409,12 +408,12 @@ public sealed class CalendlyToolkit(ToolkitConfig? config=null):ToolkitBase(conf
     public override ToolkitCategory Category=>ToolkitCategory.Productivity;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("token")??throw new InvalidOperationException("Calendly token not set");
+        var token=GetRequiredSetting("token");
         return a switch{
             "get_user"        =>await ClGet("users/me",token,ct).ConfigureAwait(false),
-            "list_event_types"=>await ClGet($"event_types?user={GetSetting("user_uri")?? throw new ArgumentException("user_uri required in settings")}",token,ct).ConfigureAwait(false),
-            "list_events"     =>await ClGet($"scheduled_events?user={GetSetting("user_uri")?? throw new ArgumentException("user_uri required")}&count={GetParam<int?>(p,"count")??10}",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: get_user|list_event_types|list_events")
+            "list_event_types"=>await ClGet($"event_types?user={GetRequiredSetting("user_uri")}",token,ct).ConfigureAwait(false),
+            "list_events"     =>await ClGet($"scheduled_events?user={GetRequiredSetting("user_uri")}&count={GetParam<int?>(p,"count")??10}",token,ct).ConfigureAwait(false),
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> ClGet(string path,string token,CancellationToken ct){
@@ -432,14 +431,14 @@ public sealed class DocuSignToolkit(ToolkitConfig? config=null):ToolkitBase(conf
     public override ToolkitCategory Category=>ToolkitCategory.Productivity;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("access_token"))&&!string.IsNullOrWhiteSpace(GetSetting("account_id"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("access_token")??throw new InvalidOperationException("DocuSign access_token not set");
-        var accountId=GetSetting("account_id")??throw new InvalidOperationException("DocuSign account_id not set");
+        var token=GetRequiredSetting("access_token");
+        var accountId=GetRequiredSetting("account_id");
         var base_=GetSetting("base_url")??"https://na4.docusign.net/restapi/v2.1";
         return a switch{
             "list_envelopes"=>await DsGet($"{base_}/accounts/{accountId}/envelopes?from_date={GetParam<string>(p,"from_date")??DateTime.UtcNow.AddDays(-30).ToString("yyyy-MM-dd")}&count={GetParam<int?>(p,"count")??10}",token,ct).ConfigureAwait(false),
-            "get_envelope"  =>await DsGet($"{base_}/accounts/{accountId}/envelopes/{GetParam<string>(p,"envelope_id")?? throw new ArgumentException("envelope_id required")}",token,ct).ConfigureAwait(false),
+            "get_envelope"  =>await DsGet($"{base_}/accounts/{accountId}/envelopes/{GetRequiredParam<string>(p,"envelope_id")}",token,ct).ConfigureAwait(false),
             "get_userinfo"  =>await DsGet("https://account.docusign.com/oauth/userinfo",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_envelopes|get_envelope|get_userinfo")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> DsGet(string url,string token,CancellationToken ct){

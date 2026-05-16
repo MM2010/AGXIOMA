@@ -1,4 +1,6 @@
+using AGXIOME.Shared.Errors;
 using AGXIOME.Shared.Logging;
+using System.Text.RegularExpressions;
 
 namespace AGXIOME.Core.Logging;
 
@@ -75,23 +77,48 @@ internal sealed class AgxiomeLogger : IAgxiomeLogger
     public void Exception(Exception ex, string message, params object?[] args)
     {
         if (IsEnabled(LogLevel.Exception))
-            _provider.Log(LogLevel.Exception, ModuleName, $"{message} | {ex.GetType().Name}: {ex.Message} | {ex.StackTrace}", args);
+        {
+            var formattedMessage = FormatMessage(message, args);
+
+            var payload = ex is AgxiomeException agxiomeException
+                ? $"{formattedMessage} | {ErrorCatalog.GetCode(agxiomeException.ErrorCode)} | user='{agxiomeException.UserMessage}' | category='{agxiomeException.Category}' | retryable={agxiomeException.IsRetryable}"
+                : $"{formattedMessage} | {ex.GetType().Name}";
+
+            _provider.Log(LogLevel.Exception, ModuleName, payload, args);
+        }
     }
 
     private void Log(LogLevel level, string message, object?[] args)
     {
         if (!IsEnabled(level)) return;
+        _provider.Log(level, ModuleName, FormatMessage(message, args), args);
+    }
+
+    private static string FormatMessage(string message, object?[] args)
+    {
+        if (args.Length == 0)
+            return message;
+
         try
         {
-            var formatted = args.Length > 0 ? string.Format(message, args) : message;
-            _provider.Log(level, ModuleName, formatted, args);
+            return string.Format(message, args);
         }
         catch (FormatException)
         {
-            // If message uses structured logging placeholders ({Name}), fall back to raw message
-            _provider.Log(level, ModuleName, message, args);
+            // Accept structured templates like {Id} and project args positionally without leaking the raw template.
+            var argIndex = 0;
+            return StructuredPlaceholderRegex.Replace(message, _ =>
+            {
+                if (argIndex >= args.Length)
+                    return string.Empty;
+
+                var value = args[argIndex++];
+                return value?.ToString() ?? string.Empty;
+            });
         }
     }
+
+    private static readonly Regex StructuredPlaceholderRegex = new(@"\{[^{}]+\}", RegexOptions.Compiled);
 
     private static ILogProvider CreateProvider(LoggingConfig config) => config.Provider.ToLowerInvariant() switch
     {

@@ -17,8 +17,8 @@ public class WorkflowEdgeTests
         wf.AddTransition("b", "a"); // cycle!
 
         var result = await wf.ExecuteAsync(new WorkflowContext());
-        // Should not hang; completes with partial results
-        Assert.True(result.Status == WorkflowStatus.Completed || result.Status == WorkflowStatus.Failed);
+        Assert.Equal(WorkflowStatus.Completed, result.Status);
+        Assert.Empty(result.StepResults);
     }
 
     [Fact]
@@ -83,20 +83,33 @@ public class WorkflowEdgeTests
     }
 
     [Fact]
-    public async Task NestedWorkflow_3Levels()
+    public async Task ThreeStepChain_ExecutesEachStepExactlyOnce()
     {
-        var inner = new AgxiomeWorkflow("inner");
-        inner.AddStep("inner-step", ctx => Task.CompletedTask);
+        var executed = new List<string>();
+        var workflow = new AgxiomeWorkflow("chain");
+        workflow.AddStep("outer-step", ctx =>
+        {
+            executed.Add("outer-step");
+            return Task.CompletedTask;
+        });
+        workflow.AddStep("mid-step", ctx =>
+        {
+            executed.Add("mid-step");
+            return Task.CompletedTask;
+        });
+        workflow.AddStep("inner-step", ctx =>
+        {
+            executed.Add("inner-step");
+            return Task.CompletedTask;
+        });
+        workflow.AddTransition("outer-step", "mid-step");
+        workflow.AddTransition("mid-step", "inner-step");
 
-        var mid = new AgxiomeWorkflow("mid");
-        mid.AddAgentStep("mid-step", AGXIOME.Core.Agent.AgentFactory.CreateTestAgent("mid-agent"));
+        var result = await workflow.ExecuteAsync(new WorkflowContext());
 
-        var outer = new AgxiomeWorkflow("outer");
-        outer.AddStep("outer-step", ctx => Task.CompletedTask);
-        outer.AddTransition("outer-step", "mid-step");
-
-        // Just verify no crash
-        var result = await outer.ExecuteAsync(new WorkflowContext());
-        Assert.NotNull(result);
+        Assert.Equal(WorkflowStatus.Completed, result.Status);
+        Assert.Equal(["outer-step", "mid-step", "inner-step"], executed);
+        Assert.Equal(3, result.StepResults.Count);
+        Assert.All(result.StepResults, step => Assert.Equal(StepStatus.Completed, step.Status));
     }
 }

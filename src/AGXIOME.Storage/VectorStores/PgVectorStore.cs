@@ -1,4 +1,5 @@
 using AGXIOME.Shared.Interfaces;
+using AGXIOME.Shared.Errors;
 using AGXIOME.Shared.Models;
 using Dapper;
 using Npgsql;
@@ -28,7 +29,7 @@ public sealed class PgVectorStore : IVectorStore
         await conn.OpenAsync(ct);
         // Enable pgvector extension (idempotent).
         await conn.ExecuteAsync("CREATE EXTENSION IF NOT EXISTS vector;");
-        // Table name sanitised — see ValidateCollection.
+        // Table name sanitised ï¿½ see ValidateCollection.
         var sql = $@"CREATE TABLE IF NOT EXISTS {collection} (
             id           TEXT    NOT NULL PRIMARY KEY,
             vector       vector({dimensions}) NOT NULL,
@@ -80,7 +81,7 @@ public sealed class PgVectorStore : IVectorStore
 
     public async Task UpsertBatchAsync(string collection, IReadOnlyList<VectorRecord> records, CancellationToken ct = default)
     {
-        // Sequential upserts — batch via COPY is faster for large volumes but adds complexity;
+        // Sequential upserts ï¿½ batch via COPY is faster for large volumes but adds complexity;
         // keep it simple until a performance budget is exceeded.
         foreach (var record in records)
             await UpsertAsync(collection, record, ct);
@@ -153,9 +154,7 @@ public sealed class PgVectorStore : IVectorStore
     /// <summary>Guard against SQL injection via collection name. Allow only identifier-safe chars.</summary>
     private static void ValidateCollection(string collection)
     {
-        if (string.IsNullOrWhiteSpace(collection)
-            || !System.Text.RegularExpressions.Regex.IsMatch(collection, @"^[a-zA-Z_][a-zA-Z0-9_.]*$"))
-            throw new ArgumentException($"Invalid collection name: '{collection}'. Must match ^[a-zA-Z_][a-zA-Z0-9_.]*$");
+        VectorStoreGuards.ValidateCollectionName("PgVector", collection, @"^[a-zA-Z_][a-zA-Z0-9_.]*$");
     }
 
     private static string FormatVector(float[] v) =>

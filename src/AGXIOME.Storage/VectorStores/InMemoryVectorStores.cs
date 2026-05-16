@@ -1,4 +1,5 @@
 using AGXIOME.Shared.Interfaces;
+using AGXIOME.Shared.Errors;
 using AGXIOME.Shared.Models;
 using System.Collections.Concurrent;
 
@@ -102,7 +103,7 @@ public sealed class HNSWLibStore : IVectorStore
 
     private InMemoryVectorCollection GetOrThrow(string name) =>
         _collections.TryGetValue(name, out var c) ? c
-            : throw new InvalidOperationException($"Collection '{name}' does not exist. Call EnsureCollectionAsync first.");
+            : throw AgxiomeStorageException.CollectionMissing("HNSWLib", name);
 
     private static float CosineSimilarity(float[] a, float[] b)
     {
@@ -203,7 +204,7 @@ public sealed class FaissStore : IVectorStore
 
     private InMemoryVectorCollection GetOrThrow(string name) =>
         _collections.TryGetValue(name, out var c) ? c
-            : throw new InvalidOperationException($"Collection '{name}' does not exist.");
+            : throw AgxiomeStorageException.CollectionMissing("FAISS", name);
 }
 
 // ─── VD-27 — Annoy ───────────────────────────────────────────────────────────
@@ -274,7 +275,7 @@ public sealed class AnnoyStore : IVectorStore
 
     private InMemoryVectorCollection GetOrThrow(string name) =>
         _collections.TryGetValue(name, out var c) ? c
-            : throw new InvalidOperationException($"Collection '{name}' does not exist.");
+            : throw AgxiomeStorageException.CollectionMissing("Annoy", name);
 
     private static float CosineSimilarity(float[] a, float[] b)
     {

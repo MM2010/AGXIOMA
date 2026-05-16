@@ -10,6 +10,7 @@
     <!-- AGXIOMA framework references -->
     <ProjectReference Include="..\..\src\AGXIOME.Core\AGXIOME.Core.csproj" />
     <ProjectReference Include="..\..\src\AGXIOME.LLMWIKY\AGXIOME.LLMWIKY.csproj" />
+    <ProjectReference Include="..\..\src\AGXIOME.Runtime\AGXIOME.Runtime.csproj" />
     <ProjectReference Include="..\..\src\AGXIOME.Shared\AGXIOME.Shared.csproj" />
     <ProjectReference Include="..\..\src\AGXIOME.Storage\AGXIOME.Storage.csproj" />
   </ItemGroup>

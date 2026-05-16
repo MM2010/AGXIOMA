@@ -4,6 +4,7 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using AGXIOME.Security.ApiKey;
 using AGXIOME.Security.Rbac;
 using AGXIOME.Security.RateLimit;
@@ -41,15 +42,10 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next)
 /// </summary>
 public sealed class AgxiomeAuthMiddleware(RequestDelegate next, IApiKeyStore keyStore, AuditLogger audit)
 {
-    private static readonly HashSet<string> PublicPaths =
-    [
-        "/health", "/hubs/agent", "/hubs/log", "/hubs/admin"
-    ];
-
     public async Task InvokeAsync(HttpContext ctx)
     {
-        // Skip public paths
-        if (PublicPaths.Any(p => ctx.Request.Path.StartsWithSegments(p)))
+        var endpoint = ctx.GetEndpoint();
+        if (endpoint?.Metadata.GetMetadata<IAllowAnonymous>() is not null)
         {
             await next(ctx);
             return;
@@ -111,8 +107,31 @@ public sealed class RbacMiddleware(RequestDelegate next, IRbacPolicy policy)
 
     public async Task InvokeAsync(HttpContext ctx)
     {
+        var endpoint = ctx.GetEndpoint();
+        if (endpoint?.Metadata.GetMetadata<IAllowAnonymous>() is not null)
+        {
+            await next(ctx);
+            return;
+        }
+
         if (ctx.Items["AgxiomePrincipal"] is not AgxiomePrincipal principal)
         {
+            await next(ctx);
+            return;
+        }
+
+        var permissionMetadata = endpoint?.Metadata.GetMetadata<AgxiomePermissionMetadata>();
+        if (permissionMetadata is not null)
+        {
+            if (!policy.IsAuthorized(principal, permissionMetadata.Permission))
+            {
+                ctx.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+                ctx.Response.ContentType = "application/json";
+                await ctx.Response.WriteAsync(JsonSerializer.Serialize(
+                    new { code = "forbidden", message = $"Permission '{permissionMetadata.Permission}' required" }));
+                return;
+            }
+
             await next(ctx);
             return;
         }
@@ -153,11 +172,13 @@ public sealed class RateLimiterMiddleware(RequestDelegate next, IRateLimiter lim
 
     public async Task InvokeAsync(HttpContext ctx)
     {
+        var endpoint = ctx.GetEndpoint();
         var ip    = ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var route = ctx.Request.Path.Value ?? "/";
         var key   = $"ip:{ip}:{route}";
 
-        var result = limiter.Check(key, DefaultPolicy);
+        var policy = endpoint?.Metadata.GetMetadata<AgxiomeRateLimitMetadata>()?.Policy ?? DefaultPolicy;
+        var result = limiter.Check(key, policy);
         if (!result.IsAllowed)
         {
             ctx.Response.StatusCode = 429;
@@ -190,14 +211,39 @@ public sealed class ErrorHandlerMiddleware(RequestDelegate next, IWebHostEnviron
         {
             // Normal cancellation — ignore
         }
+        catch (BadHttpRequestException)
+        {
+            ctx.Response.StatusCode = StatusCodes.Status400BadRequest;
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync(JsonSerializer.Serialize(new
+            {
+                code = "bad_request",
+                message = "Malformed request payload.",
+                traceId = ctx.TraceIdentifier
+            }));
+        }
+        catch (JsonException)
+        {
+            ctx.Response.StatusCode = StatusCodes.Status400BadRequest;
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync(JsonSerializer.Serialize(new
+            {
+                code = "bad_request",
+                message = "Malformed request payload.",
+                traceId = ctx.TraceIdentifier
+            }));
+        }
         catch (Exception ex)
         {
             ctx.Response.StatusCode  = (int)HttpStatusCode.InternalServerError;
             ctx.Response.ContentType = "application/json";
 
-            var body = env.IsDevelopment()
-                ? new { code = "internal_error", message = ex.Message, detail = ex.StackTrace }
-                : (object)new { code = "internal_error", message = "An unexpected error occurred." };
+            var body = new
+            {
+                code = "internal_error",
+                message = "An unexpected error occurred.",
+                traceId = ctx.TraceIdentifier
+            };
 
             await ctx.Response.WriteAsync(JsonSerializer.Serialize(body));
         }

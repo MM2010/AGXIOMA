@@ -17,7 +17,7 @@ namespace AgxiomaLLMWiki;
 ///   5. LLM synthesises answer with citations ([[PageSlug]])
 ///   6. Log query to wiki_log + log.md
 /// </summary>
-public sealed class WikiQueryEngine
+public sealed class WikiQueryEngine : IWikiQueryEngine
 {
     private readonly WikiSettings            _settings;
     private readonly IIngestProfileProvider  _profileProvider;

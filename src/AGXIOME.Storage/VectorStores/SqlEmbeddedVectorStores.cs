@@ -1,4 +1,5 @@
 using AGXIOME.Shared.Interfaces;
+using AGXIOME.Shared.Errors;
 using AGXIOME.Shared.Models;
 using Dapper;
 using DuckDB.NET.Data;
@@ -134,9 +135,7 @@ public sealed class SqliteVecStore : IVectorStore
 
     private static void ValidateCollection(string name)
     {
-        if (string.IsNullOrWhiteSpace(name)
-            || !System.Text.RegularExpressions.Regex.IsMatch(name, @"^[a-zA-Z_][a-zA-Z0-9_]*$"))
-            throw new ArgumentException($"Invalid collection name: '{name}'.");
+        VectorStoreGuards.ValidateCollectionName("SqliteVec", name, @"^[a-zA-Z_][a-zA-Z0-9_]*$");
     }
 
     private static float CosineSimilarity(float[] a, float[] b)
@@ -275,9 +274,7 @@ public sealed class DuckDbVectorStore : IVectorStore
 
     private static void ValidateCollection(string name)
     {
-        if (string.IsNullOrWhiteSpace(name)
-            || !System.Text.RegularExpressions.Regex.IsMatch(name, @"^[a-zA-Z_][a-zA-Z0-9_]*$"))
-            throw new ArgumentException($"Invalid collection name: '{name}'.");
+        VectorStoreGuards.ValidateCollectionName("DuckDBVector", name, @"^[a-zA-Z_][a-zA-Z0-9_]*$");
     }
 
     // SQL-safe: escape single quotes by doubling them (DuckDB / ANSI SQL standard).

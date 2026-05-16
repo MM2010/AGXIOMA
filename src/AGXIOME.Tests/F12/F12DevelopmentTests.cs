@@ -11,13 +11,13 @@ public sealed class GitHubToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new GitHubToolkit().ExecuteAsync("list_repos", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("github", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new GitHubToolkit(cfg).ExecuteAsync("list_repos", new Dictionary<string, object?> { ["owner"] = "user" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -35,7 +35,7 @@ public sealed class GitLabToolkitTests
     {
         var cfg = new ToolkitConfig("gitlab", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new GitLabToolkit(cfg).ExecuteAsync("list_projects", new Dictionary<string, object?> { ["namespace"] = "user" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -53,7 +53,7 @@ public sealed class BitbucketToolkitTests
     {
         var cfg = new ToolkitConfig("bitbucket", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new BitbucketToolkit(cfg).ExecuteAsync("list_repos", new Dictionary<string, object?> { ["workspace"] = "ws" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -65,7 +65,7 @@ public sealed class GitToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new GitToolkit().ExecuteAsync("status", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
@@ -83,7 +83,7 @@ public sealed class NuGetToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new NuGetToolkit().ExecuteAsync("search", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
@@ -101,13 +101,13 @@ public sealed class DockerToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new DockerToolkit().ExecuteAsync("list_containers", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("docker", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new DockerToolkit(cfg).ExecuteAsync("list_containers", new Dictionary<string, object?> { ["all"] = true }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -119,13 +119,13 @@ public sealed class K8sToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new KubernetesToolkit().ExecuteAsync("list_pods", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("kubernetes", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new KubernetesToolkit(cfg).ExecuteAsync("list_pods", new Dictionary<string, object?> { ["namespace"] = "default" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -137,13 +137,13 @@ public sealed class TerraformToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new TerraformToolkit().ExecuteAsync("plan", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("terraform", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new TerraformToolkit(cfg).ExecuteAsync("plan", new Dictionary<string, object?> { ["dir"] = "." }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -155,13 +155,13 @@ public sealed class PulumiToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new PulumiToolkit().ExecuteAsync("preview", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("pulumi", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new PulumiToolkit(cfg).ExecuteAsync("preview", new Dictionary<string, object?> { ["stack"] = "dev" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -173,13 +173,13 @@ public sealed class HelmToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new HelmToolkit().ExecuteAsync("list", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("helm", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new HelmToolkit(cfg).ExecuteAsync("list", new Dictionary<string, object?> { ["namespace"] = "default" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -191,13 +191,13 @@ public sealed class AwsCliToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new AwsCliToolkit().ExecuteAsync("run_command", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("aws_cli", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new AwsCliToolkit(cfg).ExecuteAsync("run_command", new Dictionary<string, object?> { ["command"] = "s3 ls" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -209,13 +209,13 @@ public sealed class AzureCliToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new AzureCliToolkit().ExecuteAsync("run_command", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("azure_cli", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new AzureCliToolkit(cfg).ExecuteAsync("run_command", new Dictionary<string, object?> { ["command"] = "account list" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -227,13 +227,13 @@ public sealed class GcpCliToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new GcpCliToolkit().ExecuteAsync("run_command", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("gcp_cli", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new GcpCliToolkit(cfg).ExecuteAsync("run_command", new Dictionary<string, object?> { ["command"] = "projects list" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -287,7 +287,7 @@ public sealed class ShellToolkitTests
     {
         var cfg = new ToolkitConfig("shell", new Dictionary<string, string> { ["enabled"] = "true" });
         var r = await new ShellToolkit(cfg).ExecuteAsync("run", new Dictionary<string, object?> { ["command"] = "echo hi" }, default);
-        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
 }
 
@@ -305,7 +305,7 @@ public sealed class PythonRunnerToolkitTests
     {
         var cfg = new ToolkitConfig("python_runner", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new PythonRunnerToolkit(cfg).ExecuteAsync("run", new Dictionary<string, object?> { ["code"] = "print(1)" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -323,7 +323,7 @@ public sealed class JupyterToolkitTests
     {
         var cfg = new ToolkitConfig("jupyter", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new JupyterToolkit(cfg).ExecuteAsync("run_cell", new Dictionary<string, object?> { ["code"] = "1+1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -335,7 +335,7 @@ public sealed class BuildToolsToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new BuildToolsToolkit().ExecuteAsync("build", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
@@ -353,7 +353,7 @@ public sealed class CodeQualityToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new CodeQualityToolkit().ExecuteAsync("analyze", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {

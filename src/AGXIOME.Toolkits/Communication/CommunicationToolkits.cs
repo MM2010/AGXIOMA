@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Net.Mail;
 using System.Text;
 using System.Text.Json;
+using AGXIOME.Shared.Errors;
 
 namespace AGXIOME.Toolkits.Communication;
 
@@ -24,13 +25,13 @@ public sealed class SlackToolkit(ToolkitConfig? config = null) : ToolkitBase(con
 
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string action, Dictionary<string, object?> p, CancellationToken ct)
     {
-        var token = GetSetting("token") ?? throw new InvalidOperationException("Slack token not set");
+        var token = GetRequiredSetting("token");
         return action switch {
             "send_message"  => await SlackPost("chat.postMessage", new { channel = GetParam<string>(p,"channel") ?? "#general", text = GetParam<string>(p,"text") ?? GetParam<string>(p,"message") ?? "" }, token, ct).ConfigureAwait(false),
             "list_channels" => await SlackGet("conversations.list?limit=200", token, ct).ConfigureAwait(false),
             "get_history"   => await SlackGet($"conversations.history?channel={GetParam<string>(p,"channel")}&limit={GetParam<int?>(p,"limit")??50}", token, ct).ConfigureAwait(false),
             "upload_file"   => await SlackPost("files.getUploadURLExternal", new { filename = GetParam<string>(p,"filename"), length = GetParam<int?>(p,"length")??0 }, token, ct).ConfigureAwait(false),
-            _ => ToolkitResult.Fail($"Unknown action '{action}'. Valid: send_message|list_channels|get_history|upload_file")
+            _ => throw AgxiomeToolkitException.UnknownAction(Id, action)
         };
     }
     private static async Task<ToolkitResult> SlackPost(string method, object body, string token, CancellationToken ct) {
@@ -60,13 +61,12 @@ public sealed class DiscordToolkit(ToolkitConfig? config = null) : ToolkitBase(c
     public override ToolkitCategory Category => ToolkitCategory.Communication;
     public override bool IsConfigured => !string.IsNullOrWhiteSpace(GetSetting("bot_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string action, Dictionary<string, object?> p, CancellationToken ct) {
-        var token = GetSetting("bot_token") ?? throw new InvalidOperationException("Discord bot_token not set");
-        var channelId = GetParam<string>(p, "channel_id") ?? "";
+        var token = GetRequiredSetting("bot_token");
         return action switch {
-            "send_message" => await DiscordPost($"channels/{channelId}/messages", new { content = GetParam<string>(p,"message") ?? GetParam<string>(p,"content") ?? "" }, token, ct).ConfigureAwait(false),
-            "get_messages" => await DiscordGet($"channels/{channelId}/messages?limit={GetParam<int?>(p,"limit")??50}", token, ct).ConfigureAwait(false),
+            "send_message" => await DiscordPost($"channels/{GetRequiredParam<string>(p, "channel_id")}/messages", new { content = GetParam<string>(p,"message") ?? GetParam<string>(p,"content") ?? "" }, token, ct).ConfigureAwait(false),
+            "get_messages" => await DiscordGet($"channels/{GetRequiredParam<string>(p, "channel_id")}/messages?limit={GetParam<int?>(p,"limit")??50}", token, ct).ConfigureAwait(false),
             "get_guilds"   => await DiscordGet("users/@me/guilds", token, ct).ConfigureAwait(false),
-            _ => ToolkitResult.Fail($"Unknown action '{action}'. Valid: send_message|get_messages|get_guilds")
+            _ => throw AgxiomeToolkitException.UnknownAction(Id, action)
         };
     }
     private static async Task<ToolkitResult> DiscordPost(string path, object body, string token, CancellationToken ct) {
@@ -93,7 +93,7 @@ public sealed class TelegramToolkit(ToolkitConfig? config = null) : ToolkitBase(
     public override ToolkitCategory Category => ToolkitCategory.Communication;
     public override bool IsConfigured => !string.IsNullOrWhiteSpace(GetSetting("bot_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string action, Dictionary<string, object?> p, CancellationToken ct) {
-        var token = GetSetting("bot_token") ?? throw new InvalidOperationException("Telegram bot_token not set");
+        var token = GetRequiredSetting("bot_token");
         string Base(string method) => $"https://api.telegram.org/bot{token}/{method}";
         return action switch {
             "send_message"    => await TgPost(Base("sendMessage"), new { chat_id=GetParam<string>(p,"chat_id"), text=GetParam<string>(p,"text")??GetParam<string>(p,"message")??"", parse_mode=GetParam<string>(p,"parse_mode")??"HTML" }, ct).ConfigureAwait(false),
@@ -101,9 +101,9 @@ public sealed class TelegramToolkit(ToolkitConfig? config = null) : ToolkitBase(
             "send_document"   => await TgPost(Base("sendDocument"), new { chat_id=GetParam<string>(p,"chat_id"), document=GetParam<string>(p,"document"), caption=GetParam<string>(p,"caption") }, ct).ConfigureAwait(false),
             "get_updates"     => await TgGet(Base($"getUpdates?offset={GetParam<int?>(p,"offset")??0}&limit={GetParam<int?>(p,"limit")??100}"), ct).ConfigureAwait(false),
             "get_me"          => await TgGet(Base("getMe"), ct).ConfigureAwait(false),
-            "set_webhook"     => await TgPost(Base("setWebhook"), new { url=GetParam<string>(p,"url") }, ct).ConfigureAwait(false),
+            "set_webhook"     => await TgPost(Base("setWebhook"), new { url=GetRequiredParam<string>(p,"url") }, ct).ConfigureAwait(false),
             "delete_webhook"  => await TgPost(Base("deleteWebhook"), new { }, ct).ConfigureAwait(false),
-            _ => ToolkitResult.Fail($"Unknown action '{action}'. Valid: send_message|send_photo|send_document|get_updates|get_me|set_webhook|delete_webhook")
+            _ => throw AgxiomeToolkitException.UnknownAction(Id, action)
         };
     }
     private static async Task<ToolkitResult> TgPost(string url, object body, CancellationToken ct) {
@@ -127,13 +127,13 @@ public sealed class WhatsAppToolkit(ToolkitConfig? config = null) : ToolkitBase(
     public override ToolkitCategory Category => ToolkitCategory.Communication;
     public override bool IsConfigured => !string.IsNullOrWhiteSpace(GetSetting("access_token")) && !string.IsNullOrWhiteSpace(GetSetting("phone_number_id"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string action, Dictionary<string, object?> p, CancellationToken ct) {
-        var token = GetSetting("access_token") ?? throw new InvalidOperationException("WhatsApp access_token not set");
-        var phoneId = GetSetting("phone_number_id") ?? throw new InvalidOperationException("WhatsApp phone_number_id not set");
+        var token = GetRequiredSetting("access_token");
+        var phoneId = GetRequiredSetting("phone_number_id");
         var to = GetParam<string>(p, "to") ?? "";
         return action switch {
             "send_text" => await WaPost(phoneId, new { messaging_product="whatsapp", to, type="text", text=new{body=GetParam<string>(p,"text")??GetParam<string>(p,"message")??""}}, token, ct).ConfigureAwait(false),
-            "send_template" => await WaPost(phoneId, new { messaging_product="whatsapp", to, type="template", template=new{name=GetParam<string>(p,"template_name"),language=new{code=GetParam<string>(p,"lang")??"en_US"}}}, token, ct).ConfigureAwait(false),
-            _ => ToolkitResult.Fail($"Unknown action '{action}'. Valid: send_text|send_template")
+            "send_template" => await WaPost(phoneId, new { messaging_product="whatsapp", to, type="template", template=new{name=GetRequiredParam<string>(p,"template_name"),language=new{code=GetParam<string>(p,"lang")??"en_US"}}}, token, ct).ConfigureAwait(false),
+            _ => throw AgxiomeToolkitException.UnknownAction(Id, action)
         };
     }
     private static async Task<ToolkitResult> WaPost(string phoneId, object body, string token, CancellationToken ct) {
@@ -155,16 +155,16 @@ public sealed class EmailSmtpToolkit(ToolkitConfig? config = null) : ToolkitBase
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string action, Dictionary<string, object?> p, CancellationToken ct) {
         return action switch {
             "send" or "send_email" => await Send(p, ct).ConfigureAwait(false),
-            _ => ToolkitResult.Fail($"Unknown action '{action}'. Valid: send|send_email")
+            _ => throw AgxiomeToolkitException.UnknownAction(Id, action)
         };
     }
     private async Task<ToolkitResult> Send(Dictionary<string,object?> p, CancellationToken ct) {
-        var host   = GetSetting("host")     ?? throw new InvalidOperationException("SMTP host not set");
+        var host   = GetRequiredSetting("host");
         var port   = int.TryParse(GetSetting("port"), out var pv) ? pv : 587;
-        var user   = GetSetting("username") ?? throw new InvalidOperationException("SMTP username not set");
+        var user   = GetRequiredSetting("username");
         var pass   = GetSetting("password") ?? "";
         var from   = GetSetting("from")     ?? user;
-        var to     = GetParam<string>(p,"to") ?? throw new ArgumentException("to is required");
+        var to     = GetRequiredParam<string>(p,"to");
         var subject = GetParam<string>(p,"subject") ?? "(no subject)";
         var body   = GetParam<string>(p,"body") ?? GetParam<string>(p,"text") ?? "";
         var isHtml = GetParam<bool?>(p,"html") ?? false;
@@ -191,20 +191,25 @@ public sealed class GmailToolkit(ToolkitConfig? config = null) : ToolkitBase(con
     public override ToolkitCategory Category => ToolkitCategory.Communication;
     public override bool IsConfigured => !string.IsNullOrWhiteSpace(GetSetting("access_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string action, Dictionary<string, object?> p, CancellationToken ct) {
-        var token = GetSetting("access_token") ?? throw new InvalidOperationException("Gmail access_token not set");
+        var token = GetRequiredSetting("access_token");
         return action switch {
             "send"         => await GmailSend(p, token, ct).ConfigureAwait(false),
             "list"         => await GmailGet($"messages?maxResults={GetParam<int?>(p,"max")??10}&q={GetParam<string>(p,"query")??""}", token, ct).ConfigureAwait(false),
             "get"          => await GmailGet($"messages/{GetParam<string>(p,"id")}", token, ct).ConfigureAwait(false),
             "labels"       => await GmailGet("labels", token, ct).ConfigureAwait(false),
-            _ => ToolkitResult.Fail($"Unknown action '{action}'. Valid: send|list|get|labels")
+            _ => throw AgxiomeToolkitException.UnknownAction(Id, action)
         };
     }
-    private static async Task<ToolkitResult> GmailSend(Dictionary<string,object?> p, string token, CancellationToken ct) {
-        var to = GetParam(p,"to"); var subject = GetParam(p,"subject")??"(no subject)"; var body = GetParam(p,"body")??"";
+    private Task<ToolkitResult> GmailSend(Dictionary<string,object?> p, string token, CancellationToken ct) {
+        var to = GetRequiredParam<string>(p, "to");
+        var subject = GetParam(p,"subject")??"(no subject)";
+        var body = GetParam(p,"body")??"";
         var raw = Convert.ToBase64String(Encoding.UTF8.GetBytes($"To: {to}\r\nSubject: {subject}\r\nContent-Type: text/plain\r\n\r\n{body}")).Replace('+','-').Replace('/','_').TrimEnd('=');
         var req = new HttpRequestMessage(HttpMethod.Post, "https://gmail.googleapis.com/gmail/v1/users/me/messages/send") { Content = JsonContent.Create(new{raw}) };
         req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        return GmailSendCore(req, ct);
+    }
+    private static async Task<ToolkitResult> GmailSendCore(HttpRequestMessage req, CancellationToken ct) {
         var resp = await Http.Client.SendAsync(req, ct).ConfigureAwait(false);
         resp.EnsureSuccessStatusCode();
         return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
@@ -250,13 +255,13 @@ public sealed class ZoomToolkit(ToolkitConfig? config = null) : ToolkitBase(conf
         return action switch {
             "list_meetings"   => await ZoomGet("users/me/meetings", accessToken, ct).ConfigureAwait(false),
             "create_meeting"  => await ZoomPost("users/me/meetings", new { topic=GetParam<string>(p,"topic"), type=GetParam<int?>(p,"type")??2, start_time=GetParam<string>(p,"start_time"), duration=GetParam<int?>(p,"duration")??60 }, accessToken, ct).ConfigureAwait(false),
-            "get_meeting"     => await ZoomGet($"meetings/{GetParam<string>(p,"meeting_id")}", accessToken, ct).ConfigureAwait(false),
-            "delete_meeting"  => await ZoomDelete($"meetings/{GetParam<string>(p,"meeting_id")}", accessToken, ct).ConfigureAwait(false),
-            _ => ToolkitResult.Fail($"Unknown action '{action}'. Valid: list_meetings|create_meeting|get_meeting|delete_meeting")
+            "get_meeting"     => await ZoomGet($"meetings/{GetRequiredParam<string>(p,"meeting_id")}", accessToken, ct).ConfigureAwait(false),
+            "delete_meeting"  => await ZoomDelete($"meetings/{GetRequiredParam<string>(p,"meeting_id")}", accessToken, ct).ConfigureAwait(false),
+            _ => throw AgxiomeToolkitException.UnknownAction(Id, action)
         };
     }
     private async Task<string> GetZoomToken(CancellationToken ct) {
-        var accountId=GetSetting("account_id")!; var cId=GetSetting("client_id")!; var cSecret=GetSetting("client_secret")??"";
+        var accountId=GetRequiredSetting("account_id"); var cId=GetRequiredSetting("client_id"); var cSecret=GetRequiredSetting("client_secret");
         var creds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{cId}:{cSecret}"));
         var req = new HttpRequestMessage(HttpMethod.Post, $"https://zoom.us/oauth/token?grant_type=account_credentials&account_id={accountId}");
         req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", creds);
@@ -295,7 +300,7 @@ public sealed class GoogleChatToolkit(ToolkitConfig? config = null) : ToolkitBas
     public override ToolkitCategory Category => ToolkitCategory.Communication;
     public override bool IsConfigured => !string.IsNullOrWhiteSpace(GetSetting("webhook_url"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string action, Dictionary<string, object?> p, CancellationToken ct) {
-        var url = GetSetting("webhook_url") ?? throw new InvalidOperationException("Google Chat webhook_url not set");
+        var url = GetRequiredSetting("webhook_url");
         var text = GetParam<string>(p,"text") ?? GetParam<string>(p,"message") ?? "";
         var resp = await Http.Client.PostAsJsonAsync(url, new { text }, ct).ConfigureAwait(false);
         resp.EnsureSuccessStatusCode();
@@ -311,14 +316,14 @@ public sealed class TwilioToolkit(ToolkitConfig? config = null) : ToolkitBase(co
     public override ToolkitCategory Category => ToolkitCategory.Communication;
     public override bool IsConfigured => !string.IsNullOrWhiteSpace(GetSetting("account_sid")) && !string.IsNullOrWhiteSpace(GetSetting("auth_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string action, Dictionary<string, object?> p, CancellationToken ct) {
-        var sid   = GetSetting("account_sid") ?? throw new InvalidOperationException("Twilio account_sid not set");
-        var token = GetSetting("auth_token")  ?? throw new InvalidOperationException("Twilio auth_token not set");
+        var sid   = GetRequiredSetting("account_sid");
+        var token = GetRequiredSetting("auth_token");
         var creds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{sid}:{token}"));
         return action switch {
-            "send_sms"  => await TwilioPost($"Accounts/{sid}/Messages.json", new Dictionary<string,string>{{"To",GetParam<string>(p,"to")!},{"From",GetSetting("from_number")??GetParam<string>(p,"from")!},{"Body",GetParam<string>(p,"body")??GetParam<string>(p,"message")!}}, creds, ct).ConfigureAwait(false),
+            "send_sms"  => await TwilioPost($"Accounts/{sid}/Messages.json", new Dictionary<string,string>{{"To",GetRequiredParam<string>(p,"to")},{"From",GetSetting("from_number")??GetRequiredParam<string>(p,"from")},{"Body",GetParam<string>(p,"body")??GetParam<string>(p,"message")??string.Empty}}, creds, ct).ConfigureAwait(false),
             "list_sms"  => await TwilioGet($"Accounts/{sid}/Messages.json?PageSize={GetParam<int?>(p,"limit")??20}", creds, ct).ConfigureAwait(false),
-            "get_sms"   => await TwilioGet($"Accounts/{sid}/Messages/{GetParam<string>(p,"sid")}.json", creds, ct).ConfigureAwait(false),
-            _ => ToolkitResult.Fail($"Unknown action '{action}'. Valid: send_sms|list_sms|get_sms")
+            "get_sms"   => await TwilioGet($"Accounts/{sid}/Messages/{GetRequiredParam<string>(p,"sid")}.json", creds, ct).ConfigureAwait(false),
+            _ => throw AgxiomeToolkitException.UnknownAction(Id, action)
         };
     }
     private static async Task<ToolkitResult> TwilioPost(string path, Dictionary<string,string> form, string creds, CancellationToken ct) {
@@ -345,12 +350,12 @@ public sealed class SendGridToolkit(ToolkitConfig? config = null) : ToolkitBase(
     public override ToolkitCategory Category => ToolkitCategory.Communication;
     public override bool IsConfigured => !string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string action, Dictionary<string, object?> p, CancellationToken ct) {
-        var key = GetSetting("api_key") ?? throw new InvalidOperationException("SendGrid api_key not set");
+        var key = GetRequiredSetting("api_key");
         return action switch {
             "send" or "send_email" => await SgSend(p, key, ct).ConfigureAwait(false),
             "list_templates"       => await SgGet("templates?generations=dynamic", key, ct).ConfigureAwait(false),
             "stats"                => await SgGet($"stats?start_date={GetParam<string>(p,"start_date")??"2024-01-01"}", key, ct).ConfigureAwait(false),
-            _ => ToolkitResult.Fail($"Unknown action '{action}'. Valid: send|send_email|list_templates|stats")
+            _ => throw AgxiomeToolkitException.UnknownAction(Id, action)
         };
     }
     private static async Task<ToolkitResult> SgSend(Dictionary<string,object?> p, string key, CancellationToken ct) {
@@ -391,16 +396,16 @@ public sealed class MailchimpToolkit(ToolkitConfig? config = null) : ToolkitBase
     public override ToolkitCategory Category => ToolkitCategory.Communication;
     public override bool IsConfigured => !string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string action, Dictionary<string, object?> p, CancellationToken ct) {
-        var key    = GetSetting("api_key") ?? throw new InvalidOperationException("Mailchimp api_key not set");
+        var key    = GetRequiredSetting("api_key");
         var region = key.Split('-').LastOrDefault() ?? "us1";
         var base_  = $"https://{region}.api.mailchimp.com/3.0";
         return action switch {
             "list_lists"     => await McGet($"{base_}/lists", key, ct).ConfigureAwait(false),
-            "get_list"       => await McGet($"{base_}/lists/{GetParam<string>(p,"list_id")}", key, ct).ConfigureAwait(false),
-            "add_member"     => await McPost($"{base_}/lists/{GetParam<string>(p,"list_id")}/members", new{email_address=GetParam<string>(p,"email"),status=GetParam<string>(p,"status")??"subscribed"}, key, ct).ConfigureAwait(false),
+            "get_list"       => await McGet($"{base_}/lists/{GetRequiredParam<string>(p,"list_id")}", key, ct).ConfigureAwait(false),
+            "add_member"     => await McPost($"{base_}/lists/{GetRequiredParam<string>(p,"list_id")}/members", new{email_address=GetRequiredParam<string>(p,"email"),status=GetParam<string>(p,"status")??"subscribed"}, key, ct).ConfigureAwait(false),
             "list_campaigns" => await McGet($"{base_}/campaigns?count={GetParam<int?>(p,"count")??10}", key, ct).ConfigureAwait(false),
-            "list_tags"      => await McGet($"{base_}/lists/{GetParam<string>(p,"list_id")}/tag-search", key, ct).ConfigureAwait(false),
-            _ => ToolkitResult.Fail($"Unknown action '{action}'. Valid: list_lists|get_list|add_member|list_campaigns|list_tags")
+            "list_tags"      => await McGet($"{base_}/lists/{GetRequiredParam<string>(p,"list_id")}/tag-search", key, ct).ConfigureAwait(false),
+            _ => throw AgxiomeToolkitException.UnknownAction(Id, action)
         };
     }
     private static async Task<ToolkitResult> McGet(string url, string key, CancellationToken ct) {
@@ -427,13 +432,13 @@ public sealed class PushbulletToolkit(ToolkitConfig? config = null) : ToolkitBas
     public override ToolkitCategory Category => ToolkitCategory.Communication;
     public override bool IsConfigured => !string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string action, Dictionary<string, object?> p, CancellationToken ct) {
-        var key = GetSetting("api_key") ?? throw new InvalidOperationException("Pushbullet api_key not set");
+        var key = GetRequiredSetting("api_key");
         var type = GetParam<string>(p,"type") ?? "note";
         return action switch {
             "push"         => await PbPost("pushes", new { type, title=GetParam<string>(p,"title"), body=GetParam<string>(p,"body"), url=GetParam<string>(p,"url") }, key, ct).ConfigureAwait(false),
             "list_devices" => await PbGet("devices", key, ct).ConfigureAwait(false),
             "list_pushes"  => await PbGet($"pushes?limit={GetParam<int?>(p,"limit")??10}", key, ct).ConfigureAwait(false),
-            _ => ToolkitResult.Fail($"Unknown action '{action}'. Valid: push|list_devices|list_pushes")
+            _ => throw AgxiomeToolkitException.UnknownAction(Id, action)
         };
     }
     private static async Task<ToolkitResult> PbPost(string path, object body, string key, CancellationToken ct) {
@@ -460,7 +465,7 @@ public sealed class WebhookToolkit(ToolkitConfig? config = null) : ToolkitBase(c
     public override ToolkitCategory Category => ToolkitCategory.Communication;
     public override bool IsConfigured => true;
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string action, Dictionary<string, object?> p, CancellationToken ct) {
-        var url = GetParam<string>(p,"url") ?? GetSetting("url") ?? throw new ArgumentException("url is required");
+        var url = GetParam<string>(p,"url") ?? GetSetting("url") ?? throw AgxiomeToolkitException.MissingParameter(Id, "url");
         var method = (GetParam<string>(p,"method") ?? action switch { "get" => "GET", "delete" => "DELETE", _ => "POST" }).ToUpperInvariant();
         var headers = GetParam<Dictionary<string,string>?>(p,"headers");
         var body = GetParam<object?>(p,"body") ?? GetParam<object?>(p,"payload");

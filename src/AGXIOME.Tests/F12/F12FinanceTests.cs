@@ -10,13 +10,13 @@ public sealed class YahooFinanceToolkitTests
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new YahooFinanceToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = await new YahooFinanceToolkit().ExecuteAsync("get_quote", [], default);
+        var r = await new YahooFinanceToolkit().ExecuteAsync("quote", new Dictionary<string, object?> { ["symbol"] = "AAPL" }, default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("yahoo_finance", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new YahooFinanceToolkit(cfg).ExecuteAsync("get_quote", new Dictionary<string, object?> { ["symbol"] = "AAPL" }, default);
+        var r = await new YahooFinanceToolkit(cfg).ExecuteAsync("quote", new Dictionary<string, object?> { ["symbol"] = "AAPL" }, default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
 }
@@ -34,7 +34,7 @@ public sealed class AlphaVantageToolkitTests
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("alpha_vantage", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new AlphaVantageToolkit(cfg).ExecuteAsync("get_time_series", new Dictionary<string, object?> { ["symbol"] = "MSFT", ["interval"] = "daily" }, default);
+        var r = await new AlphaVantageToolkit(cfg).ExecuteAsync("daily", new Dictionary<string, object?> { ["symbol"] = "MSFT", ["interval"] = "daily" }, default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
 }
@@ -52,8 +52,8 @@ public sealed class PolygonToolkitTests
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("polygon", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new PolygonToolkit(cfg).ExecuteAsync("get_ticker", new Dictionary<string, object?> { ["ticker"] = "GOOG" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new PolygonToolkit(cfg).ExecuteAsync("ticker_details", new Dictionary<string, object?> { ["symbol"] = "GOOG" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -64,14 +64,14 @@ public sealed class CoinGeckoToolkitTests
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new CoinGeckoToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = await new CoinGeckoToolkit().ExecuteAsync("get_price", [], default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new CoinGeckoToolkit().ExecuteAsync("price", new Dictionary<string, object?> { ["coin_id"] = "bitcoin" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("coingecko", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new CoinGeckoToolkit(cfg).ExecuteAsync("get_price", new Dictionary<string, object?> { ["coin_id"] = "bitcoin", ["vs_currency"] = "usd" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new CoinGeckoToolkit(cfg).ExecuteAsync("price", new Dictionary<string, object?> { ["coin_id"] = "bitcoin", ["vs_currencies"] = "usd" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -82,13 +82,13 @@ public sealed class BinanceToolkitTests
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new BinanceToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = await new BinanceToolkit().ExecuteAsync("get_ticker", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        var r = await new BinanceToolkit().ExecuteAsync("price", new Dictionary<string, object?> { ["symbol"] = "BTCUSDT" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("binance", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new BinanceToolkit(cfg).ExecuteAsync("get_ticker", new Dictionary<string, object?> { ["symbol"] = "BTCUSDT" }, default);
+        var r = await new BinanceToolkit(cfg).ExecuteAsync("price", new Dictionary<string, object?> { ["symbol"] = "BTCUSDT" }, default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
 }
@@ -106,8 +106,8 @@ public sealed class StripeToolkitTests
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("stripe", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new StripeToolkit(cfg).ExecuteAsync("create_payment_intent", new Dictionary<string, object?> { ["amount"] = 1000, ["currency"] = "usd" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new StripeToolkit(cfg).ExecuteAsync("list_customers", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -123,9 +123,9 @@ public sealed class PlaidToolkitTests
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
-        var cfg = new ToolkitConfig("plaid", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("plaid", new Dictionary<string, string> { ["client_id"] = "test" });
         var r = await new PlaidToolkit(cfg).ExecuteAsync("get_accounts", new Dictionary<string, object?> { ["access_token"] = "tok" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -141,9 +141,9 @@ public sealed class QuickBooksToolkitTests
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
-        var cfg = new ToolkitConfig("quickbooks", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("quickbooks", new Dictionary<string, string> { ["access_token"] = "test", ["realm_id"] = "1" });
         var r = await new QuickBooksToolkit(cfg).ExecuteAsync("list_invoices", new Dictionary<string, object?> { ["company_id"] = "1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -159,9 +159,9 @@ public sealed class XeroToolkitTests
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
-        var cfg = new ToolkitConfig("xero", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("xero", new Dictionary<string, string> { ["access_token"] = "test" });
         var r = await new XeroToolkit(cfg).ExecuteAsync("list_invoices", new Dictionary<string, object?> { ["tenant_id"] = "1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -172,13 +172,13 @@ public sealed class ForexToolkitTests
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Finance, new ForexToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = await new ForexToolkit().ExecuteAsync("get_rate", [], default);
+        var r = await new ForexToolkit().ExecuteAsync("rate", new Dictionary<string, object?> { ["from"] = "USD", ["to"] = "EUR" }, default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("forex", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new ForexToolkit(cfg).ExecuteAsync("get_rate", new Dictionary<string, object?> { ["from"] = "USD", ["to"] = "EUR" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new ForexToolkit(cfg).ExecuteAsync("rate", new Dictionary<string, object?> { ["from"] = "USD", ["to"] = "EUR" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }

@@ -7,6 +7,7 @@ using AGXIOME.Security.Audit;
 using AGXIOME.Security.Sanitization;
 using AGXIOME.Security.ApiKey;
 using AGXIOME.Security.Rbac;
+using AGXIOME.Shared.Errors;
 
 namespace AGXIOME.Runtime.Controllers;
 
@@ -27,7 +28,82 @@ public sealed record KnowledgeIngestRequest(string CollectionId, string Content,
 public sealed record KnowledgeSearchRequest(string CollectionId, string Query, int TopK = 5);
 public sealed record ToolDto(string ToolId, string Name, string Category, string? Schema);
 public sealed record ApiKeyCreateRequest(IReadOnlyList<string> Roles, IReadOnlyList<string> Scopes, int? ExpiresInDays);
-public sealed record ErrorResponse(string Code, string Message);
+public sealed record ErrorResponse(string Code, int NumericCode, string Message, string Category);
+
+public static class ApiErrors
+{
+    public static ErrorResponse From(AgxiomeException ex) =>
+        new(
+            ErrorCatalog.GetCode(ex.ErrorCode),
+            ex.NumericCode,
+            ex.UserMessage,
+            ex.Category);
+
+    public static ObjectResult InvalidArguments(string technicalMessage, string? userMessage = null)
+        => ToActionResult(
+            new AgxiomeException(
+                AgxiomeErrorCode.TL_InvalidArguments,
+                technicalMessage,
+                userMessage ?? ErrorCatalog.GetUserMessage(AgxiomeErrorCode.TL_InvalidArguments)),
+            StatusCodes.Status400BadRequest);
+
+    public static ObjectResult NotFound(string technicalMessage, string? userMessage = null)
+        => ToActionResult(
+            new AgxiomeException(
+                AgxiomeErrorCode.TL_NotFound,
+                technicalMessage,
+                userMessage ?? "Risorsa richiesta non trovata."),
+            StatusCodes.Status404NotFound);
+
+    public static ObjectResult Conflict(string technicalMessage, string? userMessage = null)
+        => ToActionResult(
+            new AgxiomeException(
+                AgxiomeErrorCode.TL_InvalidArguments,
+                technicalMessage,
+                userMessage ?? "Stato della richiesta non valido."),
+            StatusCodes.Status409Conflict);
+
+    public static ObjectResult Unprocessable(string technicalMessage, string? userMessage = null)
+        => ToActionResult(
+            new AgxiomeException(
+                AgxiomeErrorCode.TL_ExecutionFailed,
+                technicalMessage,
+                userMessage ?? ErrorCatalog.GetUserMessage(AgxiomeErrorCode.TL_ExecutionFailed)),
+            StatusCodes.Status422UnprocessableEntity);
+
+    public static ObjectResult InvalidModelState(ActionContext _)
+        => InvalidArguments("HTTP request model validation failed.", "Richiesta non valida.");
+
+    public static IResult ToResult(AgxiomeException ex, int? statusCode = null)
+        => Results.Json(From(ex), statusCode: statusCode ?? MapStatusCode(ex.ErrorCode));
+
+    public static IResult FromStatusCode(HttpContext context)
+    {
+        var ex = context.Response.StatusCode switch
+        {
+            StatusCodes.Status400BadRequest => new AgxiomeException(AgxiomeErrorCode.TL_InvalidArguments, userMessage: "Richiesta non valida."),
+            StatusCodes.Status401Unauthorized => new AgxiomeException(AgxiomeErrorCode.SE_AuthenticationFailed),
+            StatusCodes.Status403Forbidden => new AgxiomeException(AgxiomeErrorCode.SE_AuthorizationDenied),
+            StatusCodes.Status404NotFound => new AgxiomeException(AgxiomeErrorCode.TL_NotFound, userMessage: "Risorsa richiesta non trovata."),
+            StatusCodes.Status405MethodNotAllowed => new AgxiomeException(AgxiomeErrorCode.TL_InvalidArguments, userMessage: "Metodo HTTP non consentito."),
+            _ => new AgxiomeException(AgxiomeErrorCode.InternalError),
+        };
+
+        return ToResult(ex, context.Response.StatusCode);
+    }
+
+    private static ObjectResult ToActionResult(AgxiomeException ex, int statusCode)
+        => new(From(ex)) { StatusCode = statusCode };
+
+    private static int MapStatusCode(AgxiomeErrorCode code) => code switch
+    {
+        AgxiomeErrorCode.TL_InvalidArguments => StatusCodes.Status400BadRequest,
+        AgxiomeErrorCode.TL_NotFound => StatusCodes.Status404NotFound,
+        AgxiomeErrorCode.SE_AuthenticationFailed => StatusCodes.Status401Unauthorized,
+        AgxiomeErrorCode.SE_AuthorizationDenied => StatusCodes.Status403Forbidden,
+        _ => StatusCodes.Status500InternalServerError,
+    };
+}
 
 // ═══════════════════════════════════════════════════════════════
 // RT-06 — Agent Controller
@@ -46,13 +122,15 @@ public sealed class AgentController(AuditLogger audit, IInputSanitizer sanitizer
 
     [HttpGet("{id}")]
     public IActionResult Get(string id) =>
-        _agents.TryGetValue(id, out var a) ? Ok(a) : NotFound(new ErrorResponse("not_found", $"Agent '{id}' not found"));
+        _agents.TryGetValue(id, out var a) ? Ok(a) : ApiErrors.NotFound($"Agent '{id}' was not found.");
 
     [HttpPost]
     public IActionResult Create([FromBody] CreateAgentRequest req)
     {
         var check = _sanitizer.Sanitize(req.Name, SanitizationRules.AgentNameR);
-        if (!check.IsValid) return BadRequest(new ErrorResponse("invalid_input", check.ViolationDetail ?? "Invalid name"));
+        if (!check.IsValid) return ApiErrors.InvalidArguments(
+            $"Agent name rejected by sanitizer: {check.ViolationDetail ?? "Invalid name"}.",
+            check.ViolationDetail ?? "Nome agente non valido.");
 
         var id    = Guid.NewGuid().ToString("N")[..12];
         var agent = new AgentDto(id, check.SanitizedValue, req.Description, req.Model, DateTimeOffset.UtcNow);
@@ -119,7 +197,7 @@ public sealed class RunController : ControllerBase
     public IActionResult Resume(string runId)
     {
         if (!_runs.TryGetValue(runId, out var r)) return NotFound();
-        if (r.Status != "paused") return Conflict(new ErrorResponse("invalid_state", "Run is not paused"));
+        if (r.Status != "paused") return ApiErrors.Conflict($"Run '{runId}' cannot resume because status is '{r.Status}'.");
         _runs[runId] = r with { Status = "running" };
         return Ok(_runs[runId]);
     }

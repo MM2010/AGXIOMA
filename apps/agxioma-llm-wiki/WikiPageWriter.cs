@@ -12,7 +12,7 @@ namespace AgxiomaLLMWiki;
 ///
 /// Each page uses the frontmatter + structure defined in WIKI_SCHEMA.md.
 /// </summary>
-public sealed class WikiPageWriter
+public sealed class WikiPageWriter : IWikiPageWriter
 {
     private readonly WikiSettings  _settings;
     private readonly WikiDatabase  _db;

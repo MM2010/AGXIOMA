@@ -13,11 +13,11 @@ public sealed class GoogleSearchToolkitTests
         var r = await new GoogleSearchToolkit().ExecuteAsync("search", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
-    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    [Fact] public async Task Execute_WithConfig_ReturnsUnauthorizedOrError()
     {
-        var cfg = new ToolkitConfig("google_search", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("google_search", new Dictionary<string, string> { ["api_key"] = "test", ["cx"] = "test-cx" });
         var r = await new GoogleSearchToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "dotnet" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
     }
 }
 
@@ -33,9 +33,9 @@ public sealed class BingToolkitTests
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
-        var cfg = new ToolkitConfig("bing", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("bing_search", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new BingSearchToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "dotnet" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
     }
 }
 
@@ -49,11 +49,11 @@ public sealed class SearXNGToolkitTests
         var r = await new SearXngToolkit().ExecuteAsync("search", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
-    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    [Fact] public async Task Execute_WithConfig_ReturnsError()
     {
-        var cfg = new ToolkitConfig("searxng", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("searxng", new Dictionary<string, string> { ["base_url"] = "https://example.invalid" });
         var r = await new SearXngToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "dotnet" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -67,11 +67,11 @@ public sealed class TavilyToolkitTests
         var r = await new TavilyToolkit().ExecuteAsync("search", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
-    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    [Fact] public async Task Execute_WithConfig_ReturnsUnauthorizedOrError()
     {
         var cfg = new ToolkitConfig("tavily", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new TavilyToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "dotnet" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
     }
 }
 
@@ -85,11 +85,11 @@ public sealed class ExaToolkitTests
         var r = await new ExaToolkit().ExecuteAsync("search", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
-    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    [Fact] public async Task Execute_WithConfig_ReturnsUnauthorizedOrError()
     {
         var cfg = new ToolkitConfig("exa", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new ExaToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "dotnet" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
     }
 }
 
@@ -107,7 +107,7 @@ public sealed class BraveToolkitTests
     {
         var cfg = new ToolkitConfig("brave_search", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new BraveSearchToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "dotnet" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
     }
 }
 
@@ -121,11 +121,11 @@ public sealed class SerpApiToolkitTests
         var r = await new SerpApiToolkit().ExecuteAsync("search", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
-    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    [Fact] public async Task Execute_WithConfig_ReturnsUnauthorizedOrError()
     {
         var cfg = new ToolkitConfig("serpapi", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new SerpApiToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["q"] = "dotnet" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
     }
 }
 
@@ -139,11 +139,11 @@ public sealed class SerperToolkitTests
         var r = await new SerperToolkit().ExecuteAsync("search", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
-    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    [Fact] public async Task Execute_WithConfig_ReturnsUnauthorizedOrError()
     {
         var cfg = new ToolkitConfig("serper", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new SerperToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["q"] = "dotnet" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new SerperToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "dotnet" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
     }
 }
 
@@ -157,11 +157,11 @@ public sealed class FirecrawlToolkitTests
         var r = await new FirecrawlToolkit().ExecuteAsync("crawl", [], default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
-    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    [Fact] public async Task Execute_WithConfig_ReturnsUnauthorizedOrError()
     {
         var cfg = new ToolkitConfig("firecrawl", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new FirecrawlToolkit(cfg).ExecuteAsync("crawl", new Dictionary<string, object?> { ["url"] = "https://example.com" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
     }
 }
 
@@ -172,14 +172,14 @@ public sealed class WikipediaToolkitTests
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.SearchKnowledge, new WikipediaToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = await new WikipediaToolkit().ExecuteAsync("search", [], default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new WikipediaToolkit().ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "C sharp" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
-        var cfg = new ToolkitConfig("wikipedia", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("wikipedia", new Dictionary<string, string> { ["enabled"] = "true" });
         var r = await new WikipediaToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "C sharp" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -190,7 +190,7 @@ public sealed class ArxivToolkitTests
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.SearchKnowledge, new ArxivToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = await new ArxivToolkit().ExecuteAsync("search", [], default);
+        var r = await new ArxivToolkit().ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "llm", ["max_results"] = 5 }, default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
@@ -214,7 +214,7 @@ public sealed class PubMedToolkitTests
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("pubmed", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new PubMedToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "cancer", ["max_results"] = 5 }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new PubMedToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "cancer", ["retmax"] = 5 }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }

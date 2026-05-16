@@ -77,7 +77,7 @@ public sealed class AgentDropFolderService : IHostedService, IDisposable
         {
             case AgentFileEventKind.Discovered:
             {
-                var meta = await AgentFileScanner.ScanAsync(ev.FilePath, ct);
+                var meta = await AgentFileScanner.ScanAsync(ev.FilePath, ct: ct);
                 if (meta is null)
                 {
                     _logger.LogWarning("[DynamicRuntime] File {File} has no [AgxiomeAgent] attribute — skipped", ev.FilePath);
@@ -89,7 +89,7 @@ public sealed class AgentDropFolderService : IHostedService, IDisposable
             }
             case AgentFileEventKind.Modified:
             {
-                var meta = await AgentFileScanner.ScanAsync(ev.FilePath, ct);
+                var meta = await AgentFileScanner.ScanAsync(ev.FilePath, ct: ct);
                 if (meta is null) return;
 
                 var existing = _registry.Get(ev.UserId, meta.AgentId);

@@ -7,6 +7,8 @@ using AGXIOME.DynamicRuntime.Generation.Prompts;
 using AGXIOME.DynamicRuntime.Interfaces;
 using AGXIOME.DynamicRuntime.Registry;
 using AGXIOME.LLMWIKY;
+using AGXIOME.Runtime;
+using AGXIOME.Security.Rbac;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
@@ -21,8 +23,10 @@ using Microsoft.Data.Sqlite;
 // ═══════════════════════════════════════════════════════════════════════════════
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddAgxiomeSecurityDefaults();
 
 var cfg = builder.Configuration.GetSection("Agent").Get<AgentSettings>() ?? new AgentSettings();
+var runtimeMutationEnabled = IsRuntimeMutationEnabled(builder.Configuration, builder.Environment);
 
 // ── Storage ───────────────────────────────────────────────────────────────────
 builder.Services.AddSingleton<SkillLabStore>(_ => new SkillLabStore(cfg.DatabasePath));
@@ -30,9 +34,14 @@ builder.Services.AddSingleton<SkillLabStore>(_ => new SkillLabStore(cfg.Database
 // ── Engine ────────────────────────────────────────────────────────────────────
 builder.Services.AddSingleton<DynamicToolBuilder>();
 builder.Services.AddSingleton<StaticCodeAnalyzer>();
-builder.Services.AddSingleton<RoslynCompiler>();
+builder.Services.AddSingleton(_ => new RoslynCompiler(runtimeMutationEnabled, cfg.MaxDynamicSourceChars));
 builder.Services.AddSingleton<RuntimeToolRegistry>();
-builder.Services.AddSingleton(_ => new SandboxExecutor(cfg.ExecutionTimeoutMs));
+builder.Services.AddSingleton(_ => new SandboxExecutor(
+    cfg.ExecutionTimeoutMs,
+    runtimeMutationEnabled,
+    cfg.MaxExecutionInputChars,
+    cfg.MaxExecutionOutputChars,
+    cfg.MaxConcurrentExecutions));
 
 // ── LLM Provider via AGXIOME ──────────────────────────────────────────────────
 builder.Services.AddSingleton<ILLMProvider>(sp =>
@@ -69,8 +78,28 @@ builder.Services.AddSingleton<SkillLabOrchestrator>(sp =>
 
 var app = builder.Build();
 
-// ❗ Show detailed errors for debugging
-app.UseDeveloperExceptionPage();
+// Detailed exception pages are only safe in local development.
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+
+await app.UseAgxiomeSecurityDefaultsAsync();
+
+var runtimeMutationGroup = app.MapGroup(string.Empty)
+    .AddEndpointFilter(async (context, next) =>
+    {
+        if (runtimeMutationEnabled)
+            return await next(context);
+
+        return Results.Json(
+            new
+            {
+                code = "runtime_mutation_disabled",
+                message = "Runtime compile, run, and promote operations are disabled outside approved development workflows."
+            },
+            statusCode: StatusCodes.Status403Forbidden);
+    });
 
 // Init SQLite
 await app.Services.GetRequiredService<SkillLabStore>().InitAsync();
@@ -86,7 +115,8 @@ app.MapGet("/health", () => Results.Ok(new
     pattern      = "Self-Extension Runtime",
     lifecycle    = new[] { "detect", "generate", "analyze", "compile", "test", "sandbox", "promote" },
     utc          = DateTime.UtcNow
-}));
+}))
+    .AllowAnonymousAgxiome();
 
 // ─── POST /pipeline — Full lifecycle: detect → generate → analyze → compile → execute ──
 app.MapPost("/pipeline", async (
@@ -101,7 +131,9 @@ app.MapPost("/pipeline", async (
     return result.Errors is { Count: > 0 }
         ? Results.Problem(detail: null, statusCode: 422, extensions: new Dictionary<string, object?> { ["result"] = result })
         : Results.Ok(result);
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowExecute)
+    .WithAgxiomeRateLimit(10, TimeSpan.FromMinutes(1));
 
 // ─── POST /pipeline/detect — Step 1: Detect capability gap ─────────────────────
 app.MapPost("/pipeline/detect", async (
@@ -115,7 +147,9 @@ app.MapPost("/pipeline/detect", async (
     var proposal = await orchestrator.DetectCapabilityAsync(req.Task, req.SessionId, ct);
     return Results.Ok(new PipelineResponse(req.SessionId, proposal.ToolId, proposal.ToolName,
         ToolStatus.Proposed, "detected", proposal));
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowExecute)
+    .WithAgxiomeRateLimit(15, TimeSpan.FromMinutes(1));
 
 // ─── POST /pipeline/generate — Step 2: Generate tool code from proposal ────────
 app.MapPost("/pipeline/generate", async (
@@ -132,7 +166,9 @@ app.MapPost("/pipeline/generate", async (
     var tool = await orchestrator.GenerateToolAsync(proposal, req.TaskContext, req.SessionId, ct);
     return Results.Ok(new PipelineResponse(req.SessionId, tool.Id, tool.Name,
         tool.Status, "generated", new { sourceCode = tool.SourceCode, manifest = tool.ManifestJson }));
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowExecute)
+    .WithAgxiomeRateLimit(10, TimeSpan.FromMinutes(1));
 
 // ─── POST /pipeline/analyze — Step 3: Static analysis ──────────────────────────
 app.MapPost("/pipeline/{toolId}/analyze", async (
@@ -149,10 +185,12 @@ app.MapPost("/pipeline/{toolId}/analyze", async (
         analyzed.Status, "analyzed",
         new { validationPassed = analyzed.Status == ToolStatus.Validated, violations = analyzed.ValidationErrors },
         analyzed.ValidationErrors));
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowExecute)
+    .WithAgxiomeRateLimit(20, TimeSpan.FromMinutes(1));
 
 // ─── POST /pipeline/{toolId}/compile — Step 4: Roslyn compilation ──────────────
-app.MapPost("/pipeline/{toolId}/compile", async (
+runtimeMutationGroup.MapPost("/pipeline/{toolId}/compile", async (
     string toolId,
     SkillLabOrchestrator orchestrator,
     SkillLabStore store,
@@ -167,10 +205,12 @@ app.MapPost("/pipeline/{toolId}/compile", async (
             compiled.Status, "compiled", new { assembly = "loaded in isolated ALC" }))
         : Results.Problem(detail: null, statusCode: 422, extensions: new Dictionary<string, object?> { ["result"] = new PipelineResponse("direct", compiled.Id, compiled.Name,
             compiled.Status, "compilation-failed", null, compiled.CompilationErrors) });
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowExecute)
+    .WithAgxiomeRateLimit(10, TimeSpan.FromMinutes(1));
 
 // ─── POST /pipeline/{toolId}/run — Step 5: Sandbox execution ───────────────────
-app.MapPost("/pipeline/{toolId}/run", async (
+runtimeMutationGroup.MapPost("/pipeline/{toolId}/run", async (
     string toolId,
     ToolRunRequest req,
     SkillLabOrchestrator orchestrator,
@@ -185,10 +225,12 @@ app.MapPost("/pipeline/{toolId}/run", async (
         execResult.Success ? ToolStatus.Executed : ToolStatus.Failed,
         execResult.Success ? "completed" : "execution-failed",
         execResult, execResult.Errors));
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowExecute)
+    .WithAgxiomeRateLimit(10, TimeSpan.FromMinutes(1));
 
 // ─── POST /pipeline/{toolId}/promote — Step 6: Promote to persistent skill ─────
-app.MapPost("/pipeline/{toolId}/promote", async (
+runtimeMutationGroup.MapPost("/pipeline/{toolId}/promote", async (
     string toolId,
     ToolPromoteRequest req,
     SkillLabOrchestrator orchestrator,
@@ -198,11 +240,30 @@ app.MapPost("/pipeline/{toolId}/promote", async (
     var tool = store.GetTool(toolId);
     if (tool == null) return Results.NotFound(new { error = $"Tool '{toolId}' not found." });
 
-    var promoted = await orchestrator.PromoteSkillAsync(tool, req.SessionId, ct);
+    ToolDescriptor promoted;
+    try
+    {
+        promoted = await orchestrator.PromoteSkillAsync(tool, req.SessionId, ct);
+    }
+    catch (PromotionPolicyViolationException ex)
+    {
+        return Results.Problem(
+            detail: null,
+            statusCode: 422,
+            extensions: new Dictionary<string, object?>
+            {
+                ["errors"] = ex.Errors,
+                ["toolId"] = toolId,
+                ["code"] = "promotion_policy_rejected"
+            });
+    }
+
     return Results.Ok(new PipelineResponse(req.SessionId, tool.Id, tool.Name,
         ToolStatus.Promoted, "promoted",
         new { message = $"Tool '{tool.Name}' promoted to persistent skill" }));
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowExecute)
+    .WithAgxiomeRateLimit(5, TimeSpan.FromMinutes(1));
 
 // ─── GET /tools — List all generated tools ─────────────────────────────────────
 app.MapGet("/tools", (SkillLabStore store) =>
@@ -217,7 +278,9 @@ app.MapGet("/tools", (SkillLabStore store) =>
             t.CreatedAt, hasCode = !string.IsNullOrEmpty(t.SourceCode)
         })
     });
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.AgentRead)
+    .WithAgxiomeRateLimit(30, TimeSpan.FromMinutes(1));
 
 // ─── GET /tools/{toolId} — Get full tool details ──────────────────────────────
 app.MapGet("/tools/{toolId}", (string toolId, SkillLabStore store) =>
@@ -226,28 +289,36 @@ app.MapGet("/tools/{toolId}", (string toolId, SkillLabStore store) =>
     return tool == null
         ? Results.NotFound(new { error = $"Tool '{toolId}' not found." })
         : Results.Ok(tool);
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.AgentRead)
+    .WithAgxiomeRateLimit(30, TimeSpan.FromMinutes(1));
 
 // ─── GET /tools/active — List active (loaded) tools ───────────────────────────
 app.MapGet("/tools/active", (RuntimeToolRegistry registry) =>
 {
     var ids = registry.GetActiveToolIds();
     return Results.Ok(new { count = ids.Count, toolIds = ids });
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.AgentRead)
+    .WithAgxiomeRateLimit(30, TimeSpan.FromMinutes(1));
 
 // ─── DELETE /tools/{toolId} — Unload and remove a tool ────────────────────────
 app.MapDelete("/tools/{toolId}", (string toolId, RuntimeToolRegistry registry, SkillLabStore store) =>
 {
     registry.Unload(toolId);
     return Results.Ok(new { toolId, unloaded = true });
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.AgentDelete)
+    .WithAgxiomeRateLimit(10, TimeSpan.FromMinutes(1));
 
 // ─── GET /skills — List promoted persistent skills ────────────────────────────
 app.MapGet("/skills", async (SkillLabStore store, CancellationToken ct) =>
 {
     var skills = await store.GetPersistentSkillsAsync(ct);
     return Results.Ok(new { count = skills.Count, skills });
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.AgentRead)
+    .WithAgxiomeRateLimit(30, TimeSpan.FromMinutes(1));
 
 // ─── GET /audit/{sessionId} — Get audit trail for a session ───────────────────
 app.MapGet("/audit/{sessionId}", async (
@@ -285,7 +356,9 @@ app.MapGet("/audit/{sessionId}", async (
         });
     }
     return Results.Ok(new { sessionId, count = entries.Count, entries });
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.AdminLogs)
+    .WithAgxiomeRateLimit(20, TimeSpan.FromMinutes(1));
 
 // ─── DELETE /cache — Evict expired tools ──────────────────────────────────────
 app.MapDelete("/cache", (RuntimeToolRegistry registry) =>
@@ -293,6 +366,20 @@ app.MapDelete("/cache", (RuntimeToolRegistry registry) =>
     var before = registry.Count;
     registry.EvictExpired();
     return Results.Ok(new { evicted = before - registry.Count, remaining = registry.Count });
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.AdminConfig)
+    .WithAgxiomeRateLimit(5, TimeSpan.FromMinutes(1));
 
-app.Run();
+static bool IsRuntimeMutationEnabled(IConfiguration configuration, IWebHostEnvironment environment)
+{
+    var flag = configuration["DynamicRuntime:EnableMutationEndpoints"]
+               ?? Environment.GetEnvironmentVariable("AGXIOME_ENABLE_MUTATION_ENDPOINTS");
+
+    return environment.IsDevelopment()
+        && bool.TryParse(flag, out var enabled)
+        && enabled;
+}
+
+    app.Run();
+
+    public partial class Program { }

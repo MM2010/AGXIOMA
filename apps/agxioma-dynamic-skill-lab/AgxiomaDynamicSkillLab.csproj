@@ -6,12 +6,13 @@
     <RootNamespace>AgxiomaDynamicSkillLab</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <!-- AGXIOME core + dynamic runtime -->
-    <PackageReference Include="AGXIOME"                      Version="1.0.0-*" />
-    <PackageReference Include="AGXIOME.DynamicRuntime"       Version="1.0.0-*" />
-    <!-- Roslyn (referenced by DynamicRuntime, explicit here for clarity) -->
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.*" />
+    <!-- AGXIOME workspace references -->
+    <ProjectReference Include="..\..\src\AGXIOME.Core\AGXIOME.Core.csproj" />
+    <ProjectReference Include="..\..\src\AGXIOME.DynamicRuntime\AGXIOME.DynamicRuntime.csproj" />
+    <ProjectReference Include="..\..\src\AGXIOME.LLMWIKY\AGXIOME.LLMWIKY.csproj" />
+    <ProjectReference Include="..\..\src\AGXIOME.Runtime\AGXIOME.Runtime.csproj" />
+    <ProjectReference Include="..\..\src\AGXIOME.Shared\AGXIOME.Shared.csproj" />
     <!-- SQLite for audit + skill registry -->
-    <PackageReference Include="Microsoft.Data.Sqlite"        Version="10.0.0-preview.*" />
+    <PackageReference Include="Microsoft.Data.Sqlite"        Version="10.0.8" />
   </ItemGroup>
 </Project>

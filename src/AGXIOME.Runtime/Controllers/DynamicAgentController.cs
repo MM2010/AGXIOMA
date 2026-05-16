@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using AGXIOME.DynamicRuntime.Generation;
 using AGXIOME.DynamicRuntime.HotFolder;
 using AGXIOME.DynamicRuntime.Registry;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AGXIOME.Runtime.Controllers;
 
@@ -11,16 +12,13 @@ namespace AGXIOME.Runtime.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/agents")]
-public sealed class DynamicAgentController(
-    DynamicAgentRegistry registry,
-    AgentCodeGenerator generator,
-    AgentDropFolderService dropFolder) : ControllerBase
+public sealed class DynamicAgentController : ControllerBase
 {
-    private readonly AgentDropFolderService _dropFolder = dropFolder;  // injected for future use
     /// <summary>GET /api/agents/user/{userId} — lista agenti dell'utente.</summary>
     [HttpGet("user/{userId}")]
     public IActionResult GetUserAgents(string userId)
     {
+        var registry = HttpContext.RequestServices.GetRequiredService<DynamicAgentRegistry>();
         var entries = registry.GetAll(userId);
         var result = entries.Select(e => new
         {
@@ -38,13 +36,18 @@ public sealed class DynamicAgentController(
     public async Task<IActionResult> GenerateAgent([FromBody] GenerateAgentRequest req, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.UserId) || string.IsNullOrWhiteSpace(req.Description))
-            return BadRequest("UserId and Description are required");
+            return ApiErrors.InvalidArguments(
+                "Dynamic agent generation requires both UserId and Description.",
+                "UserId e Description sono obbligatori.");
 
+        var generator = HttpContext.RequestServices.GetRequiredService<AgentCodeGenerator>();
         var request = new AgentGenerationRequest(req.UserId, req.Description, req.ExampleInput, req.ExampleOutput);
         var result = await generator.GenerateAsync(request, ct);
 
         if (!result.Success)
-            return UnprocessableEntity(new { Errors = result.Errors });
+            return ApiErrors.Unprocessable(
+                "Dynamic agent generation failed.",
+                "Generazione agente fallita.");
 
         return Ok(new
         {
@@ -59,11 +62,12 @@ public sealed class DynamicAgentController(
     public IActionResult TriggerCompile(string agentId, [FromQuery] string userId)
     {
         if (string.IsNullOrWhiteSpace(userId))
-            return BadRequest("userId query param is required");
+            return ApiErrors.InvalidArguments("Agent compile trigger requires 'userId' query parameter.", "Parametro 'userId' obbligatorio.");
 
+        var registry = HttpContext.RequestServices.GetRequiredService<DynamicAgentRegistry>();
         var entry = registry.Get(userId, agentId);
         if (entry is null)
-            return NotFound($"Agent '{agentId}' not found for user '{userId}'");
+            return ApiErrors.NotFound($"Agent '{agentId}' was not found for user '{userId}'.", "Agente non trovato.");
 
         registry.UpdateStatus(userId, agentId, AgentEntryStatus.Discovered);
         return Accepted();
@@ -74,8 +78,9 @@ public sealed class DynamicAgentController(
     public IActionResult DeleteAgent(string agentId, [FromQuery] string userId)
     {
         if (string.IsNullOrWhiteSpace(userId))
-            return BadRequest("userId query param is required");
+            return ApiErrors.InvalidArguments("Agent deletion requires 'userId' query parameter.", "Parametro 'userId' obbligatorio.");
 
+        var registry = HttpContext.RequestServices.GetRequiredService<DynamicAgentRegistry>();
         var removed = registry.Remove(userId, agentId);
         return removed ? NoContent() : NotFound();
     }

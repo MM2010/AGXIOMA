@@ -1,6 +1,8 @@
 using AGXIOME.Core;
 using AGXIOME.Core.DependencyInjection;
 using AGXIOME.Core.Patterns;
+using AGXIOME.Runtime;
+using AGXIOME.Security.Rbac;
 using AGXIOME.Shared.Models;
 using AgxiomaStockTracker;
 using AgxiomaStockTracker.Storage;
@@ -8,6 +10,7 @@ using AgxiomaStockTracker.Swarms;
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 var builder = WebApplication.CreateBuilder(args);
+builder.AddAgxiomeSecurityDefaults();
 
 var cfg = builder.Configuration.GetSection("Agent").Get<AgentSettings>() ?? new AgentSettings();
 
@@ -100,6 +103,7 @@ builder.Services.AddSingleton<ForestSwarm>(_ =>
 builder.Services.AddSingleton<SwarmBuilderService>();
 
 var app = builder.Build();
+await app.UseAgxiomeSecurityDefaultsAsync();
 
 // Ensure SQLite schema
 await app.Services.GetRequiredService<PriceStore>().InitAsync();
@@ -112,7 +116,8 @@ app.MapGet("/health", () => Results.Ok(new
     pattern = "ForestSwarm + HeavySwarm + GrokSwarm",
     features = new[] { "auto-routing", "deep-research", "debate", "sqlite-history" },
     utc     = DateTime.UtcNow
-}));
+}))
+    .AllowAnonymousAgxiome();
 
 // ── GET /quote/{ticker} — live quote + persist ────────────────────────────────
 app.MapGet("/quote/{ticker}", async (
@@ -138,7 +143,9 @@ app.MapGet("/quote/{ticker}", async (
         quote.Source,
         savedAt = DateTime.UtcNow
     });
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowRead)
+    .WithAgxiomeRateLimit(30, TimeSpan.FromMinutes(1));
 
 // ── GET /history/{ticker} — SQLite price history ─────────────────────────────
 app.MapGet("/history/{ticker}", async (
@@ -150,7 +157,9 @@ app.MapGet("/history/{ticker}", async (
     ticker = ticker.ToUpperInvariant().Trim();
     var rows = await store.GetHistoryAsync(ticker, days ?? 30, ct);
     return Results.Ok(new { ticker, rows });
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowRead)
+    .WithAgxiomeRateLimit(30, TimeSpan.FromMinutes(1));
 
 // ── POST /analyze/{ticker} — ForestSwarm routing + HeavySwarm deep research ──
 app.MapPost("/analyze/{ticker}", async (
@@ -207,7 +216,9 @@ app.MapPost("/analyze/{ticker}", async (
 
     return Results.Accepted($"/analyze/{ticker}/jobs/{jobId}",
         new { jobId, ticker, status = "processing" });
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowExecute)
+    .WithAgxiomeRateLimit(10, TimeSpan.FromMinutes(1));
 
 // ── GET /analyze/{ticker}/jobs/{jobId} — poll job ────────────────────────────
 app.MapGet("/analyze/{ticker}/jobs/{jobId}", (
@@ -219,7 +230,9 @@ app.MapGet("/analyze/{ticker}/jobs/{jobId}", (
     return job == null
         ? Results.NotFound(new { error = "Job not found." })
         : Results.Ok(job);
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowRead)
+    .WithAgxiomeRateLimit(30, TimeSpan.FromMinutes(1));
 
 // ── POST /debate/{ticker} — GrokSwarm buy/hold/sell debate ───────────────────
 app.MapPost("/debate/{ticker}", async (
@@ -250,13 +263,19 @@ app.MapPost("/debate/{ticker}", async (
         verdict          = result.CaptainSynthesis,
         timing           = result.PhaseTiming
     });
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowExecute)
+    .WithAgxiomeRateLimit(10, TimeSpan.FromMinutes(1));
 
 // ── GET /watchlist — list all tickers in SQLite ───────────────────────────────
 app.MapGet("/watchlist", async (PriceStore store, CancellationToken ct) =>
 {
     var tickers = await store.GetAllTickersAsync(ct);
     return Results.Ok(new { tickers });
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowRead)
+    .WithAgxiomeRateLimit(30, TimeSpan.FromMinutes(1));
 
 app.Run();
+
+public partial class Program { }

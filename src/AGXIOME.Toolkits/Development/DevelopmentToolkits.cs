@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using AGXIOME.Shared.Errors;
 
 namespace AGXIOME.Toolkits.Development;
 
@@ -34,7 +35,7 @@ public sealed class GitHubToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             "list_workflows"    =>await GhGet($"repos/{repo}/actions/workflows",ct).ConfigureAwait(false),
             "trigger_workflow"  =>await GhPost($"repos/{repo}/actions/workflows/{GetParam<string>(p,"workflow_id")}/dispatches",new{@ref=GetParam<string>(p,"ref")??"main"},ct).ConfigureAwait(false),
             "list_branches"     =>await GhGet($"repos/{repo}/branches",ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: get_repo|list_issues|get_issue|create_issue|list_prs|get_pr|list_commits|get_file|search_code|list_releases|list_workflows|trigger_workflow|list_branches")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private async Task<ToolkitResult> GhGet(string path,CancellationToken ct){
@@ -51,7 +52,7 @@ public sealed class GitHubToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
         var req=new HttpRequestMessage(HttpMethod.Post,$"https://api.github.com/{path}"){Content=JsonContent.Create(body)};
         req.Headers.Add("User-Agent","AGXIOMA-Agent/1.0");
         req.Headers.Add("Accept","application/vnd.github+json");
-        var token=GetSetting("token")??GetSetting("api_key")??throw new InvalidOperationException("GitHub token required for write operations");
+        var token=GetSetting("token")??GetSetting("api_key")??throw AgxiomeToolkitException.MissingSetting(Id, "token");
         req.Headers.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",token);
         var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);
         resp.EnsureSuccessStatusCode();
@@ -67,7 +68,7 @@ public sealed class GitLabToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.Development;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("token")??throw new InvalidOperationException("GitLab token not set");
+        var token=GetRequiredSetting("token");
         var base_=(GetSetting("base_url")??"https://gitlab.com").TrimEnd('/');
         var projectId=Uri.EscapeDataString(GetParam<string>(p,"project")??"");
         return a switch{
@@ -76,7 +77,7 @@ public sealed class GitLabToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             "list_issues"   =>await GlGet($"{base_}/api/v4/projects/{projectId}/issues?state={GetParam<string>(p,"state")??"opened"}",token,ct).ConfigureAwait(false),
             "list_mrs"      =>await GlGet($"{base_}/api/v4/projects/{projectId}/merge_requests?state={GetParam<string>(p,"state")??"opened"}",token,ct).ConfigureAwait(false),
             "list_commits"  =>await GlGet($"{base_}/api/v4/projects/{projectId}/repository/commits",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_projects|get_project|list_issues|list_mrs|list_commits")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> GlGet(string url,string token,CancellationToken ct){
@@ -95,8 +96,8 @@ public sealed class BitbucketToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.Development;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("username"))&&!string.IsNullOrWhiteSpace(GetSetting("app_password"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var user=GetSetting("username")??throw new InvalidOperationException("Bitbucket username not set");
-        var pass=GetSetting("app_password")??throw new InvalidOperationException("Bitbucket app_password not set");
+        var user=GetRequiredSetting("username");
+        var pass=GetRequiredSetting("app_password");
         var creds=Convert.ToBase64String(Encoding.UTF8.GetBytes($"{user}:{pass}"));
         var ws=GetParam<string>(p,"workspace")??user;
         var repo=GetParam<string>(p,"repo")??"";
@@ -105,7 +106,7 @@ public sealed class BitbucketToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             "get_repo"     =>await BbGet($"repositories/{ws}/{repo}",creds,ct).ConfigureAwait(false),
             "list_prs"     =>await BbGet($"repositories/{ws}/{repo}/pullrequests?state={GetParam<string>(p,"state")??"OPEN"}",creds,ct).ConfigureAwait(false),
             "list_commits" =>await BbGet($"repositories/{ws}/{repo}/commits",creds,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_repos|get_repo|list_prs|list_commits")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> BbGet(string path,string creds,CancellationToken ct){
@@ -136,14 +137,14 @@ public sealed class GitToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             "add"     =>await RunGit(workDir,$"add {GetParam<string>(p,"path")??"."} ",ct).ConfigureAwait(false),
             "commit"  =>await RunGit(workDir,$"commit -m \"{GetParam<string>(p,"message")??"chore: auto-commit"}\"",ct).ConfigureAwait(false),
             "push"    =>await RunGit(workDir,"push",ct).ConfigureAwait(false),
-            "clone"   =>await RunGit(workDir,$"clone {GetParam<string>(p,"url")?? throw new ArgumentException("url required")} {GetParam<string>(p,"dir")??""}",ct).ConfigureAwait(false),
-            "checkout"=>await RunGit(workDir,$"checkout {GetParam<string>(p,"branch")?? throw new ArgumentException("branch required")}",ct).ConfigureAwait(false),
+            "clone"   =>await RunGit(workDir,$"clone {GetRequiredParam<string>(p,"url")} {GetParam<string>(p,"dir")??""}",ct).ConfigureAwait(false),
+            "checkout"=>await RunGit(workDir,$"checkout {GetRequiredParam<string>(p,"branch")}",ct).ConfigureAwait(false),
             _=>await RunGit(workDir,GetParam<string>(p,"args")??a,ct).ConfigureAwait(false) // raw git command
         };
     }
     private static async Task<ToolkitResult> RunGit(string workDir,string args,CancellationToken ct){
         var psi=new ProcessStartInfo("git",args){WorkingDirectory=workDir,RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
-        using var proc=Process.Start(psi)??throw new InvalidOperationException("Failed to start git");
+        using var proc=Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable("git", "git");
         var stdout=await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
         var stderr=await proc.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
         await proc.WaitForExitAsync(ct).ConfigureAwait(false);
@@ -164,7 +165,7 @@ public sealed class NuGetToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             "search"=>await NuGetSearch(GetParam<string>(p,"query")??"",GetParam<int?>(p,"take")??20,ct).ConfigureAwait(false),
             "get_versions"=>await NuGetVersions(GetParam<string>(p,"package")??"",ct).ConfigureAwait(false),
             "get_info"=>await NuGetInfo(GetParam<string>(p,"package")??"",GetParam<string>(p,"version")??"",ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: search|get_versions|get_info")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> NuGetSearch(string q,int take,CancellationToken ct){
@@ -201,20 +202,20 @@ public sealed class DockerToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
         return a switch{
             "ps"       =>await RunDocker("ps --format json",ct).ConfigureAwait(false),
             "images"   =>await RunDocker("images --format json",ct).ConfigureAwait(false),
-            "pull"     =>await RunDocker($"pull {GetParam<string>(p,"image")?? throw new ArgumentException("image required")}",ct).ConfigureAwait(false),
-            "run"      =>await RunDocker($"run {GetParam<string>(p,"flags")??"--rm"} {GetParam<string>(p,"image")?? throw new ArgumentException("image required")} {GetParam<string>(p,"cmd")??""}", ct).ConfigureAwait(false),
-            "stop"     =>await RunDocker($"stop {GetParam<string>(p,"container")?? throw new ArgumentException("container required")}",ct).ConfigureAwait(false),
-            "rm"       =>await RunDocker($"rm {GetParam<string>(p,"container")?? throw new ArgumentException("container required")}",ct).ConfigureAwait(false),
-            "logs"     =>await RunDocker($"logs {GetParam<string>(p,"container")?? throw new ArgumentException("container required")} --tail {GetParam<int?>(p,"tail")??100}",ct).ConfigureAwait(false),
-            "exec"     =>await RunDocker($"exec {GetParam<string>(p,"container")?? throw new ArgumentException("container required")} {GetParam<string>(p,"cmd")??"sh"}",ct).ConfigureAwait(false),
+            "pull"     =>await RunDocker($"pull {GetRequiredParam<string>(p,"image")}",ct).ConfigureAwait(false),
+            "run"      =>await RunDocker($"run {GetParam<string>(p,"flags")??"--rm"} {GetRequiredParam<string>(p,"image")} {GetParam<string>(p,"cmd")??""}", ct).ConfigureAwait(false),
+            "stop"     =>await RunDocker($"stop {GetRequiredParam<string>(p,"container")}",ct).ConfigureAwait(false),
+            "rm"       =>await RunDocker($"rm {GetRequiredParam<string>(p,"container")}",ct).ConfigureAwait(false),
+            "logs"     =>await RunDocker($"logs {GetRequiredParam<string>(p,"container")} --tail {GetParam<int?>(p,"tail")??100}",ct).ConfigureAwait(false),
+            "exec"     =>await RunDocker($"exec {GetRequiredParam<string>(p,"container")} {GetParam<string>(p,"cmd")??"sh"}",ct).ConfigureAwait(false),
             "stats"    =>await RunDocker($"stats --no-stream --format json",ct).ConfigureAwait(false),
-            "inspect"  =>await RunDocker($"inspect {GetParam<string>(p,"target")?? throw new ArgumentException("target required")}",ct).ConfigureAwait(false),
+            "inspect"  =>await RunDocker($"inspect {GetRequiredParam<string>(p,"target")}",ct).ConfigureAwait(false),
             _=>await RunDocker(GetParam<string>(p,"args")??a,ct).ConfigureAwait(false)
         };
     }
     private static async Task<ToolkitResult> RunDocker(string args,CancellationToken ct){
         var psi=new ProcessStartInfo("docker",args){RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
-        using var proc=Process.Start(psi)??throw new InvalidOperationException("Failed to start docker. Is Docker installed?");
+        using var proc=Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable("docker", "docker");
         var stdout=await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
         var stderr=await proc.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
         await proc.WaitForExitAsync(ct).ConfigureAwait(false);
@@ -237,9 +238,9 @@ public sealed class KubernetesToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
         return a switch{
             "get"       =>await RunKubectl($"get {resource} -n {ns} -o json",ct).ConfigureAwait(false),
             "describe"  =>await RunKubectl($"describe {resource} {GetParam<string>(p,"name")??""}  -n {ns}",ct).ConfigureAwait(false),
-            "apply"     =>await RunKubectl($"apply -f {GetParam<string>(p,"file")?? throw new ArgumentException("file required")} -n {ns}",ct).ConfigureAwait(false),
+            "apply"     =>await RunKubectl($"apply -f {GetRequiredParam<string>(p,"file")} -n {ns}",ct).ConfigureAwait(false),
             "delete"    =>await RunKubectl($"delete {resource} {GetParam<string>(p,"name")??""}  -n {ns}",ct).ConfigureAwait(false),
-            "logs"      =>await RunKubectl($"logs {GetParam<string>(p,"pod")?? throw new ArgumentException("pod required")} -n {ns} --tail={GetParam<int?>(p,"tail")??100}",ct).ConfigureAwait(false),
+            "logs"      =>await RunKubectl($"logs {GetRequiredParam<string>(p,"pod")} -n {ns} --tail={GetParam<int?>(p,"tail")??100}",ct).ConfigureAwait(false),
             "namespaces"=>await RunKubectl("get namespaces",ct).ConfigureAwait(false),
             "contexts"  =>await RunKubectl("config get-contexts",ct).ConfigureAwait(false),
             _=>await RunKubectl(GetParam<string>(p,"args")??a,ct).ConfigureAwait(false)
@@ -247,7 +248,7 @@ public sealed class KubernetesToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     }
     private static async Task<ToolkitResult> RunKubectl(string args,CancellationToken ct){
         var psi=new ProcessStartInfo("kubectl",args){RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
-        using var proc=Process.Start(psi)??throw new InvalidOperationException("kubectl not found in PATH");
+        using var proc=Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable("kubernetes", "kubectl");
         var stdout=await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
         var stderr=await proc.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
         await proc.WaitForExitAsync(ct).ConfigureAwait(false);
@@ -278,7 +279,7 @@ public sealed class TerraformToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     }
     private static async Task<ToolkitResult> RunTf(string dir,string args,CancellationToken ct){
         var psi=new ProcessStartInfo("terraform",args){WorkingDirectory=dir,RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
-        using var proc=Process.Start(psi)??throw new InvalidOperationException("terraform not found in PATH");
+        using var proc=Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable("terraform", "terraform");
         var stdout=await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
         var stderr=await proc.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
         await proc.WaitForExitAsync(ct).ConfigureAwait(false);
@@ -307,7 +308,7 @@ public sealed class PulumiToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     }
     private static async Task<ToolkitResult> RunPulumi(string dir,string args,CancellationToken ct){
         var psi=new ProcessStartInfo("pulumi",args){WorkingDirectory=dir,RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
-        using var proc=Process.Start(psi)??throw new InvalidOperationException("pulumi not found in PATH");
+        using var proc=Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable("pulumi", "pulumi");
         var stdout=await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
         var stderr=await proc.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
         await proc.WaitForExitAsync(ct).ConfigureAwait(false);
@@ -326,16 +327,16 @@ public sealed class HelmToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
         return a switch{
             "list"       =>await RunHelm($"list -n {ns} --output json",ct).ConfigureAwait(false),
             "install"    =>await RunHelm($"install {GetParam<string>(p,"release")??"my-release"} {GetParam<string>(p,"chart")??"."} -n {ns}",ct).ConfigureAwait(false),
-            "upgrade"    =>await RunHelm($"upgrade {GetParam<string>(p,"release")?? throw new ArgumentException("release required")} {GetParam<string>(p,"chart")??"."} -n {ns} --install",ct).ConfigureAwait(false),
-            "uninstall"  =>await RunHelm($"uninstall {GetParam<string>(p,"release")?? throw new ArgumentException("release required")} -n {ns}",ct).ConfigureAwait(false),
-            "status"     =>await RunHelm($"status {GetParam<string>(p,"release")?? throw new ArgumentException("release required")} -n {ns} --output json",ct).ConfigureAwait(false),
-            "repo_add"   =>await RunHelm($"repo add {GetParam<string>(p,"name")??"repo"} {GetParam<string>(p,"url")?? throw new ArgumentException("url required")}",ct).ConfigureAwait(false),
+            "upgrade"    =>await RunHelm($"upgrade {GetRequiredParam<string>(p,"release")} {GetParam<string>(p,"chart")??"."} -n {ns} --install",ct).ConfigureAwait(false),
+            "uninstall"  =>await RunHelm($"uninstall {GetRequiredParam<string>(p,"release")} -n {ns}",ct).ConfigureAwait(false),
+            "status"     =>await RunHelm($"status {GetRequiredParam<string>(p,"release")} -n {ns} --output json",ct).ConfigureAwait(false),
+            "repo_add"   =>await RunHelm($"repo add {GetParam<string>(p,"name")??"repo"} {GetRequiredParam<string>(p,"url")}",ct).ConfigureAwait(false),
             _=>await RunHelm(GetParam<string>(p,"args")??a,ct).ConfigureAwait(false)
         };
     }
     private static async Task<ToolkitResult> RunHelm(string args,CancellationToken ct){
         var psi=new ProcessStartInfo("helm",args){RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
-        using var proc=Process.Start(psi)??throw new InvalidOperationException("helm not found in PATH");
+        using var proc=Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable("helm", "helm");
         var stdout=await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
         var stderr=await proc.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
         await proc.WaitForExitAsync(ct).ConfigureAwait(false);
@@ -363,7 +364,7 @@ public sealed class AwsCliToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     private static async Task<ToolkitResult> RunCli(string exe,string args,Dictionary<string,string?> env,CancellationToken ct){
         var psi=new ProcessStartInfo(exe,args){RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
         foreach(var kv in env)psi.Environment[kv.Key]=kv.Value;
-        using var proc=Process.Start(psi)??throw new InvalidOperationException($"{exe} not found in PATH");
+        using var proc=Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable("aws_cli", exe);
         var stdout=await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
         var stderr=await proc.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
         await proc.WaitForExitAsync(ct).ConfigureAwait(false);
@@ -381,7 +382,7 @@ public sealed class AzureCliToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         var args=(GetParam<string>(p,"args")??a)+" --output json";
         var psi=new ProcessStartInfo("az",args){RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
-        using var proc=Process.Start(psi)??throw new InvalidOperationException("az (Azure CLI) not found in PATH");
+        using var proc=Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable("azure_cli", "az");
         var stdout=await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
         var stderr=await proc.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
         await proc.WaitForExitAsync(ct).ConfigureAwait(false);
@@ -399,7 +400,7 @@ public sealed class GcpCliToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         var args=(GetParam<string>(p,"args")??a)+" --format=json";
         var psi=new ProcessStartInfo("gcloud",args){RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
-        using var proc=Process.Start(psi)??throw new InvalidOperationException("gcloud not found in PATH");
+        using var proc=Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable("gcp_cli", "gcloud");
         var stdout=await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
         var stderr=await proc.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
         await proc.WaitForExitAsync(ct).ConfigureAwait(false);
@@ -448,7 +449,7 @@ public sealed class FileSystemToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             "delete"     =>DeletePath(path),
             "exists"     =>ToolkitResult.Success(new{path,exists=File.Exists(path)||Directory.Exists(path),isFile=File.Exists(path),isDir=Directory.Exists(path)}),
             "tree"       =>ToolkitResult.Success(new{path,tree=BuildTree(path,GetParam<int?>(p,"depth")??3)}),
-            _            =>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list|read|write|delete|exists|tree")
+            _            =>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> WriteFile(string path,string content,CancellationToken ct){
@@ -486,7 +487,7 @@ public sealed class ShellToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             :new ProcessStartInfo("/bin/sh","-c "+cmd){WorkingDirectory=workDir,RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
         using var cts=CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(TimeSpan.FromSeconds(timeoutSec));
-        using var proc=Process.Start(psi)??throw new InvalidOperationException("Failed to start shell process");
+        using var proc=Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable("shell", isWindows ? "cmd" : "/bin/sh");
         var stdout=await proc.StandardOutput.ReadToEndAsync(cts.Token).ConfigureAwait(false);
         var stderr=await proc.StandardError.ReadToEndAsync(cts.Token).ConfigureAwait(false);
         await proc.WaitForExitAsync(cts.Token).ConfigureAwait(false);
@@ -508,7 +509,7 @@ public sealed class PythonRunnerToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg
             var script=GetParam<string>(p,"script")??GetParam<string>(p,"code")??"";
             if(string.IsNullOrWhiteSpace(script)&&a!="run_file")return ToolkitResult.Fail("script or code parameter required");
             if(a=="run_file"){
-                scriptFile=GetParam<string>(p,"file")?? throw new ArgumentException("file required for run_file");
+                scriptFile=GetRequiredParam<string>(p,"file");
             }else{
                 scriptFile=Path.Combine(Path.GetTempPath(),$"agx_{Guid.NewGuid():N}.py");
                 await File.WriteAllTextAsync(scriptFile,script,ct).ConfigureAwait(false);
@@ -518,7 +519,7 @@ public sealed class PythonRunnerToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg
             if(envVars!=null)foreach(var kv in envVars)psi.Environment[kv.Key]=kv.Value;
             using var cts=CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(TimeSpan.FromSeconds(GetParam<int?>(p,"timeout_seconds")??60));
-            using var proc=Process.Start(psi)??throw new InvalidOperationException($"{pyExe} not found");
+            using var proc=Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable("python_runner", pyExe);
             var stdout=await proc.StandardOutput.ReadToEndAsync(cts.Token).ConfigureAwait(false);
             var stderr=await proc.StandardError.ReadToEndAsync(cts.Token).ConfigureAwait(false);
             await proc.WaitForExitAsync(cts.Token).ConfigureAwait(false);
@@ -542,8 +543,8 @@ public sealed class JupyterToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
         return a switch{
             "list_kernels"   =>await JupyterGet($"{baseUrl}/api/kernels{tokenParam}",token,ct).ConfigureAwait(false),
             "list_notebooks" =>await JupyterGet($"{baseUrl}/api/contents{tokenParam}",token,ct).ConfigureAwait(false),
-            "get_notebook"   =>await JupyterGet($"{baseUrl}/api/contents/{GetParam<string>(p,"path")}{tokenParam}",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_kernels|list_notebooks|get_notebook")
+            "get_notebook"   =>await JupyterGet($"{baseUrl}/api/contents/{GetRequiredParam<string>(p,"path")}{tokenParam}",token,ct).ConfigureAwait(false),
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> JupyterGet(string url,string token,CancellationToken ct){
@@ -573,7 +574,7 @@ public sealed class BuildToolsToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             _         =>GetParam<string>(p,"args")??a
         };
         var psi=new ProcessStartInfo(tool,args){WorkingDirectory=workDir,RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
-        using var proc=Process.Start(psi)??throw new InvalidOperationException($"{tool} not found in PATH");
+        using var proc=Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable("build_tools", tool);
         var stdout=await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
         var stderr=await proc.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
         await proc.WaitForExitAsync(ct).ConfigureAwait(false);
@@ -598,7 +599,7 @@ public sealed class CodeQualityToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg)
             _               =>(tool,GetParam<string>(p,"args")??target)
         };
         var psi=new ProcessStartInfo(exe,args){WorkingDirectory=GetParam<string>(p,"working_dir")??".",RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
-        using var proc=Process.Start(psi)??throw new InvalidOperationException($"{exe} not found in PATH");
+        using var proc=Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable("code_quality", exe);
         var stdout=await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
         var stderr=await proc.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
         await proc.WaitForExitAsync(ct).ConfigureAwait(false);

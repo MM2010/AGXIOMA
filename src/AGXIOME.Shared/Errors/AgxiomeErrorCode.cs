@@ -58,6 +58,10 @@ public enum AgxiomeErrorCode
     DB_MigrationFailed = 406,
     DB_ConnectionPoolExhausted = 407,
     DB_CircuitBreakerOpen = 408,
+    DB_InvalidCollectionName = 409,
+    DB_InvalidRecordIdentifier = 410,
+    DB_ProviderOperationFailed = 411,
+    DB_CollectionMissing = 412,
 
     // ── Redis / Cache (500-599) ──
     CA_ConnectionFailed = 500,

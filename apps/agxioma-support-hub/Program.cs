@@ -1,9 +1,12 @@
 using AGXIOME.Core.DependencyInjection;
 using AGXIOME.Core.Patterns;
+using AGXIOME.Runtime;
+using AGXIOME.Security.Rbac;
 using AgxiomaSupportHub.Tools;
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 var builder = WebApplication.CreateBuilder(args);
+builder.AddAgxiomeSecurityDefaults();
 
 var provider = builder.Configuration["Agent:Provider"] ?? "deepseek";
 var model    = builder.Configuration["Agent:Model"];
@@ -89,6 +92,7 @@ builder.Services.AddAgxiome()
     });
 
 var app = builder.Build();
+await app.UseAgxiomeSecurityDefaultsAsync();
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
@@ -100,7 +104,8 @@ app.MapGet("/health", (IConfiguration cfg) => Results.Ok(new
     model    = cfg["Agent:Model"],
     swarms   = new[] { "support (ForestSwarm)", "analyst (HeavySwarm)" },
     utc      = DateTime.UtcNow
-}));
+}))
+    .AllowAnonymousAgxiome();
 
 // POST /support — route customer message to the best-matching agent
 app.MapPost("/support", async (SupportRequest req, ForestSwarm support) =>
@@ -118,7 +123,9 @@ app.MapPost("/support", async (SupportRequest req, ForestSwarm support) =>
         response        = result.Output,
         durationMs      = result.Duration.TotalMilliseconds
     });
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowExecute)
+    .WithAgxiomeRateLimit(20, TimeSpan.FromMinutes(1));
 
 // POST /analyze — deep multi-phase research on any support topic
 app.MapPost("/analyze", async (AnalysisRequest req, HeavySwarm analyst) =>
@@ -135,10 +142,13 @@ app.MapPost("/analyze", async (AnalysisRequest req, HeavySwarm analyst) =>
         findings  = result.ResearchFindings,
         phases    = result.PhaseTiming.Select(kv => new { phase = kv.Key, durationS = kv.Value.TotalSeconds })
     });
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowExecute)
+    .WithAgxiomeRateLimit(10, TimeSpan.FromMinutes(1));
 
 app.MapGet("/", () =>
-    "AGXIOME Support Hub — POST /support (customer questions) | POST /analyze (deep research)");
+    "AGXIOME Support Hub — POST /support (customer questions) | POST /analyze (deep research)")
+    .AllowAnonymousAgxiome();
 
 app.Run();
 
@@ -149,3 +159,5 @@ public record SupportRequest(string Message);
 
 /// <summary>Topic to research via HeavySwarm parallel pipeline.</summary>
 public record AnalysisRequest(string Topic);
+
+public partial class Program { }

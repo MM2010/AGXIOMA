@@ -17,7 +17,7 @@ namespace AgxiomaLLMWiki;
 ///   - Ingest job state (TTL 24h)
 ///   - Frequently queried page cache (TTL 10 min)
 /// </summary>
-public sealed class WikiDatabase
+public sealed class WikiDatabase : IWikiDatabase
 {
     private readonly string _connStr;
     private readonly IConnectionMultiplexer? _redis;
@@ -316,7 +316,7 @@ public sealed class WikiDatabase
 
     // ── Redis: ingest job state ────────────────────────────────────────────────
 
-    public async Task SaveJobStateAsync(IngestJobState state)
+    public async Task SaveJobStateAsync(IngestJobState state, CancellationToken ct = default)
     {
         if (_redis is null) return;
         try
@@ -331,7 +331,7 @@ public sealed class WikiDatabase
         }
     }
 
-    public async Task<IngestJobState?> GetJobStateAsync(string jobId)
+    public async Task<IngestJobState?> GetJobStateAsync(string jobId, CancellationToken ct = default)
     {
         if (_redis is null) return null;
         try
@@ -350,7 +350,7 @@ public sealed class WikiDatabase
 
     // ── Redis: page content cache ──────────────────────────────────────────────
 
-    public async Task CachePageContentAsync(string slug, string content)
+    public async Task CachePageContentAsync(string slug, string content, CancellationToken ct = default)
     {
         if (_redis is null) return;
         try
@@ -364,7 +364,7 @@ public sealed class WikiDatabase
         }
     }
 
-    public async Task<string?> GetCachedPageContentAsync(string slug)
+    public async Task<string?> GetCachedPageContentAsync(string slug, CancellationToken ct = default)
     {
         if (_redis is null) return null;
         try

@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.XPath;
+using AGXIOME.Shared.Errors;
 using CsvHelper;
 using CsvHelper.Configuration;
 using Microsoft.Data.Sqlite;
@@ -118,7 +119,7 @@ public sealed class PandasLikeToolkit(ToolkitConfig? config=null):ToolkitBase(co
             "filter"=>Filter(name,GetParam<string>(p,"column")??"",GetParam<string>(p,"value")??""),
             "drop"=>Drop(name),
             "list_tables"=>Task.FromResult(ToolkitResult.Success(new{tables=_tables.Keys.ToArray()})),
-            _=>Task.FromResult(ToolkitResult.Fail($"Unknown action '{a}'. Valid: load_json|head|describe|filter|drop|list_tables"))
+            _=>Task.FromException<ToolkitResult>(AgxiomeToolkitException.UnknownAction(Id, a))
         };
     }
     private Task<ToolkitResult> LoadJson(string name,string json){
@@ -171,7 +172,7 @@ public sealed class ExcelToolkit(ToolkitConfig? config=null):ToolkitBase(config)
         return a switch{
             "read"=>ReadExcel(file,GetParam<string>(p,"sheet"),GetParam<int?>(p,"max_rows")??1000),
             "list_sheets"=>ListSheets(file),
-            _=>Task.FromResult(ToolkitResult.Fail($"Unknown action '{a}'. Valid: read|list_sheets"))
+            _=>Task.FromException<ToolkitResult>(AgxiomeToolkitException.UnknownAction(Id, a))
         };
     }
     private Task<ToolkitResult> ReadExcel(string file,string? sheetName,int maxRows){
@@ -203,7 +204,7 @@ public sealed class CsvToolkit(ToolkitConfig? config=null):ToolkitBase(config){
             "read"=>await ReadCsv(file,GetParam<int?>(p,"max_rows")??10000,GetParam<string>(p,"delimiter")??",",ct).ConfigureAwait(false),
             "write"=>await WriteCsv(file,GetParam<object?>(p,"rows"),GetParam<string>(p,"delimiter")??",",ct).ConfigureAwait(false),
             "info"=>await InfoCsv(file,GetParam<string>(p,"delimiter")??",",ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: read|write|info")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private async Task<ToolkitResult> ReadCsv(string file,int maxRows,string delim,CancellationToken ct){
@@ -269,7 +270,7 @@ public sealed class JsonDataToolkit(ToolkitConfig? config=null):ToolkitBase(conf
             "merge"=>Merge(GetParam<string>(p,"base")??"{}",GetParam<string>(p,"patch")??"{}"),
             "flatten"=>Flatten(GetParam<string>(p,"json")??"{}"),
             "schema"=>Schema(GetParam<string>(p,"json")??"{}"),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: read_file|write_file|query|merge|flatten|schema")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> ReadFile(string path,CancellationToken ct){
@@ -347,7 +348,7 @@ public sealed class XmlDataToolkit(ToolkitConfig? config=null):ToolkitBase(confi
             "xpath"=>await XPath(GetParam<string>(p,"path")??"",GetParam<string>(p,"xpath")??"/*",ct).ConfigureAwait(false),
             "to_json"=>await ToJson(GetParam<string>(p,"path")??"",ct).ConfigureAwait(false),
             "validate"=>await Validate(GetParam<string>(p,"path")??"",ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: read_file|xpath|to_json|validate")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> ReadXml(string path,CancellationToken ct){

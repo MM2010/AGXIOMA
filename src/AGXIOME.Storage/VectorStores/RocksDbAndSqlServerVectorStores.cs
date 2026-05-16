@@ -1,4 +1,5 @@
 using AGXIOME.Shared.Interfaces;
+using AGXIOME.Shared.Errors;
 using AGXIOME.Shared.Models;
 using Dapper;
 using Microsoft.Data.SqlClient;
@@ -273,9 +274,7 @@ public sealed class SqlServerVectorStore : IVectorStore
 
     private static void ValidateCollection(string name)
     {
-        if (string.IsNullOrWhiteSpace(name)
-            || !System.Text.RegularExpressions.Regex.IsMatch(name, @"^[a-zA-Z_][a-zA-Z0-9_]*$"))
-            throw new ArgumentException($"Invalid collection name: '{name}'.");
+        VectorStoreGuards.ValidateCollectionName("SQLServerVector", name, @"^[a-zA-Z_][a-zA-Z0-9_]*$");
     }
 
     private static string VectorLiteral(float[] v) =>

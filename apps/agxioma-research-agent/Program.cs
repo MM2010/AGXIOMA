@@ -1,12 +1,15 @@
 using AGXIOME.Core;
 using AGXIOME.Core.DependencyInjection;
 using AGXIOME.Core.Patterns;
+using AGXIOME.Runtime;
+using AGXIOME.Security.Rbac;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 using AgxiomaResearchAgent;
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 var builder = WebApplication.CreateBuilder(args);
+builder.AddAgxiomeSecurityDefaults();
 
 var cfg = builder.Configuration.GetSection("Agent").Get<AgentSettings>() ?? new AgentSettings();
 
@@ -64,6 +67,7 @@ builder.Services.AddSingleton<HeavySwarm>(sp =>
 builder.Services.AddSingleton<ResearchJobStore>();
 
 var app = builder.Build();
+await app.UseAgxiomeSecurityDefaultsAsync();
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
@@ -75,7 +79,8 @@ app.MapGet("/health", () => Results.Ok(new
     workerCount   = cfg.WorkerCount > 0 ? cfg.WorkerCount : 3,
     phases        = new[] { "QuestionGen", "Research", "Analysis", "Alternatives", "Synthesis" },
     utc           = DateTime.UtcNow
-}));
+}))
+    .AllowAnonymousAgxiome();
 
 // Start a research job (async — returns a job ID immediately)
 app.MapPost("/research", async (
@@ -105,7 +110,9 @@ app.MapPost("/research", async (
     }, CancellationToken.None);
 
     return Results.Accepted($"/research/{jobId}", new { jobId, status = "started", topic = req.Topic });
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowExecute)
+    .WithAgxiomeRateLimit(10, TimeSpan.FromMinutes(1));
 
 // Synchronous research (blocks until complete — fine for short topics)
 app.MapPost("/research/sync", async (
@@ -118,7 +125,9 @@ app.MapPost("/research/sync", async (
 
     var result = await swarm.RunAsync(req.Topic, ct);
     return Results.Ok(MapResult(req.Topic, result));
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowExecute)
+    .WithAgxiomeRateLimit(5, TimeSpan.FromMinutes(1));
 
 // Poll job status
 app.MapGet("/research/{jobId}", (string jobId, ResearchJobStore jobs) =>
@@ -137,7 +146,9 @@ app.MapGet("/research/{jobId}", (string jobId, ResearchJobStore jobs) =>
         error    = job.Error,
         duration = job.Duration?.ToString(@"mm\:ss")
     });
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowRead)
+    .WithAgxiomeRateLimit(30, TimeSpan.FromMinutes(1));
 
 // List all jobs
 app.MapGet("/research", (ResearchJobStore jobs) =>
@@ -148,7 +159,9 @@ app.MapGet("/research", (ResearchJobStore jobs) =>
         Status   = j.Status.ToString(),
         Duration = j.Duration?.ToString(@"mm\:ss")
     }))
-);
+)
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowRead)
+    .WithAgxiomeRateLimit(30, TimeSpan.FromMinutes(1));
 
 app.Run();
 
@@ -166,3 +179,5 @@ static object MapResult(string topic, HeavySwarmResult r) => new
     phaseTiming   = r.PhaseTiming.ToDictionary(kv => kv.Key, kv => $"{kv.Value.TotalSeconds:F1}s"),
     totalDuration = r.PhaseTiming.Values.Aggregate(TimeSpan.Zero, (a, b) => a + b).ToString(@"mm\:ss\.fff")
 };
+
+public partial class Program { }

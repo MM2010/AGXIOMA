@@ -17,6 +17,14 @@ namespace AgxiomaDynamicSkillLab.Engine;
 public sealed class RoslynCompiler
 {
     private static readonly IReadOnlyList<MetadataReference> _references = BuildReferences();
+    private readonly bool _runtimeMutationEnabled;
+    private readonly int _maxSourceChars;
+
+    public RoslynCompiler(bool runtimeMutationEnabled = false, int maxSourceChars = 32_768)
+    {
+        _runtimeMutationEnabled = runtimeMutationEnabled;
+        _maxSourceChars = Math.Max(1024, maxSourceChars);
+    }
 
     private static IReadOnlyList<MetadataReference> BuildReferences()
     {
@@ -28,6 +36,13 @@ public sealed class RoslynCompiler
         var platformRefs = trustedPaths
             .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
             .Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p))
+            .Where(p =>
+            {
+                var assemblyName = Path.GetFileNameWithoutExtension(p);
+                return assemblyName.Equals("mscorlib", StringComparison.OrdinalIgnoreCase)
+                    || assemblyName.Equals("netstandard", StringComparison.OrdinalIgnoreCase)
+                    || assemblyName.StartsWith("System", StringComparison.OrdinalIgnoreCase);
+            })
             .Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))
             .ToList();
 
@@ -49,6 +64,14 @@ public sealed class RoslynCompiler
         string toolId,
         CancellationToken ct = default)
     {
+        if (!_runtimeMutationEnabled)
+            return new CompileOutput(false, null, null, null,
+                new List<string> { "Dynamic compilation is disabled by runtime policy" });
+
+        var policyViolations = DynamicToolSourcePolicy.Validate(sourceCode, toolId, _maxSourceChars);
+        if (policyViolations.Count > 0)
+            return new CompileOutput(false, null, null, null, policyViolations.ToList());
+
         var syntaxTree = CSharpSyntaxTree.ParseText(sourceCode,
             new CSharpParseOptions(LanguageVersion.Latest),
             cancellationToken: ct);

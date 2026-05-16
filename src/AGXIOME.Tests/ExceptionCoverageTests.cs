@@ -8,6 +8,7 @@ using AGXIOME.Core.Guardrails;
 using AGXIOME.Core.Scheduling;
 using AGXIOME.Core.Logging;
 using AGXIOME.Shared.Config;
+using AGXIOME.Shared.Errors;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Logging;
 using AGXIOME.Shared.Models;
@@ -312,6 +313,29 @@ public class ExceptionCoverageTests
         logger.Warning("warn msg");
         logger.Error("error msg");
         logger.Exception(new InvalidOperationException("test"), "exception msg");
+    }
+
+    [Fact]
+    public void Logger_AgxiomeException_EmitsStructuredCode()
+    {
+        var writer = new StringWriter();
+        var original = Console.Out;
+
+        try
+        {
+            Console.SetOut(writer);
+            var logger = AgxiomeLoggerFactory.Default("test");
+            logger.Exception(AgxiomeStorageException.InvalidCollectionName("PgVector", "bad name", "^[a-zA-Z_][a-zA-Z0-9_.]*$"), "storage failure");
+        }
+        finally
+        {
+            Console.SetOut(original);
+        }
+
+        var output = writer.ToString();
+        Assert.Contains("ERR-0409", output);
+        Assert.Contains("storage failure", output);
+        Assert.DoesNotContain("System.ArgumentException", output);
     }
 
     [Fact]

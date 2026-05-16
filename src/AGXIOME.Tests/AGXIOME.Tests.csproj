@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,7 +14,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="FsCheck" Version="3.3.3" />
-    <PackageReference Include="Microsoft.Graph" Version="5.105.0" />
+    <PackageReference Include="Microsoft.Graph" Version="6.0.3" />
     <PackageReference Include="Microsoft.Kiota.Abstractions" Version="2.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.8" />
@@ -34,6 +35,7 @@
   <ItemGroup>
     <ProjectReference Include="..\AGXIOME.Shared\AGXIOME.Shared.csproj" />
     <ProjectReference Include="..\AGXIOME.Core\AGXIOME.Core.csproj" />
+    <ProjectReference Include="..\AGXIOME.DynamicRuntime\AGXIOME.DynamicRuntime.csproj" />
     <ProjectReference Include="..\AGXIOME.LLMWIKY\AGXIOME.LLMWIKY.csproj" />
     <ProjectReference Include="..\AGXIOME.Storage\AGXIOME.Storage.csproj" />
     <ProjectReference Include="..\AGXIOME.XLink\AGXIOME.XLink.csproj" />
@@ -44,6 +46,13 @@
     <ProjectReference Include="..\AGXIOME.Toolkits\AGXIOME.Toolkits.csproj" />
     <ProjectReference Include="..\AGXIOME.CLI\AGXIOME.CLI.csproj" />
     <ProjectReference Include="..\AGXIOME.Orchestration\AGXIOME.Orchestration.csproj" />
+    <ProjectReference Include="..\..\apps\agxioma-tool-agent\AgxiomaToolAgent.csproj" Aliases="toolagent" />
+    <ProjectReference Include="..\..\apps\agxioma-rag-pipeline\AgxiomaRagPipeline.csproj" Aliases="ragpipeline" />
+    <ProjectReference Include="..\..\apps\agxioma-dynamic-skill-lab\AgxiomaDynamicSkillLab.csproj" Aliases="skilllab" />
+    <ProjectReference Include="..\..\apps\agxioma-llm-wiki\AgxiomaLLMWiki.csproj" Aliases="llmwiki" />
+    <ProjectReference Include="..\..\apps\agxioma-support-hub\AgxiomaSupportHub.csproj" Aliases="supporthub" />
+    <ProjectReference Include="..\..\apps\agxioma-research-agent\AgxiomaResearchAgent.csproj" Aliases="researchagent" />
+    <ProjectReference Include="..\..\apps\agxioma-stock-tracker\AgxiomaStockTracker.csproj" Aliases="stocktracker" />
   </ItemGroup>
 
 </Project>

@@ -3,6 +3,7 @@
 // (aws, az, gcloud) when available, or provide informative stubs for SDK-only operations.
 using System.Net.Http.Json;
 using System.Text.Json;
+using AGXIOME.Shared.Errors;
 
 namespace AGXIOME.Toolkits.CloudInfra;
 
@@ -34,7 +35,7 @@ public sealed class AwsS3Toolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
         if(!string.IsNullOrWhiteSpace(GetSetting("access_key_id")))psi.Environment["AWS_ACCESS_KEY_ID"]=GetSetting("access_key_id");
         if(!string.IsNullOrWhiteSpace(GetSetting("secret_access_key")))psi.Environment["AWS_SECRET_ACCESS_KEY"]=GetSetting("secret_access_key");
         if(!string.IsNullOrWhiteSpace(GetSetting("region")))psi.Environment["AWS_DEFAULT_REGION"]=GetSetting("region");
-        using var proc=System.Diagnostics.Process.Start(psi)??throw new InvalidOperationException("aws CLI not found. Install AWS CLI or use AWSSDK.S3 package.");
+        using var proc=System.Diagnostics.Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable(Id, "aws");
         var out_=await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
         var err=await proc.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
         await proc.WaitForExitAsync(ct).ConfigureAwait(false);
@@ -49,7 +50,7 @@ public sealed class AwsLambdaToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.CloudInfra;
     public override bool IsConfigured=>true;
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var fn=GetParam<string>(p,"function_name")?? throw new ArgumentException("function_name required");
+        var fn=GetRequiredParam<string>(p,"function_name");
         var args=a switch{
             "invoke"        =>$"lambda invoke --function-name {fn} --payload {System.Text.Json.JsonSerializer.Serialize(GetParam<object?>(p,"payload")??new{})} /tmp/lambda-out.json --output json && cat /tmp/lambda-out.json",
             "list"          =>"lambda list-functions --output json",
@@ -64,7 +65,7 @@ public sealed class AwsLambdaToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
         if(!string.IsNullOrWhiteSpace(GetSetting("access_key_id")))psi.Environment["AWS_ACCESS_KEY_ID"]=GetSetting("access_key_id");
         if(!string.IsNullOrWhiteSpace(GetSetting("secret_access_key")))psi.Environment["AWS_SECRET_ACCESS_KEY"]=GetSetting("secret_access_key");
         if(!string.IsNullOrWhiteSpace(GetSetting("region")))psi.Environment["AWS_DEFAULT_REGION"]=GetSetting("region");
-        using var proc=System.Diagnostics.Process.Start(psi)??throw new InvalidOperationException("aws CLI not found.");
+        using var proc=System.Diagnostics.Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable(Id, "aws");
         var out_=await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
         var err=await proc.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
         await proc.WaitForExitAsync(ct).ConfigureAwait(false);
@@ -108,13 +109,13 @@ public sealed class AzureBlobToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
         var args=a switch{
             "list_containers"=>$"storage container list {connArg} --output json",
             "list_blobs"     =>$"storage blob list --container-name {container} {connArg} --output json",
-            "upload"         =>$"storage blob upload --container-name {container} --name {blob} --file {GetParam<string>(p,"file")?? throw new ArgumentException("file required")} {connArg}",
-            "download"       =>$"storage blob download --container-name {container} --name {blob} --file {GetParam<string>(p,"dest")?? throw new ArgumentException("dest required")} {connArg}",
+            "upload"         =>$"storage blob upload --container-name {container} --name {blob} --file {GetRequiredParam<string>(p,"file")} {connArg}",
+            "download"       =>$"storage blob download --container-name {container} --name {blob} --file {GetRequiredParam<string>(p,"dest")} {connArg}",
             "delete"         =>$"storage blob delete --container-name {container} --name {blob} {connArg}",
             _                =>$"storage blob {GetParam<string>(p,"args")??a} {connArg}"
         };
         var psi=new System.Diagnostics.ProcessStartInfo("az",args){RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
-        using var proc=System.Diagnostics.Process.Start(psi)??throw new InvalidOperationException("az CLI not found. Install Azure CLI or add package Azure.Storage.Blobs.");
+        using var proc=System.Diagnostics.Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable(Id, "az");
         var out_=await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
         var err=await proc.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
         await proc.WaitForExitAsync(ct).ConfigureAwait(false);
@@ -160,7 +161,7 @@ public sealed class GcpCloudRunToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg)
     public override ToolkitCategory Category=>ToolkitCategory.CloudInfra;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("service_url"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var url=GetSetting("service_url")??throw new InvalidOperationException("Cloud Run service_url not set");
+        var url=GetRequiredSetting("service_url");
         var payload=GetParam<object?>(p,"payload")??new{};
         var method=GetParam<string>(p,"method")??"POST";
         HttpResponseMessage resp;
@@ -180,7 +181,7 @@ public sealed class CloudflareToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.CloudInfra;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("api_token")??throw new InvalidOperationException("Cloudflare api_token not set");
+        var token=GetRequiredSetting("api_token");
         var zoneId=GetSetting("zone_id")??GetParam<string>(p,"zone_id")??"";
         return a switch{
             "list_zones"   =>await CfGet("zones",token,ct).ConfigureAwait(false),
@@ -188,7 +189,7 @@ public sealed class CloudflareToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             "purge_cache"  =>await CfPost($"zones/{zoneId}/purge_cache",new{purge_everything=true},token,ct).ConfigureAwait(false),
             "list_workers" =>await CfGet("accounts/{GetSetting(\"account_id\")}/workers/scripts",token,ct).ConfigureAwait(false),
             "analytics"    =>await CfGet($"zones/{zoneId}/analytics/dashboard",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_zones|list_dns|purge_cache|list_workers|analytics")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> CfGet(string path,string token,CancellationToken ct){
@@ -212,7 +213,7 @@ public sealed class VercelToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.CloudInfra;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("api_token")??throw new InvalidOperationException("Vercel api_token not set");
+        var token=GetRequiredSetting("api_token");
         var teamId=GetSetting("team_id");
         var q=teamId!=null?$"?teamId={teamId}":"";
         return a switch{
@@ -220,7 +221,7 @@ public sealed class VercelToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             "get_deployment"  =>await VcGet($"v13/deployments/{GetParam<string>(p,"id")}",token,ct).ConfigureAwait(false),
             "list_projects"   =>await VcGet($"v9/projects{q}",token,ct).ConfigureAwait(false),
             "get_domains"     =>await VcGet($"v5/domains{q}",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_deployments|get_deployment|list_projects|get_domains")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> VcGet(string path,string token,CancellationToken ct){
@@ -238,13 +239,13 @@ public sealed class NetlifyToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.CloudInfra;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("access_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("access_token")??throw new InvalidOperationException("Netlify access_token not set");
+        var token=GetRequiredSetting("access_token");
         return a switch{
             "list_sites"  =>await NtGet("sites",token,ct).ConfigureAwait(false),
             "get_site"    =>await NtGet($"sites/{GetParam<string>(p,"site_id")}",token,ct).ConfigureAwait(false),
             "list_deploys"=>await NtGet($"sites/{GetParam<string>(p,"site_id")}/deploys?per_page={GetParam<int?>(p,"per_page")??10}",token,ct).ConfigureAwait(false),
             "get_deploy"  =>await NtGet($"deploys/{GetParam<string>(p,"deploy_id")}",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_sites|get_site|list_deploys|get_deploy")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> NtGet(string path,string token,CancellationToken ct){
@@ -262,7 +263,7 @@ public sealed class DigitalOceanToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg
     public override ToolkitCategory Category=>ToolkitCategory.CloudInfra;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("api_token")??throw new InvalidOperationException("DigitalOcean api_token not set");
+        var token=GetRequiredSetting("api_token");
         return a switch{
             "list_droplets"   =>await DoGet("droplets",token,ct).ConfigureAwait(false),
             "get_droplet"     =>await DoGet($"droplets/{GetParam<string>(p,"id")}",token,ct).ConfigureAwait(false),
@@ -270,7 +271,7 @@ public sealed class DigitalOceanToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg
             "list_k8s"        =>await DoGet("kubernetes/clusters",token,ct).ConfigureAwait(false),
             "list_apps"       =>await DoGet("apps",token,ct).ConfigureAwait(false),
             "account"         =>await DoGet("account",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_droplets|get_droplet|list_domains|list_k8s|list_apps|account")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> DoGet(string path,string token,CancellationToken ct){

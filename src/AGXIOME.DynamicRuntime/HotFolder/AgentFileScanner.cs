@@ -20,12 +20,51 @@ public sealed record AgentFileMetadata(
 /// </summary>
 public static class AgentFileScanner
 {
+    private const long MaxSourceFileSizeBytes = 256 * 1024;
+    private static readonly SemaphoreSlim ScanGate = new(Math.Max(1, Environment.ProcessorCount), Math.Max(1, Environment.ProcessorCount));
+    private static readonly HashSet<string> AllowedAttributeNames =
+    [
+        "AgxiomeAgent",
+        "AgxiomeAgentAttribute",
+        "AGXIOME.DynamicRuntime.Attributes.AgxiomeAgent",
+        "AGXIOME.DynamicRuntime.Attributes.AgxiomeAgentAttribute"
+    ];
+
     /// <summary>
     /// Analizza il file e ritorna i metadati dell'agente.
     /// Ritorna null se il file non contiene un attributo [AgxiomeAgent] valido.
     /// </summary>
-    public static async Task<AgentFileMetadata?> ScanAsync(string filePath, CancellationToken ct = default)
+    public static async Task<AgentFileMetadata?> ScanAsync(string filePath, string? allowedRoot = null, CancellationToken ct = default)
     {
+        await ScanGate.WaitAsync(ct);
+        try
+        {
+        if (!string.Equals(Path.GetExtension(filePath), ".cs", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        if (!string.IsNullOrWhiteSpace(allowedRoot))
+        {
+            var normalizedRoot = EnsureTrailingSeparator(Path.GetFullPath(allowedRoot));
+            var normalizedPath = Path.GetFullPath(filePath);
+            if (!normalizedPath.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase))
+                return null;
+        }
+
+        FileInfo info;
+        try
+        {
+            info = new FileInfo(filePath);
+            if (!info.Exists || info.Length > MaxSourceFileSizeBytes)
+                return null;
+
+            if ((info.Attributes & FileAttributes.ReparsePoint) != 0 || ContainsReparsePoint(info.Directory))
+                return null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+
         string source;
         try
         {
@@ -42,6 +81,11 @@ public static class AgentFileScanner
 
         var hash = ComputeHash(source);
         return new AgentFileMetadata(agentId, description, filePath, hash);
+        }
+        finally
+        {
+            ScanGate.Release();
+        }
     }
 
     private static (string? Id, string? Description) ExtractAttribute(string source)
@@ -50,21 +94,24 @@ public static class AgentFileScanner
         var root = tree.GetRoot();
 
         // Cerca: [AgxiomeAgent("some-id", "some description")]
-        foreach (var attrList in root.DescendantNodes().OfType<AttributeSyntax>())
+        foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
         {
-            var name = attrList.Name.ToString();
-            if (!name.Equals("AgxiomeAgent", StringComparison.Ordinal) &&
-                !name.Equals("AgxiomeAgentAttribute", StringComparison.Ordinal))
-                continue;
+            foreach (var attrList in classDecl.AttributeLists)
+            foreach (var attr in attrList.Attributes)
+            {
+                var name = attr.Name.ToString();
+                if (!AllowedAttributeNames.Contains(name))
+                    continue;
 
-            var args = attrList.ArgumentList?.Arguments;
-            if (args is null || args.Value.Count < 2)
-                continue;
+                var args = attr.ArgumentList?.Arguments;
+                if (args is null || args.Value.Count < 2)
+                    continue;
 
-            var id = ExtractStringLiteral(args.Value[0].Expression);
-            var desc = ExtractStringLiteral(args.Value[1].Expression);
-            if (id is not null && desc is not null)
-                return (id, desc);
+                var id = ExtractStringLiteral(args.Value[0].Expression);
+                var desc = ExtractStringLiteral(args.Value[1].Expression);
+                if (id is not null && desc is not null)
+                    return (id, desc);
+            }
         }
 
         return (null, null);
@@ -83,4 +130,22 @@ public static class AgentFileScanner
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(source));
         return Convert.ToHexStringLower(bytes);
     }
+
+    private static bool ContainsReparsePoint(DirectoryInfo? directory)
+    {
+        while (directory is not null)
+        {
+            if ((directory.Attributes & FileAttributes.ReparsePoint) != 0)
+                return true;
+
+            directory = directory.Parent;
+        }
+
+        return false;
+    }
+
+    private static string EnsureTrailingSeparator(string path) =>
+        path.EndsWith(Path.DirectorySeparatorChar)
+            ? path
+            : path + Path.DirectorySeparatorChar;
 }

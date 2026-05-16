@@ -13,6 +13,9 @@ public class AgxiomeException : Exception
     /// <summary>Codice errore strutturato.</summary>
     public AgxiomeErrorCode ErrorCode { get; }
 
+    /// <summary>Codice numerico stabile per telemetria e contratti API.</summary>
+    public int NumericCode => (int)ErrorCode;
+
     /// <summary>Messaggio mostrato all'utente (mai stack trace).</summary>
     public string UserMessage { get; }
 

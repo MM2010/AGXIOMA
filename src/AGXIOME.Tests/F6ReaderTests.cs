@@ -116,10 +116,15 @@ public class PdfReaderTests
     [Fact] public async Task ReadFromStream_ValidPdf_MetadataNotNull()
     {
         using var stream = TestDocContent.Pdf();
-        DocumentContent result;
-        try { result = await _reader.ReadFromStreamAsync(stream); }
-        catch { return; } // small PDF may not be fully parseable
+        var result = await _reader.ReadFromStreamAsync(stream);
+
         Assert.NotNull(result);
+        Assert.Equal(DocumentReaderType.Pdf, result.ReaderType);
+        Assert.NotEmpty(result.RawText);
+        Assert.NotEmpty(result.Sections);
+        Assert.NotNull(result.Metadata);
+        Assert.True(result.Metadata.ContainsKey("pageCount"));
+        Assert.True(result.Metadata.ContainsKey("contentHash"));
     }
 
     [Fact] public async Task SupportedExtensions_NotEmpty()

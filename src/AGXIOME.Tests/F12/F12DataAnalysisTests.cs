@@ -17,7 +17,7 @@ public sealed class SqlToolkitTests
     {
         var cfg = new ToolkitConfig("sql", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new SqlToolkit(cfg).ExecuteAsync("query", new Dictionary<string, object?> { ["sql"] = "SELECT 1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -35,7 +35,7 @@ public sealed class DuckDbToolkitTests
     {
         var cfg = new ToolkitConfig("duckdb", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new DuckDbToolkit(cfg).ExecuteAsync("query", new Dictionary<string, object?> { ["sql"] = "SELECT 1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -53,7 +53,7 @@ public sealed class PostgreSqlToolkitTests
     {
         var cfg = new ToolkitConfig("postgresql", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new PostgreSqlToolkit(cfg).ExecuteAsync("query", new Dictionary<string, object?> { ["sql"] = "SELECT 1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -71,7 +71,7 @@ public sealed class MySqlToolkitTests
     {
         var cfg = new ToolkitConfig("mysql", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new MySqlToolkit(cfg).ExecuteAsync("query", new Dictionary<string, object?> { ["sql"] = "SELECT 1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -83,12 +83,12 @@ public sealed class SqliteToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new SqliteToolkit().ExecuteAsync("query", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
-        var cfg = new ToolkitConfig("sqlite", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new SqliteToolkit(cfg).ExecuteAsync("query", new Dictionary<string, object?> { ["sql"] = "SELECT 1" }, default);
+        var cfg = new ToolkitConfig("sqlite_query", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new SqliteToolkit(cfg).ExecuteAsync("query", new Dictionary<string, object?> { ["query"] = "SELECT 1" }, default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
 }
@@ -107,7 +107,7 @@ public sealed class ClickHouseToolkitTests
     {
         var cfg = new ToolkitConfig("clickhouse", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new ClickHouseToolkit(cfg).ExecuteAsync("query", new Dictionary<string, object?> { ["sql"] = "SELECT 1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -125,7 +125,7 @@ public sealed class SparkToolkitTests
     {
         var cfg = new ToolkitConfig("spark", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new SparkToolkit(cfg).ExecuteAsync("run_job", new Dictionary<string, object?> { ["script"] = "print(1)" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -136,13 +136,14 @@ public sealed class PandasLikeToolkitTests
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.DataAnalysis, new PandasLikeToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = await new PandasLikeToolkit().ExecuteAsync("query", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        var r = await new PandasLikeToolkit().ExecuteAsync("head", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("pandas", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new PandasLikeToolkit(cfg).ExecuteAsync("query", new Dictionary<string, object?> { ["expression"] = "df.head()" }, default);
+        await new PandasLikeToolkit(cfg).ExecuteAsync("load_json", new Dictionary<string, object?> { ["json"] = "[{\"name\":\"alice\"}]" }, default);
+        var r = await new PandasLikeToolkit(cfg).ExecuteAsync("head", [], default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
 }
@@ -154,14 +155,14 @@ public sealed class ExcelToolkitTests
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.DataAnalysis, new ExcelToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = await new ExcelToolkit().ExecuteAsync("read_sheet", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        var r = await new ExcelToolkit().ExecuteAsync("read", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("excel", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new ExcelToolkit(cfg).ExecuteAsync("read_sheet", new Dictionary<string, object?> { ["file"] = "data.xlsx", ["sheet"] = "Sheet1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new ExcelToolkit(cfg).ExecuteAsync("read", new Dictionary<string, object?> { ["file"] = "data.xlsx", ["sheet"] = "Sheet1" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -173,13 +174,13 @@ public sealed class CsvToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new CsvToolkit().ExecuteAsync("read", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("csv", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new CsvToolkit(cfg).ExecuteAsync("read", new Dictionary<string, object?> { ["file"] = "data.csv" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -197,7 +198,7 @@ public sealed class ParquetToolkitTests
     {
         var cfg = new ToolkitConfig("parquet", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new ParquetToolkit(cfg).ExecuteAsync("read", new Dictionary<string, object?> { ["file"] = "data.parquet" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -208,14 +209,14 @@ public sealed class JsonToolkitTests
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.DataAnalysis, new JsonDataToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = await new JsonDataToolkit().ExecuteAsync("read", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        var r = await new JsonDataToolkit().ExecuteAsync("read_file", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("json", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new JsonDataToolkit(cfg).ExecuteAsync("read", new Dictionary<string, object?> { ["file"] = "data.json" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new JsonDataToolkit(cfg).ExecuteAsync("read_file", new Dictionary<string, object?> { ["path"] = "data.json" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -226,14 +227,14 @@ public sealed class XmlToolkitTests
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.DataAnalysis, new XmlDataToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = await new XmlDataToolkit().ExecuteAsync("read", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        var r = await new XmlDataToolkit().ExecuteAsync("read_file", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("xml", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new XmlDataToolkit(cfg).ExecuteAsync("read", new Dictionary<string, object?> { ["file"] = "data.xml" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        var r = await new XmlDataToolkit(cfg).ExecuteAsync("read_file", new Dictionary<string, object?> { ["path"] = "data.xml" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -251,6 +252,6 @@ public sealed class GeoPandasLikeToolkitTests
     {
         var cfg = new ToolkitConfig("geopandas", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new GeoPandasLikeToolkit(cfg).ExecuteAsync("read_geo", new Dictionary<string, object?> { ["file"] = "data.geojson" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }

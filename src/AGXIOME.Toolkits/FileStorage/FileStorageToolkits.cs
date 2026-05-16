@@ -15,6 +15,7 @@
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
+using AGXIOME.Shared.Errors;
 using SkiaSharp;
 using UglyToad.PdfPig;
 
@@ -55,9 +56,7 @@ public sealed class LocalFileToolkit(ToolkitConfig? cfg = null) : ToolkitBase(cf
         "head"        => Task.FromResult(Head(p)),
         "tail"        => Task.FromResult(Tail(p)),
         "hash"        => Task.FromResult(Hash(p)),
-        _ => Task.FromResult(ToolkitResult.Fail(
-            $"Unknown action '{action}'. Valid: read, read_bytes, write, append, write_lines, " +
-            "delete, list, exists, copy, move, mkdir, rmdir, info, search, head, tail, hash"))
+        _ => Task.FromException<ToolkitResult>(AgxiomeToolkitException.UnknownAction("local_file", action))
     };
 
     // ── read ──────────────────────────────────────────────────────────────────
@@ -314,7 +313,7 @@ public sealed class FtpSftpToolkit(ToolkitConfig? cfg = null) : ToolkitBase(cfg)
         {
             "upload" or "download" or "list" or "delete" or "mkdir" or "exists" =>
                 ToolkitResult.Fail($"FTP/SFTP '{action}': add FluentFTP (FTP) or Renci.SshNet (SFTP) packages to implement."),
-            _ => ToolkitResult.Fail($"Unknown action '{action}'. Valid: upload, download, list, delete, mkdir, exists")
+            _ => throw AgxiomeToolkitException.UnknownAction("ftp_sftp", action)
         });
 }
 
@@ -335,7 +334,7 @@ public sealed class GcsToolkit(ToolkitConfig? cfg = null) : ToolkitBase(cfg)
         {
             "upload" or "download" or "list" or "delete" or "get_metadata" or "generate_signed_url" =>
                 ToolkitResult.Fail($"GCS '{action}': add Google.Cloud.Storage.V1 package to implement."),
-            _ => ToolkitResult.Fail($"Unknown action '{action}'. Valid: upload, download, list, delete, get_metadata, generate_signed_url")
+            _ => throw AgxiomeToolkitException.UnknownAction("gcs", action)
         });
 }
 
@@ -356,7 +355,7 @@ public sealed class MinioToolkit(ToolkitConfig? cfg = null) : ToolkitBase(cfg)
         {
             "upload" or "download" or "list" or "delete" or "get_object_info" or "create_bucket" =>
                 ToolkitResult.Fail($"MinIO '{action}': add Minio NuGet package to implement."),
-            _ => ToolkitResult.Fail($"Unknown action '{action}'. Valid: upload, download, list, delete, get_object_info, create_bucket")
+            _ => throw AgxiomeToolkitException.UnknownAction("minio", action)
         });
 }
 
@@ -377,7 +376,7 @@ public sealed class DropboxToolkit(ToolkitConfig? cfg = null) : ToolkitBase(cfg)
         {
             "upload" or "download" or "list" or "delete" or "move" or "copy" or "get_metadata" or "search" =>
                 ToolkitResult.Fail($"Dropbox '{action}': configure access_token and inject HttpClient to implement."),
-            _ => ToolkitResult.Fail($"Unknown action '{action}'. Valid: upload, download, list, delete, move, copy, get_metadata, search")
+            _ => throw AgxiomeToolkitException.UnknownAction("dropbox", action)
         });
 }
 
@@ -398,7 +397,7 @@ public sealed class BoxToolkit(ToolkitConfig? cfg = null) : ToolkitBase(cfg)
         {
             "upload" or "download" or "list" or "delete" or "move" or "copy" or "get_metadata" or "search" =>
                 ToolkitResult.Fail($"Box '{action}': configure access_token and inject HttpClient to implement."),
-            _ => ToolkitResult.Fail($"Unknown action '{action}'. Valid: upload, download, list, delete, move, copy, get_metadata, search")
+            _ => throw AgxiomeToolkitException.UnknownAction("box", action)
         });
 }
 
@@ -419,7 +418,7 @@ public sealed class SharePointToolkit(ToolkitConfig? cfg = null) : ToolkitBase(c
         {
             "upload" or "download" or "list" or "delete" or "move" or "search" or "get_metadata" =>
                 ToolkitResult.Fail($"SharePoint '{action}': add Microsoft.Graph package and configure tenant_id/client_id/client_secret."),
-            _ => ToolkitResult.Fail($"Unknown action '{action}'. Valid: upload, download, list, delete, move, search, get_metadata")
+            _ => throw AgxiomeToolkitException.UnknownAction("sharepoint", action)
         });
 }
 
@@ -446,8 +445,7 @@ public sealed class CompressionToolkit(ToolkitConfig? cfg = null) : ToolkitBase(
         "add_entry"        => Task.FromResult(AddEntry(p)),
         "gzip_compress"    => GzipCompressAsync(p, ct),
         "gzip_decompress"  => GzipDecompressAsync(p, ct),
-        _ => Task.FromResult(ToolkitResult.Fail(
-            $"Unknown action '{action}'. Valid: zip, unzip, list_zip, add_entry, gzip_compress, gzip_decompress"))
+        _ => Task.FromException<ToolkitResult>(AgxiomeToolkitException.UnknownAction("compression", action))
     };
 
     private static async Task<ToolkitResult> ZipAsync(Dictionary<string, object?> p, CancellationToken ct)
@@ -571,8 +569,7 @@ public sealed class ImageProcessingToolkit(ToolkitConfig? cfg = null) : ToolkitB
         "rotate"     => Task.Run(() => RotateImage(p), ct),
         "flip"       => Task.Run(() => FlipImage(p), ct),
         "thumbnail"  => Task.Run(() => ThumbnailImage(p), ct),
-        _ => Task.FromResult(ToolkitResult.Fail(
-            $"Unknown action '{action}'. Valid: info, resize, crop, convert, grayscale, rotate, flip, thumbnail"))
+        _ => Task.FromException<ToolkitResult>(AgxiomeToolkitException.UnknownAction("image_processing", action))
     };
 
     private static ToolkitResult ImageInfo(Dictionary<string, object?> p)
@@ -793,7 +790,7 @@ public sealed class PdfToolkit(ToolkitConfig? cfg = null) : ToolkitBase(cfg)
             "extract_page" => ExtractPage(file, GetParam<int?>(p, "page") ?? 1),
             "metadata"     => GetMetadata(file),
             "search_text"  => SearchText(file, GetParam<string>(p, "query") ?? ""),
-            _ => ToolkitResult.Fail($"Unknown action '{action}'. Valid: extract_text, page_count, extract_page, metadata, search_text")
+            _ => throw AgxiomeToolkitException.UnknownAction("pdf", action)
         }, ct);
     }
 

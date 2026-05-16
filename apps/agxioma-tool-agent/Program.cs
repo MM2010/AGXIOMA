@@ -1,4 +1,6 @@
 using AGXIOME.Core;
+using AGXIOME.Runtime;
+using AGXIOME.Security.Rbac;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 using AgxiomaToolAgent;
@@ -8,6 +10,7 @@ using System.Text.Json;
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
 var builder = WebApplication.CreateBuilder(args);
+builder.AddAgxiomeSecurityDefaults();
 
 builder.Services.AddHttpClient<WebSearchTool>();
 
@@ -16,6 +19,8 @@ builder.Services.AddSingleton<IAgxiomeAgent>(sp =>
     var cfg = builder.Configuration
         .GetSection("Agent")
         .Get<AgentSettings>() ?? new AgentSettings();
+    var readFileRoot = builder.Configuration["Tooling:ReadFileRoot"]
+        ?? builder.Environment.ContentRootPath;
 
     var http = sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(WebSearchTool));
 
@@ -24,13 +29,14 @@ builder.Services.AddSingleton<IAgxiomeAgent>(sp =>
         .WithSystemPrompt(cfg.SystemPrompt)
         .WithAutoLoops(upperBound: cfg.MaxLoops)
         .WithTool(new WebSearchTool())
-        .WithTool(new ReadFileTool())
+        .WithTool(new ReadFileTool(readFileRoot))
         .Build();
 });
 
 builder.Services.AddSingleton<ConversationStore>();
 
 var app = builder.Build();
+await app.UseAgxiomeSecurityDefaultsAsync();
 
 // ── Endpoints ────────────────────────────────────────────────────────────────
 
@@ -40,7 +46,8 @@ app.MapGet("/health", (IConfiguration cfg) => Results.Ok(new
     agent   = cfg["Agent:Id"] ?? "tool-agent",
     tools   = new[] { "web_search", "read_file" },
     utc     = DateTime.UtcNow
-}));
+}))
+    .AllowAnonymousAgxiome();
 
 // Chat with tool calling enabled
 app.MapPost("/chat", async (
@@ -61,7 +68,9 @@ app.MapPost("/chat", async (
         response.ToolResults?.Select(t => new ToolCallSummary(t.ToolName, t.Success)).ToList()
             ?? new List<ToolCallSummary>()
     ));
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.AgentRun)
+    .WithAgxiomeRateLimit(20, TimeSpan.FromMinutes(1));
 
 // Streaming with tool call events
 app.MapPost("/stream", async (
@@ -97,6 +106,10 @@ app.MapPost("/stream", async (
     }
 
     store.Append(req.SessionId, req.Prompt, full.ToString());
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.AgentRun)
+    .WithAgxiomeRateLimit(10, TimeSpan.FromMinutes(1));
 
 app.Run();
+
+public partial class Program { }

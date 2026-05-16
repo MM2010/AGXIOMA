@@ -2,76 +2,87 @@
 // Full ASP.NET Core 10 host for AGXIOME realtime + REST gateway.
 // Middleware order: SecurityHeaders → Auth → RBAC → RateLimit → ErrorHandler → Controllers/Hubs
 
-using AGXIOME.Runtime.Middleware;
+using AGXIOME.Runtime;
+using AGXIOME.Runtime.Controllers;
 using AGXIOME.Runtime.Hubs;
 using AGXIOME.Runtime.Workers;
-using AGXIOME.Security.Keys;
-using AGXIOME.Security.ApiKey;
-using AGXIOME.Security.Rbac;
-using AGXIOME.Security.Audit;
-using AGXIOME.Security.RateLimit;
-using AGXIOME.Security.Sanitization;
-using AGXIOME.Security.Secrets;
+using AGXIOME.Shared.Errors;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Core Services ────────────────────────────────────────────────────────────
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+    {
+        var errorCode = context.ProblemDetails.Status switch
+        {
+            StatusCodes.Status400BadRequest => AgxiomeErrorCode.TL_InvalidArguments,
+            StatusCodes.Status401Unauthorized => AgxiomeErrorCode.SE_AuthenticationFailed,
+            StatusCodes.Status403Forbidden => AgxiomeErrorCode.SE_AuthorizationDenied,
+            StatusCodes.Status404NotFound => AgxiomeErrorCode.TL_NotFound,
+            StatusCodes.Status405MethodNotAllowed => AgxiomeErrorCode.TL_InvalidArguments,
+            StatusCodes.Status415UnsupportedMediaType => AgxiomeErrorCode.TL_InvalidArguments,
+            _ => AgxiomeErrorCode.InternalError,
+        };
+
+        context.ProblemDetails.Title = ErrorCatalog.Get(errorCode).Category;
+        context.ProblemDetails.Detail = ErrorCatalog.GetUserMessage(errorCode);
+        context.ProblemDetails.Extensions["code"] = ErrorCatalog.GetCode(errorCode);
+        context.ProblemDetails.Extensions["numericCode"] = (int)errorCode;
+        context.ProblemDetails.Extensions["category"] = ErrorCatalog.Get(errorCode).Category;
+    };
+});
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = ApiErrors.InvalidModelState;
+});
+builder.AddAgxiomeSecurityDefaults();
 
 // ── SignalR ──────────────────────────────────────────────────────────────────
 builder.Services.AddSignalR(opts => {
     opts.EnableDetailedErrors = builder.Environment.IsDevelopment();
 });
 
-// ── Security Services ────────────────────────────────────────────────────────
-builder.Services.AddSingleton<IKeyRotationService>(_ =>
-    new InMemoryKeyRotationService(TimeSpan.FromHours(24)));
-builder.Services.AddSingleton<IApiKeyStore, InMemoryApiKeyStore>();
-builder.Services.AddSingleton<IRbacPolicy, DefaultRbacPolicy>();
-builder.Services.AddSingleton<IAuditTrail, InMemoryAuditTrail>();
-builder.Services.AddSingleton<AuditLogger>();
-builder.Services.AddSingleton<IRateLimiter, SlidingWindowRateLimiter>();
-builder.Services.AddSingleton<RateLimitPolicyRegistry>();
-builder.Services.AddSingleton<IInputSanitizer, InputSanitizer>();
-builder.Services.AddSingleton<ISecretsScanner, SecretsScanner>();
-
 // ── Background Workers ────────────────────────────────────────────────────────
 builder.Services.AddHostedService<BackgroundRunWorker>();
 builder.Services.AddHostedService<SessionCleanupJob>();
 builder.Services.AddHostedService<TokenRotationJob>();
 
-// ── CORS ─────────────────────────────────────────────────────────────────────
-// Production: replace origins with explicit allowlist from config.
-builder.Services.AddCors(opts => opts.AddPolicy("AgxiomeDefault", policy => {
-    var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                  ?? (builder.Environment.IsDevelopment() ? ["http://localhost:3000", "http://localhost:5173"] : []);
-    policy.WithOrigins(origins)
-          .AllowAnyHeader()
-          .AllowAnyMethod()
-          .AllowCredentials();
-}));
-
 var app = builder.Build();
+await app.UseAgxiomeSecurityDefaultsAsync();
 
-// ── Bootstrap API Key (dev/smoke-test) ────────────────────────────────────────
-// If AGXIOME_BOOTSTRAP_KEY is set, pre-seed an admin key with all roles/scopes.
-// NEVER set this in production — use a secrets vault instead.
-var bootstrapKey = app.Configuration["AGXIOME_BOOTSTRAP_KEY"]
-                   ?? Environment.GetEnvironmentVariable("AGXIOME_BOOTSTRAP_KEY");
-if (!string.IsNullOrWhiteSpace(bootstrapKey))
+app.UseExceptionHandler(handler =>
 {
-    var keyStore = app.Services.GetRequiredService<IApiKeyStore>();
-    await keyStore.SeedBootstrapKeyAsync(bootstrapKey, msg => app.Logger.LogWarning("{Msg}", msg));
-}
+    handler.Run(async context =>
+    {
+        var feature = context.Features.Get<IExceptionHandlerFeature>();
+        var exception = feature?.Error;
+        var agxiomeException = exception as AgxiomeException
+            ?? new AgxiomeException(
+                AgxiomeErrorCode.InternalError,
+                technicalMessage: "Unhandled runtime exception.",
+                userMessage: ErrorCatalog.GetUserMessage(AgxiomeErrorCode.InternalError),
+                innerException: exception);
 
-// ── Middleware Pipeline ───────────────────────────────────────────────────────
-app.UseMiddleware<SecurityHeadersMiddleware>();
-app.UseMiddleware<ErrorHandlerMiddleware>();
-app.UseCors("AgxiomeDefault");
-app.UseMiddleware<AgxiomeAuthMiddleware>();
-app.UseMiddleware<RbacMiddleware>();
-app.UseMiddleware<RateLimiterMiddleware>();
+        await ApiErrors.ToResult(agxiomeException, StatusCodes.Status500InternalServerError).ExecuteAsync(context);
+    });
+});
+
+app.UseStatusCodePages(async statusContext =>
+{
+    var response = statusContext.HttpContext.Response;
+    if (response.HasStarted)
+    {
+        return;
+    }
+
+    await ApiErrors.FromStatusCode(statusContext.HttpContext).ExecuteAsync(statusContext.HttpContext);
+});
 
 app.MapControllers();
 
@@ -80,7 +91,8 @@ app.MapHub<AgentHub>("/hubs/agent");
 app.MapHub<LogHub>("/hubs/log");
 app.MapHub<AdminHub>("/hubs/admin");
 
-app.MapGet("/health", () => Results.Ok(new { Status = "healthy", Ts = DateTimeOffset.UtcNow }));
+app.MapGet("/health", () => Results.Ok(new { Status = "healthy", Ts = DateTimeOffset.UtcNow }))
+    .AllowAnonymousAgxiome();
 
 app.Run();
 

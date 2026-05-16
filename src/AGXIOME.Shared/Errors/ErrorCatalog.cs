@@ -50,6 +50,10 @@ public static class ErrorCatalog
         [AgxiomeErrorCode.DB_DeadlockDetected] = new("ERR-0403", "Database deadlock detected. Retrying.", "Conflitto nel database. Riprovo...", ErrorSeverity.Warning, "Storage"),
         [AgxiomeErrorCode.DB_EntityNotFound] = new("ERR-0405", "Entity not found in database.", "Elemento non trovato.", ErrorSeverity.Warning, "Storage"),
         [AgxiomeErrorCode.DB_CircuitBreakerOpen] = new("ERR-0408", "Database circuit breaker is open. Backend unavailable.", "Database non disponibile. Attendo il ripristino.", ErrorSeverity.Critical, "Storage"),
+        [AgxiomeErrorCode.DB_InvalidCollectionName] = new("ERR-0409", "Collection name is invalid for the selected storage provider.", "Il nome della collection non e' valido.", ErrorSeverity.Warning, "Storage"),
+        [AgxiomeErrorCode.DB_InvalidRecordIdentifier] = new("ERR-0410", "Record identifier is invalid for the selected storage provider.", "L'identificatore del record non e' valido.", ErrorSeverity.Warning, "Storage"),
+        [AgxiomeErrorCode.DB_ProviderOperationFailed] = new("ERR-0411", "Storage provider operation failed.", "L'operazione sul data store non e' riuscita.", ErrorSeverity.Error, "Storage"),
+        [AgxiomeErrorCode.DB_CollectionMissing] = new("ERR-0412", "Requested collection does not exist.", "La collection richiesta non esiste.", ErrorSeverity.Warning, "Storage"),
 
         // X-Link
         [AgxiomeErrorCode.XL_ChecksumMismatch] = new("ERR-0600", "X-Link checksum verification failed. Data may be corrupted.", "Verifica dei dati fallita. Possibile corruzione.", ErrorSeverity.Error, "XLink"),

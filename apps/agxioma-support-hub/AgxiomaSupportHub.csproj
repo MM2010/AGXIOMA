@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\AGXIOME.Core\AGXIOME.Core.csproj" />
     <ProjectReference Include="..\..\src\AGXIOME.Interfaces\AGXIOME.Interfaces.csproj" />
+    <ProjectReference Include="..\..\src\AGXIOME.Runtime\AGXIOME.Runtime.csproj" />
   </ItemGroup>
 
 </Project>

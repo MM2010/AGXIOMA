@@ -15,7 +15,7 @@ namespace AgxiomaLLMWiki;
 ///   4. Empty pages      — pages with no summary or content < 100 chars
 ///   5. LLM consistency  — uses DeepSeek to detect potential contradictions
 /// </summary>
-public sealed class WikiLintEngine
+public sealed class WikiLintEngine : IWikiLintEngine
 {
     private readonly WikiSettings     _settings;
     private readonly WikiDatabase     _db;

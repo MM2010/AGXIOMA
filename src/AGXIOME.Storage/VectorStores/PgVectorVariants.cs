@@ -1,4 +1,5 @@
 using AGXIOME.Shared.Interfaces;
+using AGXIOME.Shared.Errors;
 using AGXIOME.Shared.Models;
 using Dapper;
 using Npgsql;
@@ -150,9 +151,7 @@ public abstract class NpgsqlPgVectorBase : IVectorStore
 
     private static void ValidateCollection(string collection)
     {
-        if (string.IsNullOrWhiteSpace(collection)
-            || !System.Text.RegularExpressions.Regex.IsMatch(collection, @"^[a-zA-Z_][a-zA-Z0-9_.]*$"))
-            throw new ArgumentException($"Invalid collection name: '{collection}'.");
+        VectorStoreGuards.ValidateCollectionName("NpgsqlPgVector", collection, @"^[a-zA-Z_][a-zA-Z0-9_.]*$");
     }
 
     private static string FormatVector(float[] v) =>

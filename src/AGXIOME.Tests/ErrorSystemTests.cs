@@ -60,8 +60,33 @@ public class ErrorSystemTests
     {
         var ex = AgxiomeException.RateLimited("OpenAI", TimeSpan.FromSeconds(30));
         Assert.Equal(AgxiomeErrorCode.LLM_RateLimited, ex.ErrorCode);
+        Assert.Equal(201, ex.NumericCode);
         Assert.True(ex.IsRetryable);
         Assert.Equal(ErrorSeverity.Warning, ex.Severity);
+    }
+
+    [Fact]
+    public void StorageException_InvalidRecordIdentifier_CreatesStructuredCode()
+    {
+        var ex = AgxiomeStorageException.InvalidRecordIdentifier("Qdrant", "UUID string", "bad-id");
+
+        Assert.Equal(AgxiomeErrorCode.DB_InvalidRecordIdentifier, ex.ErrorCode);
+        Assert.Equal(410, ex.NumericCode);
+        Assert.Equal("Qdrant", ex.Provider);
+        Assert.Contains("UUID", ex.TechnicalMessage);
+        Assert.DoesNotContain("System.", ex.ToString());
+    }
+
+    [Fact]
+    public void StorageException_ProviderOperationFailed_IsRetryableWhenRequested()
+    {
+        var inner = new InvalidOperationException("transport failed");
+        var ex = AgxiomeStorageException.ProviderOperationFailed("Elasticsearch", "CreateIndex", "idx-a", inner, isRetryable: true);
+
+        Assert.Equal(AgxiomeErrorCode.DB_ProviderOperationFailed, ex.ErrorCode);
+        Assert.True(ex.IsRetryable);
+        Assert.Equal("Elasticsearch", ex.Provider);
+        Assert.Same(inner, ex.InnerException);
     }
 
     [Fact]

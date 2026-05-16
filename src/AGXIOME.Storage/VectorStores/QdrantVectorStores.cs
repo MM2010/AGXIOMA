@@ -1,4 +1,5 @@
 using AGXIOME.Shared.Interfaces;
+using AGXIOME.Shared.Errors;
 using AGXIOME.Shared.Models;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
@@ -117,13 +118,15 @@ public abstract class QdrantVectorStoreBase : IVectorStore
         }).ToList();
     }
 
-    // Qdrant IDs are either UUID or uint64. Map string IDs via UUID parsing or hashed numeric fallback.
+    // Qdrant accepts UUID or uint64 point IDs. This adapter exposes string IDs,
+    // so fail fast on invalid input instead of delegating an opaque gRPC error to callers.
     private static PointId ToPointId(string id)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
         if (Guid.TryParse(id, out var guid))
             return new PointId { Uuid = guid.ToString() };
-        // For non-UUID string IDs, use the string as UUID field directly.
-        return new PointId { Uuid = id };
+
+        throw AgxiomeStorageException.InvalidRecordIdentifier("Qdrant", "UUID string", id);
     }
 }
 

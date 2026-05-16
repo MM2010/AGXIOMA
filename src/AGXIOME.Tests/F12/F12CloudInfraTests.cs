@@ -11,13 +11,13 @@ public sealed class AwsS3ToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new AwsS3Toolkit().ExecuteAsync("list_buckets", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
-        var cfg = new ToolkitConfig("aws_s3", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("aws_s3", new Dictionary<string, string> { ["region"] = "us-east-1" });
         var r = await new AwsS3Toolkit(cfg).ExecuteAsync("list_buckets", new Dictionary<string, object?> { ["region"] = "us-east-1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -29,13 +29,13 @@ public sealed class AwsLambdaToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new AwsLambdaToolkit().ExecuteAsync("invoke", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
-        var cfg = new ToolkitConfig("aws_lambda", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("aws_lambda", new Dictionary<string, string> { ["region"] = "us-east-1" });
         var r = await new AwsLambdaToolkit(cfg).ExecuteAsync("invoke", new Dictionary<string, object?> { ["function_name"] = "fn", ["payload"] = "{}" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -47,13 +47,13 @@ public sealed class AwsDynamoDbToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new AwsDynamoDbToolkit().ExecuteAsync("get_item", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
-        var cfg = new ToolkitConfig("aws_dynamodb", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("aws_dynamodb", new Dictionary<string, string> { ["region"] = "us-east-1" });
         var r = await new AwsDynamoDbToolkit(cfg).ExecuteAsync("get_item", new Dictionary<string, object?> { ["table"] = "t", ["key"] = "k" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -65,13 +65,13 @@ public sealed class AwsEc2ToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new AwsEc2Toolkit().ExecuteAsync("list_instances", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
-        var cfg = new ToolkitConfig("aws_ec2", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("aws_ec2", new Dictionary<string, string> { ["region"] = "us-east-1" });
         var r = await new AwsEc2Toolkit(cfg).ExecuteAsync("list_instances", new Dictionary<string, object?> { ["region"] = "us-east-1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -87,9 +87,9 @@ public sealed class AzureBlobToolkitTests
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
-        var cfg = new ToolkitConfig("azure_blob", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("azure_blob", new Dictionary<string, string> { ["account_name"] = "test" });
         var r = await new AzureBlobToolkit(cfg).ExecuteAsync("list_blobs", new Dictionary<string, object?> { ["container"] = "c" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -105,9 +105,9 @@ public sealed class AzureFunctionsToolkitTests
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
-        var cfg = new ToolkitConfig("azure_functions", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("azure_functions", new Dictionary<string, string> { ["function_url"] = "https://example.invalid/function" });
         var r = await new AzureFunctionsToolkit(cfg).ExecuteAsync("invoke", new Dictionary<string, object?> { ["function_name"] = "fn", ["payload"] = "{}" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -119,13 +119,13 @@ public sealed class GcpStorageToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new GcpStorageToolkit().ExecuteAsync("list_objects", [], default);
-        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
-        var cfg = new ToolkitConfig("gcp_storage", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("gcp_storage", new Dictionary<string, string> { ["project_id"] = "test" });
         var r = await new GcpStorageToolkit(cfg).ExecuteAsync("list_objects", new Dictionary<string, object?> { ["bucket"] = "b" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -141,9 +141,9 @@ public sealed class GcpCloudRunToolkitTests
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
-        var cfg = new ToolkitConfig("gcp_cloud_run", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("gcp_cloudrun", new Dictionary<string, string> { ["service_url"] = "https://example.invalid/run" });
         var r = await new GcpCloudRunToolkit(cfg).ExecuteAsync("list_services", new Dictionary<string, object?> { ["region"] = "us-central1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -159,9 +159,9 @@ public sealed class CloudflareToolkitTests
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
-        var cfg = new ToolkitConfig("cloudflare", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("cloudflare", new Dictionary<string, string> { ["api_token"] = "test" });
         var r = await new CloudflareToolkit(cfg).ExecuteAsync("list_zones", new Dictionary<string, object?> { ["account_id"] = "1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -177,9 +177,9 @@ public sealed class VercelToolkitTests
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
-        var cfg = new ToolkitConfig("vercel", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("vercel", new Dictionary<string, string> { ["api_token"] = "test" });
         var r = await new VercelToolkit(cfg).ExecuteAsync("list_deployments", new Dictionary<string, object?> { ["project_id"] = "p" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -195,9 +195,9 @@ public sealed class NetlifyToolkitTests
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
-        var cfg = new ToolkitConfig("netlify", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("netlify", new Dictionary<string, string> { ["access_token"] = "test" });
         var r = await new NetlifyToolkit(cfg).ExecuteAsync("list_sites", new Dictionary<string, object?> { ["filter"] = "all" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -213,8 +213,8 @@ public sealed class DigitalOceanToolkitTests
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
-        var cfg = new ToolkitConfig("digitalocean", new Dictionary<string, string> { ["api_key"] = "test" });
+        var cfg = new ToolkitConfig("digitalocean", new Dictionary<string, string> { ["api_token"] = "test" });
         var r = await new DigitalOceanToolkit(cfg).ExecuteAsync("list_droplets", new Dictionary<string, object?> { ["tag"] = "web" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }

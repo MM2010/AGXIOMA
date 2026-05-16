@@ -2,6 +2,7 @@
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using AGXIOME.Shared.Errors;
 
 namespace AGXIOME.Toolkits.Enterprise;
 
@@ -15,15 +16,15 @@ public sealed class SalesforceToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.Enterprise;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("access_token"))&&!string.IsNullOrWhiteSpace(GetSetting("instance_url"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("access_token")??throw new InvalidOperationException("Salesforce access_token not set");
+        var token=GetRequiredSetting("access_token");
         var inst=(GetSetting("instance_url")??"").TrimEnd('/');
         var api=$"{inst}/services/data/v59.0";
         return a switch{
             "query"         =>await SfGet($"{api}/query?q={Uri.EscapeDataString(GetParam<string>(p,"soql")??"SELECT Id,Name FROM Account LIMIT 10")}",token,ct).ConfigureAwait(false),
-            "get_object"    =>await SfGet($"{api}/sobjects/{GetParam<string>(p,"object")??"Account"}/{GetParam<string>(p,"id")?? throw new ArgumentException("id required")}",token,ct).ConfigureAwait(false),
+            "get_object"    =>await SfGet($"{api}/sobjects/{GetParam<string>(p,"object")??"Account"}/{GetRequiredParam<string>(p,"id")}",token,ct).ConfigureAwait(false),
             "list_objects"  =>await SfGet($"{api}/sobjects",token,ct).ConfigureAwait(false),
             "describe"      =>await SfGet($"{api}/sobjects/{GetParam<string>(p,"object")??"Account"}/describe",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: query|get_object|list_objects|describe. Settings: access_token, instance_url. Use OAuth2 (username-password or client credentials flow).")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> SfGet(string url,string token,CancellationToken ct){
@@ -41,7 +42,7 @@ public sealed class HubSpotToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.Enterprise;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var key=GetSetting("api_key")??throw new InvalidOperationException("HubSpot api_key not set");
+        var key=GetRequiredSetting("api_key");
         var limit=GetParam<int?>(p,"limit")??10;
         return a switch{
             "list_contacts"  =>await HsGet($"crm/v3/objects/contacts?limit={limit}",key,ct).ConfigureAwait(false),
@@ -50,7 +51,7 @@ public sealed class HubSpotToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             "list_deals"     =>await HsGet($"crm/v3/objects/deals?limit={limit}",key,ct).ConfigureAwait(false),
             "list_tickets"   =>await HsGet($"crm/v3/objects/tickets?limit={limit}",key,ct).ConfigureAwait(false),
             "get_owner"      =>await HsGet($"crm/v3/owners/{GetParam<string>(p,"id")}",key,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_contacts|get_contact|list_companies|list_deals|list_tickets|get_owner")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> HsGet(string path,string key,CancellationToken ct){
@@ -68,17 +69,17 @@ public sealed class ZendeskToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.Enterprise;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("subdomain"))&&!string.IsNullOrWhiteSpace(GetSetting("api_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var sub=GetSetting("subdomain")??throw new InvalidOperationException("Zendesk subdomain not set");
-        var email=GetSetting("email")??throw new InvalidOperationException("Zendesk email not set");
-        var apiToken=GetSetting("api_token")??throw new InvalidOperationException("Zendesk api_token not set");
+        var sub=GetRequiredSetting("subdomain");
+        var email=GetRequiredSetting("email");
+        var apiToken=GetRequiredSetting("api_token");
         var creds=Convert.ToBase64String(Encoding.UTF8.GetBytes($"{email}/token:{apiToken}"));
         var base_=$"https://{sub}.zendesk.com/api/v2";
         return a switch{
             "list_tickets"  =>await ZdGet($"{base_}/tickets.json?per_page={GetParam<int?>(p,"per_page")??10}",creds,ct).ConfigureAwait(false),
             "get_ticket"    =>await ZdGet($"{base_}/tickets/{GetParam<string>(p,"id")}.json",creds,ct).ConfigureAwait(false),
             "list_users"    =>await ZdGet($"{base_}/users.json?per_page={GetParam<int?>(p,"per_page")??10}",creds,ct).ConfigureAwait(false),
-            "search"        =>await ZdGet($"{base_}/search.json?query={Uri.EscapeDataString(GetParam<string>(p,"query") ?? throw new ArgumentException("query required"))}",creds,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_tickets|get_ticket|list_users|search")
+            "search"        =>await ZdGet($"{base_}/search.json?query={Uri.EscapeDataString(GetRequiredParam<string>(p,"query"))}",creds,ct).ConfigureAwait(false),
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> ZdGet(string url,string creds,CancellationToken ct){
@@ -97,14 +98,14 @@ public sealed class ServiceNowToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("instance_url"))&&!string.IsNullOrWhiteSpace(GetSetting("username"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         var inst=(GetSetting("instance_url")??"").TrimEnd('/');
-        var user=GetSetting("username")??throw new InvalidOperationException("ServiceNow username not set");
-        var pass=GetSetting("password")??throw new InvalidOperationException("ServiceNow password not set");
+        var user=GetRequiredSetting("username");
+        var pass=GetRequiredSetting("password");
         var creds=Convert.ToBase64String(Encoding.UTF8.GetBytes($"{user}:{pass}"));
         var table=GetParam<string>(p,"table")??"incident";
         return a switch{
             "list"   =>await SnGet($"{inst}/api/now/table/{table}?sysparm_limit={GetParam<int?>(p,"limit")??10}",creds,ct).ConfigureAwait(false),
-            "get"    =>await SnGet($"{inst}/api/now/table/{table}/{GetParam<string>(p,"sys_id")?? throw new ArgumentException("sys_id required")}",creds,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list|get. Params: table (default=incident), limit, sys_id.")
+            "get"    =>await SnGet($"{inst}/api/now/table/{table}/{GetRequiredParam<string>(p,"sys_id")}",creds,ct).ConfigureAwait(false),
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> SnGet(string url,string creds,CancellationToken ct){
@@ -123,15 +124,15 @@ public sealed class DatadogToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.Enterprise;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var apiKey=GetSetting("api_key")??throw new InvalidOperationException("Datadog api_key not set");
+        var apiKey=GetRequiredSetting("api_key");
         var appKey=GetSetting("app_key")??"";
         var site=GetSetting("site")??"datadoghq.com";
         return a switch{
-            "query_metrics"  =>await DdGet($"https://api.{site}/api/v1/query?from={GetParam<long?>(p,"from")??DateTimeOffset.UtcNow.AddHours(-1).ToUnixTimeSeconds()}&to={GetParam<long?>(p,"to")??DateTimeOffset.UtcNow.ToUnixTimeSeconds()}&query={Uri.EscapeDataString(GetParam<string>(p,"query")?? throw new ArgumentException("query required"))}",apiKey,appKey,ct).ConfigureAwait(false),
+            "query_metrics"  =>await DdGet($"https://api.{site}/api/v1/query?from={GetParam<long?>(p,"from")??DateTimeOffset.UtcNow.AddHours(-1).ToUnixTimeSeconds()}&to={GetParam<long?>(p,"to")??DateTimeOffset.UtcNow.ToUnixTimeSeconds()}&query={Uri.EscapeDataString(GetRequiredParam<string>(p,"query"))}",apiKey,appKey,ct).ConfigureAwait(false),
             "list_monitors"  =>await DdGet($"https://api.{site}/api/v1/monitor?page={GetParam<int?>(p,"page")??0}&page_size={GetParam<int?>(p,"page_size")??25}",apiKey,appKey,ct).ConfigureAwait(false),
-            "get_monitor"    =>await DdGet($"https://api.{site}/api/v1/monitor/{GetParam<string>(p,"id")?? throw new ArgumentException("id required")}",apiKey,appKey,ct).ConfigureAwait(false),
+            "get_monitor"    =>await DdGet($"https://api.{site}/api/v1/monitor/{GetRequiredParam<string>(p,"id")}",apiKey,appKey,ct).ConfigureAwait(false),
             "list_events"    =>await DdGet($"https://api.{site}/api/v1/events?start={GetParam<long?>(p,"start")??DateTimeOffset.UtcNow.AddHours(-1).ToUnixTimeSeconds()}&end={GetParam<long?>(p,"end")??DateTimeOffset.UtcNow.ToUnixTimeSeconds()}",apiKey,appKey,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: query_metrics|list_monitors|get_monitor|list_events")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> DdGet(string url,string apiKey,string appKey,CancellationToken ct){
@@ -150,13 +151,13 @@ public sealed class PagerDutyToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.Enterprise;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var key=GetSetting("api_key")??throw new InvalidOperationException("PagerDuty api_key not set");
+        var key=GetRequiredSetting("api_key");
         return a switch{
             "list_incidents"  =>await PdGet($"incidents?limit={GetParam<int?>(p,"limit")??10}&statuses[]={GetParam<string>(p,"status")??"triggered"}",key,ct).ConfigureAwait(false),
-            "get_incident"    =>await PdGet($"incidents/{GetParam<string>(p,"id")?? throw new ArgumentException("id required")}",key,ct).ConfigureAwait(false),
+            "get_incident"    =>await PdGet($"incidents/{GetRequiredParam<string>(p,"id")}",key,ct).ConfigureAwait(false),
             "list_services"   =>await PdGet("services",key,ct).ConfigureAwait(false),
             "list_on_calls"   =>await PdGet("oncalls",key,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_incidents|get_incident|list_services|list_on_calls")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> PdGet(string path,string key,CancellationToken ct){
@@ -175,15 +176,15 @@ public sealed class SentryToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.Enterprise;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("auth_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var token=GetSetting("auth_token")??throw new InvalidOperationException("Sentry auth_token not set");
+        var token=GetRequiredSetting("auth_token");
         var org=GetSetting("organization")??"";
         var proj=GetSetting("project")??GetParam<string>(p,"project")??"";
         return a switch{
             "list_projects" =>await SyGet($"organizations/{org}/projects/",token,ct).ConfigureAwait(false),
             "list_issues"   =>await SyGet($"projects/{org}/{proj}/issues/?limit={GetParam<int?>(p,"limit")??10}",token,ct).ConfigureAwait(false),
-            "get_issue"     =>await SyGet($"issues/{GetParam<string>(p,"id")?? throw new ArgumentException("id required")}/",token,ct).ConfigureAwait(false),
+            "get_issue"     =>await SyGet($"issues/{GetRequiredParam<string>(p,"id")}/",token,ct).ConfigureAwait(false),
             "list_events"   =>await SyGet($"projects/{org}/{proj}/events/?limit={GetParam<int?>(p,"limit")??10}",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_projects|list_issues|get_issue|list_events")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> SyGet(string path,string token,CancellationToken ct){
@@ -206,10 +207,10 @@ public sealed class GrafanaToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
         var user=GetSetting("username");var pass=GetSetting("password");
         return a switch{
             "list_dashboards"=>await GfGet($"{base_}/api/search?type=dash-db&limit={GetParam<int?>(p,"limit")??25}",token,user,pass,ct).ConfigureAwait(false),
-            "get_dashboard"  =>await GfGet($"{base_}/api/dashboards/uid/{GetParam<string>(p,"uid")?? throw new ArgumentException("uid required")}",token,user,pass,ct).ConfigureAwait(false),
+            "get_dashboard"  =>await GfGet($"{base_}/api/dashboards/uid/{GetRequiredParam<string>(p,"uid")}",token,user,pass,ct).ConfigureAwait(false),
             "list_datasources"=>await GfGet($"{base_}/api/datasources",token,user,pass,ct).ConfigureAwait(false),
             "list_alerts"    =>await GfGet($"{base_}/api/alert-notifications",token,user,pass,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_dashboards|get_dashboard|list_datasources|list_alerts")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> GfGet(string url,string? token,string? user,string? pass,CancellationToken ct){
@@ -228,12 +229,12 @@ public sealed class NewRelicToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.Enterprise;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var key=GetSetting("api_key")??throw new InvalidOperationException("New Relic api_key not set");
-        var accountId=GetSetting("account_id")?? throw new ArgumentException("account_id required");
+        var key=GetRequiredSetting("api_key");
+        var accountId=GetRequiredSetting("account_id");
         return a switch{
-            "nrql" =>await NrQuery(GetParam<string>(p,"query")?? throw new ArgumentException("query required"),accountId,key,ct).ConfigureAwait(false),
+            "nrql" =>await NrQuery(GetRequiredParam<string>(p,"query"),accountId,key,ct).ConfigureAwait(false),
             "list_applications"=>await NrGet($"v2/applications.json",key,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: nrql|list_applications")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> NrGet(string path,string key,CancellationToken ct){
@@ -260,15 +261,15 @@ public sealed class ElasticsearchToolkit(ToolkitConfig? cfg=null):ToolkitBase(cf
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         var host=(GetSetting("host")??"http://localhost:9200").TrimEnd('/');
         var user=GetSetting("username");var pass=GetSetting("password");var apiKey=GetSetting("api_key");
-        var idx=GetParam<string>(p,"index")?? throw new ArgumentException("index required");
+        var idx=GetRequiredParam<string>(p,"index");
         return a switch{
             "search"         =>await EsPost($"{host}/{idx}/_search",GetParam<object?>(p,"query")??new{query=new{match_all=new{}}},user,pass,apiKey,ct).ConfigureAwait(false),
             "index"          =>await EsPost($"{host}/{idx}/_doc/{GetParam<string>(p,"id")??""}",GetParam<object?>(p,"document")??new{},user,pass,apiKey,ct).ConfigureAwait(false),
-            "get"            =>await EsGet($"{host}/{idx}/_doc/{GetParam<string>(p,"id")?? throw new ArgumentException("id required")}",user,pass,apiKey,ct).ConfigureAwait(false),
-            "delete"         =>await EsDelete($"{host}/{idx}/_doc/{GetParam<string>(p,"id")?? throw new ArgumentException("id required")}",user,pass,apiKey,ct).ConfigureAwait(false),
+            "get"            =>await EsGet($"{host}/{idx}/_doc/{GetRequiredParam<string>(p,"id")}",user,pass,apiKey,ct).ConfigureAwait(false),
+            "delete"         =>await EsDelete($"{host}/{idx}/_doc/{GetRequiredParam<string>(p,"id")}",user,pass,apiKey,ct).ConfigureAwait(false),
             "cluster_health" =>await EsGet($"{host}/_cluster/health",user,pass,apiKey,ct).ConfigureAwait(false),
             "list_indices"   =>await EsGet($"{host}/_cat/indices?format=json",user,pass,apiKey,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: search|index|get|delete|cluster_health|list_indices")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static HttpRequestMessage EsRequest(HttpMethod method,string url,string? user,string? pass,string? apiKey){
@@ -302,14 +303,14 @@ public sealed class OktaToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("domain"))&&!string.IsNullOrWhiteSpace(GetSetting("api_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         var domain=(GetSetting("domain")??"").TrimEnd('/');
-        var token=GetSetting("api_token")??throw new InvalidOperationException("Okta api_token not set");
+        var token=GetRequiredSetting("api_token");
         var limit=GetParam<int?>(p,"limit")??20;
         return a switch{
             "list_users"  =>await OkGet($"{domain}/api/v1/users?limit={limit}",token,ct).ConfigureAwait(false),
-            "get_user"    =>await OkGet($"{domain}/api/v1/users/{GetParam<string>(p,"id")?? throw new ArgumentException("id required")}",token,ct).ConfigureAwait(false),
+            "get_user"    =>await OkGet($"{domain}/api/v1/users/{GetRequiredParam<string>(p,"id")}",token,ct).ConfigureAwait(false),
             "list_groups" =>await OkGet($"{domain}/api/v1/groups?limit={limit}",token,ct).ConfigureAwait(false),
             "list_apps"   =>await OkGet($"{domain}/api/v1/apps?limit={limit}",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_users|get_user|list_groups|list_apps")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> OkGet(string url,string token,CancellationToken ct){
@@ -328,15 +329,15 @@ public sealed class Auth0Toolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("domain"))&&!string.IsNullOrWhiteSpace(GetSetting("management_token"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         var domain=(GetSetting("domain")??"").TrimEnd('/');
-        var token=GetSetting("management_token")??throw new InvalidOperationException("Auth0 management_token not set. Get it from /oauth/token with client_credentials.");
+        var token=GetRequiredSetting("management_token");
         var limit=GetParam<int?>(p,"per_page")??20;
         return a switch{
             "list_users"  =>await A0Get($"{domain}/api/v2/users?per_page={limit}",token,ct).ConfigureAwait(false),
-            "get_user"    =>await A0Get($"{domain}/api/v2/users/{Uri.EscapeDataString(GetParam<string>(p,"id")?? throw new ArgumentException("id required"))}",token,ct).ConfigureAwait(false),
+            "get_user"    =>await A0Get($"{domain}/api/v2/users/{Uri.EscapeDataString(GetRequiredParam<string>(p,"id"))}",token,ct).ConfigureAwait(false),
             "list_clients"=>await A0Get($"{domain}/api/v2/clients?per_page={limit}",token,ct).ConfigureAwait(false),
             "list_roles"  =>await A0Get($"{domain}/api/v2/roles?per_page={limit}",token,ct).ConfigureAwait(false),
             "stats"       =>await A0Get($"{domain}/api/v2/stats/daily?from={GetParam<string>(p,"from")??"20240101"}&to={GetParam<string>(p,"to")??"20241231"}",token,ct).ConfigureAwait(false),
-            _=>ToolkitResult.Fail($"Unknown action '{a}'. Valid: list_users|get_user|list_clients|list_roles|stats")
+            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> A0Get(string url,string token,CancellationToken ct){

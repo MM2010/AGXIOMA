@@ -1,4 +1,6 @@
 using AGXIOME.Core;
+using AGXIOME.Runtime;
+using AGXIOME.Security.Rbac;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Storage.Embedders;
 using AgxiomaLLMWiki;
@@ -6,10 +8,10 @@ using StackExchange.Redis;
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 var builder = WebApplication.CreateBuilder(args);
+builder.AddAgxiomeSecurityDefaults();
 
 // Settings
-var wikiSettings = builder.Configuration.GetSection("Wiki").Get<WikiSettings>()
-    ?? throw new InvalidOperationException("Wiki configuration section is missing.");
+var wikiSettings = BindWikiSettings(builder.Configuration);
 builder.Services.AddSingleton(wikiSettings);
 
 // IngestProfile provider — default: reads from appsettings.json via WikiSettings.
@@ -59,6 +61,7 @@ builder.Services.AddSingleton<WikiDatabase>(sp => new WikiDatabase(
     connString,
     sp.GetService<IConnectionMultiplexer>(),
     sp.GetRequiredService<ILogger<WikiDatabase>>()));
+builder.Services.AddSingleton<IWikiDatabase>(sp => sp.GetRequiredService<WikiDatabase>());
 
 // DeepSeek agent
 builder.Services.AddSingleton<IAgxiomeAgent>(sp =>
@@ -81,16 +84,27 @@ builder.Services.AddSingleton<WikiPageWriter>();
 builder.Services.AddSingleton<WikiIngester>();
 builder.Services.AddSingleton<WikiQueryEngine>();
 builder.Services.AddSingleton<WikiLintEngine>();
+builder.Services.AddSingleton<IWikiPageWriter>(sp => sp.GetRequiredService<WikiPageWriter>());
+builder.Services.AddSingleton<IWikiIngester>(sp => sp.GetRequiredService<WikiIngester>());
+builder.Services.AddSingleton<IWikiQueryEngine>(sp => sp.GetRequiredService<WikiQueryEngine>());
+builder.Services.AddSingleton<IWikiLintEngine>(sp => sp.GetRequiredService<WikiLintEngine>());
 builder.Services.AddLogging(c => c.AddConsole());
 
 // ── App ───────────────────────────────────────────────────────────────────────
 var app = builder.Build();
-app.UseDeveloperExceptionPage();
+
+// Detailed exception pages are only safe in local development.
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+
+await app.UseAgxiomeSecurityDefaultsAsync();
 
 // ── Startup ───────────────────────────────────────────────────────────────────
-var db          = app.Services.GetRequiredService<WikiDatabase>();
+var db          = app.Services.GetRequiredService<IWikiDatabase>();
 var settings    = app.Services.GetRequiredService<WikiSettings>();
-var startLogger = app.Services.GetRequiredService<ILogger<Program>>();
+var startLogger = app.Services.GetRequiredService<ILogger<WikiApplication>>();
 
 try
 {
@@ -112,7 +126,7 @@ startLogger.LogInformation("[Start] Wiki output dir: {Dir}", settings.WikiOutput
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
 // GET /health
-app.MapGet("/health", async (WikiDatabase wdb) =>
+app.MapGet("/health", async (IWikiDatabase wdb) =>
 {
     var pages   = await wdb.CountPagesAsync();
     var sources = await wdb.CountSourcesAsync();
@@ -126,14 +140,15 @@ app.MapGet("/health", async (WikiDatabase wdb) =>
         framework = "net10.0",
         timestamp = DateTime.UtcNow
     });
-});
+})
+    .AllowAnonymousAgxiome();
 
 // POST /ingest
 app.MapPost("/ingest", async (
     IngestJobRequest req,
-    WikiDatabase     wdb,
-    WikiIngester     ingester,
-    ILogger<Program> log) =>
+    IWikiDatabase    wdb,
+    IWikiIngester    ingester,
+    ILogger<WikiApplication> log) =>
 {
     var jobId = Guid.NewGuid().ToString("N")[..12];
     var state = new IngestJobState { JobId = jobId, Status = "running" };
@@ -160,10 +175,12 @@ app.MapPost("/ingest", async (
 
     return Results.Accepted($"/ingest/{jobId}",
         new IngestJobResponse(jobId, "running", 0, "Ingest started in background."));
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.KnowledgeIngest)
+    .WithAgxiomeRateLimit(10, TimeSpan.FromMinutes(1));
 
 // GET /ingest/{jobId}
-app.MapGet("/ingest/{jobId}", async (string jobId, WikiDatabase wdb) =>
+app.MapGet("/ingest/{jobId}", async (string jobId, IWikiDatabase wdb) =>
 {
     var state = await wdb.GetJobStateAsync(jobId);
     if (state is null) return Results.NotFound(new { error = $"Job '{jobId}' not found." });
@@ -176,10 +193,12 @@ app.MapGet("/ingest/{jobId}", async (string jobId, WikiDatabase wdb) =>
         PagesUpdated:   state.PagesUpdated,
         CurrentFile:    state.CurrentFile,
         ErrorMessage:   state.ErrorMessage));
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.WorkflowRead)
+    .WithAgxiomeRateLimit(30, TimeSpan.FromMinutes(1));
 
 // GET /wiki
-app.MapGet("/wiki", async (WikiDatabase wdb, string? category) =>
+app.MapGet("/wiki", async (IWikiDatabase wdb, string? category) =>
 {
     var pages = await wdb.ListPagesAsync(category);
     return Results.Ok(new WikiPageListResponse(
@@ -191,10 +210,11 @@ app.MapGet("/wiki", async (WikiDatabase wdb, string? category) =>
             Summary:     p.Summary.Length > 200 ? p.Summary[..200] : p.Summary,
             SourceCount: p.SourceCount,
             UpdatedAt:   p.UpdatedAt)).ToList()));
-});
+})
+    .AllowAnonymousAgxiome();
 
 // GET /wiki/{**slug}
-app.MapGet("/wiki/{**slug}", async (string slug, WikiDatabase wdb, WikiPageWriter pageWriter) =>
+app.MapGet("/wiki/{**slug}", async (string slug, IWikiDatabase wdb, IWikiPageWriter pageWriter) =>
 {
     var pageRecord = await wdb.GetPageBySlugAsync(slug);
     if (pageRecord is null) return Results.NotFound(new { error = $"Page '{slug}' not found." });
@@ -219,41 +239,50 @@ app.MapGet("/wiki/{**slug}", async (string slug, WikiDatabase wdb, WikiPageWrite
         Category:  pageRecord.Category,
         Content:   content,
         UpdatedAt: pageRecord.UpdatedAt));
-});
+})
+    .AllowAnonymousAgxiome();
 
 // POST /query
-app.MapPost("/query", async (WikiQueryRequest req, WikiQueryEngine queryEngine) =>
+app.MapPost("/query", async (WikiQueryRequest req, IWikiQueryEngine queryEngine) =>
 {
     if (string.IsNullOrWhiteSpace(req.Question))
         return Results.BadRequest(new { error = "Question is required." });
     var result = await queryEngine.QueryAsync(req);
     return Results.Ok(result);
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.KnowledgeSearch)
+    .WithAgxiomeRateLimit(20, TimeSpan.FromMinutes(1));
 
 // POST /lint
-app.MapPost("/lint", async (WikiLintEngine lintEngine) =>
+app.MapPost("/lint", async (IWikiLintEngine lintEngine) =>
 {
     var report = await lintEngine.RunLintAsync();
     return Results.Ok(report);
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.AdminConfig)
+    .WithAgxiomeRateLimit(10, TimeSpan.FromMinutes(1));
 
 // GET /log
-app.MapGet("/log", async (WikiDatabase wdb, int? limit) =>
+app.MapGet("/log", async (IWikiDatabase wdb, int? limit) =>
 {
     var entries = await wdb.GetLogAsync(limit ?? 50);
     return Results.Ok(new { total = entries.Count, entries });
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.AdminLogs)
+    .WithAgxiomeRateLimit(20, TimeSpan.FromMinutes(1));
 
 // POST /admin/reset-embeddings — drops and recreates wiki_embeddings with correct dimension
-app.MapPost("/admin/reset-embeddings", async (WikiDatabase wdb, ILogger<Program> log) =>
+app.MapPost("/admin/reset-embeddings", async (IWikiDatabase wdb, ILogger<WikiApplication> log) =>
 {
     await wdb.EnsureSchemaAsync();
     log.LogInformation("[Admin] wiki_embeddings reset complete.");
     return Results.Ok(new { message = "wiki_embeddings table reset. Run /ingest to repopulate." });
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.AdminConfig)
+    .WithAgxiomeRateLimit(5, TimeSpan.FromMinutes(1));
 
 // GET /stats
-app.MapGet("/stats", async (WikiDatabase wdb) =>
+app.MapGet("/stats", async (IWikiDatabase wdb) =>
 {
     var pages      = await wdb.CountPagesAsync();
     var sources    = await wdb.CountSourcesAsync();
@@ -267,8 +296,61 @@ app.MapGet("/stats", async (WikiDatabase wdb) =>
         TotalChunks:     0,
         LastIngestAt:    lastIngest,
         LastQueryAt:     lastQuery));
-});
+})
+    .RequireAgxiomePermission(AgxiomePermission.AdminMetrics)
+    .WithAgxiomeRateLimit(20, TimeSpan.FromMinutes(1));
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 app.Urls.Add("http://localhost:5009");
 app.Run();
+
+static WikiSettings BindWikiSettings(IConfiguration configuration)
+{
+    var section = configuration.GetSection("Wiki");
+    if (!section.Exists())
+        throw new InvalidOperationException("Wiki configuration section is missing.");
+
+    return new WikiSettings
+    {
+        ProjectRootPath = ReadPathOrDefault(section, "ProjectRootPath", "."),
+        WikiOutputPath = ReadPathOrDefault(section, "WikiOutputPath", "wiki"),
+        LLMModel = section["LLMModel"] ?? "deepseek-v4-flash",
+        LLMProvider = section["LLMProvider"] ?? "deepseek",
+        OllamaBaseUrl = section["OllamaBaseUrl"] ?? "http://localhost:11434/",
+        EmbedModel = section["EmbedModel"] ?? "mxbai-embed-large",
+        EmbedDimensions = ReadInt(section, "EmbedDimensions", 1024),
+        ChunkMaxTokens = ReadInt(section, "ChunkMaxTokens", 512),
+        ChunkOverlap = ReadInt(section, "ChunkOverlap", 64),
+        EmbedMaxChars = ReadInt(section, "EmbedMaxChars", 1200),
+        TopK = ReadInt(section, "TopK", 8),
+        MinScore = ReadDouble(section, "MinScore", 0.45),
+        SourceExtensions = section.GetSection("SourceExtensions").Get<string[]>()
+            ?? [".cs", ".md", ".json", ".csproj", ".props", ".txt", ".yml", ".yaml"],
+        SourceExcludes = section.GetSection("SourceExcludes").Get<string[]>()
+            ?? ["bin", "obj", "nupkgs", "packages", ".git", "wiki"],
+        IngestParallelism = ReadInt(section, "IngestParallelism", 4)
+    };
+}
+
+static int ReadInt(IConfiguration section, string key, int fallback) =>
+    int.TryParse(section[key], out var value) ? value : fallback;
+
+static double ReadDouble(IConfiguration section, string key, double fallback) =>
+    double.TryParse(section[key], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value)
+        ? value
+        : fallback;
+
+static string ReadPathOrDefault(IConfiguration section, string key, string fallback)
+{
+    var value = section[key];
+    if (string.IsNullOrWhiteSpace(value))
+        return fallback;
+
+    return value.IndexOfAny(['<', '>']) >= 0
+        ? fallback
+        : value;
+}
+
+file sealed class WikiApplication;
+
+public partial class Program { }

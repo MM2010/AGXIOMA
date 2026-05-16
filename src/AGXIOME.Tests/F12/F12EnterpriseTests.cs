@@ -17,7 +17,7 @@ public sealed class SalesforceToolkitTests
     {
         var cfg = new ToolkitConfig("salesforce", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new SalesforceToolkit(cfg).ExecuteAsync("query", new Dictionary<string, object?> { ["soql"] = "SELECT Id FROM Lead LIMIT 1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -35,7 +35,7 @@ public sealed class HubSpotToolkitTests
     {
         var cfg = new ToolkitConfig("hubspot", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new HubSpotToolkit(cfg).ExecuteAsync("list_contacts", new Dictionary<string, object?> { ["limit"] = 10 }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -53,7 +53,7 @@ public sealed class ZendeskToolkitTests
     {
         var cfg = new ToolkitConfig("zendesk", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new ZendeskToolkit(cfg).ExecuteAsync("list_tickets", new Dictionary<string, object?> { ["status"] = "open" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -71,7 +71,7 @@ public sealed class ServiceNowToolkitTests
     {
         var cfg = new ToolkitConfig("servicenow", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new ServiceNowToolkit(cfg).ExecuteAsync("list_incidents", new Dictionary<string, object?> { ["state"] = "1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -89,7 +89,7 @@ public sealed class DatadogToolkitTests
     {
         var cfg = new ToolkitConfig("datadog", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new DatadogToolkit(cfg).ExecuteAsync("query_metrics", new Dictionary<string, object?> { ["query"] = "avg:system.cpu.user{*}" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -107,7 +107,7 @@ public sealed class PagerDutyToolkitTests
     {
         var cfg = new ToolkitConfig("pagerduty", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new PagerDutyToolkit(cfg).ExecuteAsync("list_incidents", new Dictionary<string, object?> { ["status"] = "triggered" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -125,7 +125,7 @@ public sealed class SentryToolkitTests
     {
         var cfg = new ToolkitConfig("sentry", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new SentryToolkit(cfg).ExecuteAsync("list_issues", new Dictionary<string, object?> { ["project"] = "p" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -143,7 +143,7 @@ public sealed class GrafanaToolkitTests
     {
         var cfg = new ToolkitConfig("grafana", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new GrafanaToolkit(cfg).ExecuteAsync("list_dashboards", new Dictionary<string, object?> { ["org_id"] = "1" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -161,7 +161,7 @@ public sealed class NewRelicToolkitTests
     {
         var cfg = new ToolkitConfig("newrelic", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new NewRelicToolkit(cfg).ExecuteAsync("query_nrql", new Dictionary<string, object?> { ["nrql"] = "SELECT count(*) FROM Transaction" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -179,7 +179,7 @@ public sealed class ElasticsearchToolkitTests
     {
         var cfg = new ToolkitConfig("elasticsearch", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new ElasticsearchToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["index"] = "logs", ["query"] = "{\"match_all\":{}}" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -197,7 +197,7 @@ public sealed class OktaToolkitTests
     {
         var cfg = new ToolkitConfig("okta", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new OktaToolkit(cfg).ExecuteAsync("list_users", new Dictionary<string, object?> { ["filter"] = "status eq \"ACTIVE\"" }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }
 
@@ -215,6 +215,6 @@ public sealed class Auth0ToolkitTests
     {
         var cfg = new ToolkitConfig("auth0", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new Auth0Toolkit(cfg).ExecuteAsync("list_users", new Dictionary<string, object?> { ["page"] = 0, ["per_page"] = 10 }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
 }

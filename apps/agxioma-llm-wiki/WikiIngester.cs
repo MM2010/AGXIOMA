@@ -12,8 +12,10 @@ namespace AgxiomaLLMWiki;
 ///   Raw sources (immutable) → chunk → embed → pgvector
 ///                           → LLM synthesis → wiki pages (markdown)
 /// </summary>
-public sealed class WikiIngester
+public sealed class WikiIngester : IWikiIngester
 {
+    private const int MaxIngestedFilesPerRun = 256;
+    private const int MaxIngestedDirectoryDepth = 10;
     private readonly WikiSettings          _settings;
     private readonly IIngestProfileProvider _profileProvider;
     private readonly WikiDatabase          _db;
@@ -89,10 +91,30 @@ public sealed class WikiIngester
             ? _settings.ProjectRootPath
             : Path.Combine(_settings.ProjectRootPath, subPath);
 
+        rootPath = Path.GetFullPath(rootPath);
+        var projectRoot = Path.GetFullPath(_settings.ProjectRootPath);
+        if (!IsUnderRoot(projectRoot, rootPath))
+        {
+            job.Status       = "error";
+            job.ErrorMessage = $"Path '{subPath}' is outside the configured project root.";
+            await _db.SaveJobStateAsync(job);
+            return;
+        }
+
+        if (ContainsReparsePoint(rootPath, projectRoot))
+        {
+            job.Status       = "error";
+            job.ErrorMessage = "Requested path contains a reparse point and cannot be ingested.";
+            await _db.SaveJobStateAsync(job);
+            return;
+        }
+
         if (!Directory.Exists(rootPath))
         {
             job.Status       = "error";
-            job.ErrorMessage = $"Path not found: {rootPath}";
+            job.ErrorMessage = string.IsNullOrWhiteSpace(subPath)
+                ? "Configured project root was not found."
+                : $"Path '{subPath}' was not found under the configured project root.";
             await _db.SaveJobStateAsync(job);
             return;
         }
@@ -104,6 +126,14 @@ public sealed class WikiIngester
         _log.LogInformation("[Ingester] Embedder max input (from profile): {MaxChars} chars", effectiveMaxChars);
 
         var files = EnumerateSourceFiles(rootPath, profile);
+        if (files.Count > MaxIngestedFilesPerRun)
+        {
+            job.Status       = "error";
+            job.ErrorMessage = $"Requested path contains too many files. Max allowed: {MaxIngestedFilesPerRun}.";
+            await _db.SaveJobStateAsync(job);
+            return;
+        }
+
         job.FilesTotal = files.Count;
         job.Status     = "running";
         await _db.SaveJobStateAsync(job);
@@ -177,6 +207,22 @@ public sealed class WikiIngester
 
         _log.LogInformation("[Ingester] Done: {Created} created, {Updated} updated",
             job.PagesCreated, job.PagesUpdated);
+    }
+
+    private static bool IsUnderRoot(string root, string fullPath)
+    {
+        var normalizedRoot = EnsureTrailingSeparator(root);
+        var normalizedPath = EnsureTrailingSeparator(fullPath);
+        return normalizedPath.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fullPath, root, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string EnsureTrailingSeparator(string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        return fullPath.EndsWith(Path.DirectorySeparatorChar)
+            ? fullPath
+            : fullPath + Path.DirectorySeparatorChar;
     }
 
     // ── Per-file ingestion ────────────────────────────────────────────────────
@@ -298,6 +344,15 @@ public sealed class WikiIngester
         return Directory.EnumerateFiles(rootPath, "*.*", SearchOption.AllDirectories)
             .Where(f =>
             {
+                if (!IsUnderRoot(_settings.ProjectRootPath, f))
+                    return false;
+
+                if (ContainsReparsePoint(f, _settings.ProjectRootPath))
+                    return false;
+
+                if (GetRelativeDepth(rootPath, f) > MaxIngestedDirectoryDepth)
+                    return false;
+
                 var parts = f.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]);
                 // Exclude any path segment matching the exclusion list or wiki output dir
                 if (parts.Any(p => excludeSet.Contains(p, StringComparer.OrdinalIgnoreCase)))
@@ -492,6 +547,41 @@ public sealed class WikiIngester
             chunks.Add(buffer.ToString().Trim());
 
         return chunks.Count > 0 ? chunks : [text.Length > maxChars ? text[..maxChars] : text];
+    }
+
+    private static int GetRelativeDepth(string rootPath, string fullPath)
+    {
+        var relative = Path.GetRelativePath(rootPath, Path.GetDirectoryName(fullPath) ?? fullPath);
+        if (relative == ".")
+            return 0;
+
+        return relative.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries).Length;
+    }
+
+    private static bool ContainsReparsePoint(string fullPath, string stopRoot)
+    {
+        var current = File.Exists(fullPath)
+            ? new FileInfo(fullPath).Directory
+            : new DirectoryInfo(fullPath);
+
+        while (current is not null)
+        {
+            if ((current.Attributes & FileAttributes.ReparsePoint) != 0)
+                return true;
+
+            if (string.Equals(current.FullName, Path.GetFullPath(stopRoot), StringComparison.OrdinalIgnoreCase))
+                break;
+
+            current = current.Parent;
+        }
+
+        if (File.Exists(fullPath))
+        {
+            var fileInfo = new FileInfo(fullPath);
+            return (fileInfo.Attributes & FileAttributes.ReparsePoint) != 0;
+        }
+
+        return false;
     }
 
     /// <summary>

@@ -3,6 +3,7 @@
 // Execution is async-first; each toolkit returns a ToolkitResult with typed output.
 
 using System.Reflection;
+using AGXIOME.Shared.Errors;
 
 namespace AGXIOME.Toolkits;
 
@@ -108,11 +109,15 @@ public abstract class ToolkitBase : IToolkit
         }
         catch (OperationCanceledException)
         {
-            return ToolkitResult.Fail("Operation cancelled");
+            return FailureResult(AgxiomeException.FromCode(AgxiomeErrorCode.OperationCancelled));
+        }
+        catch (AgxiomeException ex)
+        {
+            return FailureResult(ex);
         }
         catch (Exception ex)
         {
-            return ToolkitResult.Fail(ex.Message);
+            return FailureResult(AgxiomeToolkitException.ExecutionFailed(Id, action, ex));
         }
     }
 
@@ -124,8 +129,35 @@ public abstract class ToolkitBase : IToolkit
     protected static T? GetParam<T>(Dictionary<string, object?> parameters, string key) =>
         parameters.TryGetValue(key, out var val) && val is T typed ? typed : default;
 
+    protected T GetRequiredParam<T>(Dictionary<string, object?> parameters, string key)
+    {
+        if (parameters.TryGetValue(key, out var val) && val is T typed)
+            return typed;
+
+        throw AgxiomeToolkitException.MissingParameter(Id, key);
+    }
+
     protected string? GetSetting(string key) =>
         Config?.Settings.TryGetValue(key, out var val) == true ? val : null;
+
+    protected string GetRequiredSetting(string key)
+        => GetSetting(key) ?? throw AgxiomeToolkitException.MissingSetting(Id, key);
+
+    private static ToolkitResult FailureResult(AgxiomeException ex)
+        => new(
+            ex.ErrorCode == AgxiomeErrorCode.LLM_RateLimited ? ToolkitResultStatus.RateLimited :
+            ex.ErrorCode == AgxiomeErrorCode.LLM_AuthenticationFailed || ex.ErrorCode == AgxiomeErrorCode.SE_AuthenticationFailed
+                ? ToolkitResultStatus.Unauthorized
+                : ToolkitResultStatus.Error,
+            null,
+            ex.UserMessage,
+            null,
+            new Dictionary<string, string>
+            {
+                ["errorCode"] = ErrorCatalog.GetCode(ex.ErrorCode),
+                ["numericCode"] = ex.NumericCode.ToString(),
+                ["category"] = ex.Category,
+            });
 }
 
 // ─── Toolkit Registry ─────────────────────────────────────────────────────────

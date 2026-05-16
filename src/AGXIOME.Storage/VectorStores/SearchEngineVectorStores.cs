@@ -1,4 +1,5 @@
 using AGXIOME.Shared.Interfaces;
+using AGXIOME.Shared.Errors;
 using AGXIOME.Shared.Models;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.Core.Search;
@@ -37,7 +38,7 @@ public sealed class ElasticsearchDenseStore : IVectorStore
         var exists = await _client.Indices.ExistsAsync(collection, ct);
         if (exists.Exists) return;
 
-        await _client.Indices.CreateAsync(collection, cfg => cfg
+        var response = await _client.Indices.CreateAsync(collection, cfg => cfg
             .Mappings(m => m
                 .Properties(new Properties
                 {
@@ -52,13 +53,22 @@ public sealed class ElasticsearchDenseStore : IVectorStore
                         }
                     },
                 })), ct);
+
+            if (!response.IsValidResponse)
+            {
+                response.TryGetOriginalException(out var ex);
+                throw AgxiomeStorageException.ProviderOperationFailed("Elasticsearch", "CreateIndex", collection, ex, isRetryable: true);
+            }
     }
 
     public async Task DeleteCollectionAsync(string collection, CancellationToken ct = default)
     {
         var resp = await _client.Indices.DeleteAsync(collection, cancellationToken: ct);
         if (!resp.IsValidResponse && resp.ApiCallDetails.HttpStatusCode != 404)
+        {
             resp.TryGetOriginalException(out var ex);
+            throw AgxiomeStorageException.ProviderOperationFailed("Elasticsearch", "DeleteIndex", collection, ex, isRetryable: true);
+        }
     }
 
     public async Task<IReadOnlyList<string>> ListCollectionsAsync(CancellationToken ct = default)
@@ -76,14 +86,23 @@ public sealed class ElasticsearchDenseStore : IVectorStore
             text_content = record.Text,
             metadata = record.Metadata,
         };
-        await _client.IndexAsync(doc, idx => idx.Index(collection).Id(record.Id), ct);
+        var response = await _client.IndexAsync(doc, idx => idx.Index(collection).Id(record.Id).Refresh(Refresh.WaitFor), ct);
+        if (!response.IsValidResponse)
+        {
+            response.TryGetOriginalException(out var ex);
+            throw AgxiomeStorageException.ProviderOperationFailed("Elasticsearch", "UpsertDocument", $"{collection}/{record.Id}", ex, isRetryable: true);
+        }
     }
 
     public async Task UpsertBatchAsync(string collection, IReadOnlyList<VectorRecord> records, CancellationToken ct = default)
     {
         var ops = records.Select(r => new { id = r.Id, vector = r.Vector, text_content = r.Text, metadata = r.Metadata });
-        var bulk = await _client.BulkAsync(b => b.Index(collection).IndexMany(ops), ct);
-        if (!bulk.IsValidResponse) bulk.TryGetOriginalException(out _);
+        var bulk = await _client.BulkAsync(b => b.Index(collection).IndexMany(ops).Refresh(Refresh.WaitFor), ct);
+        if (!bulk.IsValidResponse)
+        {
+            bulk.TryGetOriginalException(out var ex);
+            throw AgxiomeStorageException.ProviderOperationFailed("Elasticsearch", "BulkUpsert", collection, ex, isRetryable: true);
+        }
     }
 
     public async Task<VectorRecord?> GetAsync(string collection, string id, CancellationToken ct = default)
@@ -98,7 +117,14 @@ public sealed class ElasticsearchDenseStore : IVectorStore
     }
 
     public async Task DeleteAsync(string collection, string id, CancellationToken ct = default)
-        => await _client.DeleteAsync(new DeleteRequest(collection, id), ct);
+    {
+        var response = await _client.DeleteAsync(new DeleteRequest(collection, id) { Refresh = Refresh.WaitFor }, ct);
+        if (!response.IsValidResponse && response.ApiCallDetails.HttpStatusCode != 404)
+        {
+            response.TryGetOriginalException(out var ex);
+            throw AgxiomeStorageException.ProviderOperationFailed("Elasticsearch", "DeleteDocument", $"{collection}/{id}", ex, isRetryable: true);
+        }
+    }
 
     public async Task<IReadOnlyList<VectorSearchResult>> SearchAsync(
         string collection, float[] queryVector, int topK = 10, float minScore = 0f,
@@ -124,6 +150,7 @@ public sealed class ElasticsearchDenseStore : IVectorStore
                     src.TryGetProperty("text_content", out var t) ? t.GetString() : null);
             }).ToList();
     }
+
 }
 
 // ─── VD-16 — Meilisearch Vector ───────────────────────────────────────────────
@@ -134,6 +161,8 @@ public sealed class ElasticsearchDenseStore : IVectorStore
 public sealed class MeilisearchVectorStore : IVectorStore
 {
     private readonly MeilisearchClient _client;
+    private const double TASK_TIMEOUT_MS = 30000;
+    private const int TASK_POLL_INTERVAL_MS = 200;
     public VectorDbProviderType ProviderType => VectorDbProviderType.MeilisearchVector;
 
     public MeilisearchVectorStore(MeilisearchClient client)
@@ -148,12 +177,14 @@ public sealed class MeilisearchVectorStore : IVectorStore
             SearchableAttributes = new[] { "text_content" },
             FilterableAttributes = new[] { "id" },
         }, ct);
-        // Wait for task to complete (up to 30s); ignore timeout — settings already take effect.
-        await _client.WaitForTaskAsync(task.TaskUid, cancellationToken: ct);
+        await WaitForTaskCompletionAsync(task.TaskUid, "UpdateSettings", collection, ct);
     }
 
     public async Task DeleteCollectionAsync(string collection, CancellationToken ct = default)
-        => await _client.DeleteIndexAsync(collection, ct);
+    {
+        var task = await _client.DeleteIndexAsync(collection, ct);
+        await WaitForTaskCompletionAsync(task.TaskUid, "DeleteIndex", collection, ct);
+    }
 
     public async Task<IReadOnlyList<string>> ListCollectionsAsync(CancellationToken ct = default)
     {
@@ -167,10 +198,11 @@ public sealed class MeilisearchVectorStore : IVectorStore
         {
             Id = record.Id,
             TextContent = record.Text,
-            // _vectors embedded in JSON payload enables semantic search in Meilisearch v1.6+.
+            // Persist vectors as a normal field until AGXIOME wires a real Meilisearch embedder contract.
             Vectors = record.Vector,
         };
-        await _client.Index(collection).AddDocumentsAsync(new[] { doc }, primaryKey: "id", cancellationToken: ct);
+        var task = await _client.Index(collection).AddDocumentsAsync(new[] { doc }, primaryKey: "id", cancellationToken: ct);
+        await WaitForTaskCompletionAsync(task.TaskUid, "AddDocument", collection, ct);
     }
 
     public async Task UpsertBatchAsync(string collection, IReadOnlyList<VectorRecord> records, CancellationToken ct = default)
@@ -180,8 +212,9 @@ public sealed class MeilisearchVectorStore : IVectorStore
             Id = r.Id,
             TextContent = r.Text,
             Vectors = r.Vector,
-        });
-        await _client.Index(collection).AddDocumentsAsync(docs, primaryKey: "id", cancellationToken: ct);
+        }).ToList();
+        var task = await _client.Index(collection).AddDocumentsAsync(docs, primaryKey: "id", cancellationToken: ct);
+        await WaitForTaskCompletionAsync(task.TaskUid, "AddDocuments", collection, ct);
     }
 
     public async Task<VectorRecord?> GetAsync(string collection, string id, CancellationToken ct = default)
@@ -198,7 +231,26 @@ public sealed class MeilisearchVectorStore : IVectorStore
     }
 
     public async Task DeleteAsync(string collection, string id, CancellationToken ct = default)
-        => await _client.Index(collection).DeleteOneDocumentAsync(id, ct);
+    {
+        var task = await _client.Index(collection).DeleteOneDocumentAsync(id, ct);
+        await WaitForTaskCompletionAsync(task.TaskUid, "DeleteDocument", collection, ct);
+    }
+
+    private async Task WaitForTaskCompletionAsync(int taskUid, string operation, string target, CancellationToken ct)
+    {
+        try
+        {
+            await _client.WaitForTaskAsync(taskUid, TASK_TIMEOUT_MS, TASK_POLL_INTERVAL_MS, ct);
+        }
+        catch (MeilisearchTimeoutError ex)
+        {
+            throw AgxiomeStorageException.ProviderOperationFailed("Meilisearch", operation, target, ex, isRetryable: true);
+        }
+        catch (Exception ex)
+        {
+            throw AgxiomeStorageException.ProviderOperationFailed("Meilisearch", operation, target, ex, isRetryable: true);
+        }
+    }
 
     public async Task<IReadOnlyList<VectorSearchResult>> SearchAsync(
         string collection, float[] queryVector, int topK = 10, float minScore = 0f,
@@ -230,8 +282,7 @@ public sealed class MeilisearchVectorStore : IVectorStore
         public string Id { get; set; } = "";
         [System.Text.Json.Serialization.JsonPropertyName("text_content")]
         public string? TextContent { get; set; }
-        // _vectors is the Meilisearch v1.6+ magic field for per-document embeddings.
-        [System.Text.Json.Serialization.JsonPropertyName("_vectors")]
+        [System.Text.Json.Serialization.JsonPropertyName("vector")]
         public float[]? Vectors { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("_rankingScore")]
         public double? RankingScore { get; set; }

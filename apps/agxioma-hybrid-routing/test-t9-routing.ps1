@@ -27,7 +27,7 @@ for ($i = 0; $i -lt 20; $i++) {
 if (-not $ready) {
     Write-Host "ERROR: Server did not start. Run:" -ForegroundColor Red
     Write-Host "  cd d:\REPO_PERSONALI\AGXIOMA\AGXIOMA\apps\agxioma-hybrid-routing" -ForegroundColor Yellow
-    Write-Host "  `$env:DEEPSEEK_API_KEY='sk-116c138368374a3b9013cc9cb3e052ce'" -ForegroundColor Yellow
+    Write-Host "  `$env:DEEPSEEK_API_KEY='<set-your-key-here>'" -ForegroundColor Yellow
     Write-Host "  dotnet run" -ForegroundColor Yellow
     exit 1
 }
