@@ -1,0 +1,60 @@
+services:
+  support-hub:
+    build:
+      context: .
+      dockerfile: apps/agxioma-support-hub/Dockerfile
+    ports:
+      - "${SUPPORT_HUB_PORT:-5012}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Kestrel__Endpoints__Http__Url: http://0.0.0.0:8080
+      Agent__Provider: deepseek
+      Agent__Model: deepseek-chat
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      Backoffice__Mode: enterprise
+      Backoffice__Enterprise__PostgresConnectionString: Host=postgres;Port=5432;Database=agxiome_backoffice;Username=agxiome;Password=${AGXIOME_POSTGRES_PASSWORD:-change-me}
+      Backoffice__Enterprise__RedisConnectionString: redis:6379
+      Backoffice__Email__Host: ${BACKOFFICE_SMTP_HOST:-}
+      Backoffice__Email__Port: ${BACKOFFICE_SMTP_PORT:-587}
+      Backoffice__Email__Username: ${BACKOFFICE_SMTP_USERNAME:-}
+      Backoffice__Email__Password: ${BACKOFFICE_SMTP_PASSWORD:-}
+      Backoffice__Email__From: ${BACKOFFICE_SMTP_FROM:-}
+      Backoffice__Telegram__BotToken: ${BACKOFFICE_TELEGRAM_BOT_TOKEN:-}
+      Backoffice__WhatsApp__AccessToken: ${BACKOFFICE_WHATSAPP_ACCESS_TOKEN:-}
+      Backoffice__WhatsApp__PhoneNumberId: ${BACKOFFICE_WHATSAPP_PHONE_NUMBER_ID:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: agxiome_backoffice
+      POSTGRES_USER: agxiome
+      POSTGRES_PASSWORD: ${AGXIOME_POSTGRES_PASSWORD:-change-me}
+    ports:
+      - "${SUPPORT_HUB_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - support-hub-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agxiome -d agxiome_backoffice"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${SUPPORT_HUB_REDIS_PORT:-6380}:6379"
+    volumes:
+      - support-hub-redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  support-hub-postgres-data:
+  support-hub-redis-data:

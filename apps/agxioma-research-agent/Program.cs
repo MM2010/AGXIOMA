@@ -12,11 +12,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddAgxiomeSecurityDefaults();
 
 var cfg = builder.Configuration.GetSection("Agent").Get<AgentSettings>() ?? new AgentSettings();
+var providerName = cfg.Provider ?? "OpenAI";
 
 // Build the HeavySwarm
 builder.Services.AddSingleton<HeavySwarm>(sp =>
 {
-    var (provider, defaultModel, _) = AgxiomeProviderResolver.Resolve(cfg.Provider, builder.Configuration);
+    var (provider, defaultModel, _) = AgxiomeProviderResolver.Resolve(providerName, builder.Configuration);
     var orchModel = cfg.OrchestratorModel ?? defaultModel;
     var wrkModel  = cfg.WorkerModel       ?? defaultModel;
     var apiKey    = AgxiomeProviderResolver.ResolveApiKey(provider, builder.Configuration);

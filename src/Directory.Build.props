@@ -7,6 +7,7 @@
   -->
   <PropertyGroup>
     <NoWarn>$(NoWarn);NU1603;NU1510;NETSDK1057</NoWarn>
+    <DefaultItemExcludes>$(DefaultItemExcludes);**/obj/**;**/bin/**;**/artifacts/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(MSBuildProjectName)' != 'AGXIOME.CLI' and '$(MSBuildProjectName)' != 'AGXIOME.Runtime' and '$(MSBuildProjectName)' != 'AGXIOME.Tests'">

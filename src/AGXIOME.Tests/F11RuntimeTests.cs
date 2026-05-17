@@ -525,7 +525,7 @@ public sealed class RT15_17_HubTests
 {
     [Fact] public async Task AgentHub_Instantiates()
     {
-        var hub = new AgentHub();
+        var hub = new AgentHub(new InMemoryAgentEventReplayStore());
         Assert.NotNull(hub);
     }
 

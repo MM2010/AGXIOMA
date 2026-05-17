@@ -96,7 +96,12 @@ public sealed class ToolCallLimiter : IToolCallLimiter
     private readonly ConcurrentDictionary<string, RunCallState> _state = new();
 
     public ToolCallLimiter(ToolCallLimits? limits = null)
-        => _limits = limits ?? new ToolCallLimits();
+    {
+        _limits = limits ?? new ToolCallLimits();
+        ArgumentOutOfRangeException.ThrowIfLessThan(_limits.MaxTotalCalls, 0);
+        ArgumentOutOfRangeException.ThrowIfLessThan(_limits.MaxConsecutiveErrors, 0);
+        ArgumentOutOfRangeException.ThrowIfLessThan(_limits.MaxCallsPerTool, 0);
+    }
 
     public ToolCallLimitCheckResult Check(string runId, string toolName)
     {
@@ -126,6 +131,9 @@ public sealed class ToolCallLimiter : IToolCallLimiter
 
     public void RecordSuccess(string runId, string toolName)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(runId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
+
         var s = _state.GetOrAdd(runId, _ => new RunCallState());
         Interlocked.Increment(ref s.TotalCalls);
         Interlocked.Exchange(ref s.ConsecutiveErrors, 0); // reset streak on success
@@ -134,6 +142,9 @@ public sealed class ToolCallLimiter : IToolCallLimiter
 
     public void RecordError(string runId, string toolName)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(runId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
+
         var s = _state.GetOrAdd(runId, _ => new RunCallState());
         Interlocked.Increment(ref s.TotalCalls);
         Interlocked.Increment(ref s.ConsecutiveErrors);

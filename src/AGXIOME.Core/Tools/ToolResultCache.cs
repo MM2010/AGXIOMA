@@ -100,13 +100,22 @@ public sealed class ToolResultCache : IToolResultCache, IDisposable
         TimeSpan? sweepInterval = null)
     {
         _defaultTtl = defaultTtl ?? TimeSpan.FromMinutes(5);
+        var effectiveSweepInterval = sweepInterval ?? TimeSpan.FromSeconds(60);
+
+        if (_defaultTtl <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(defaultTtl), "Default TTL must be greater than zero.");
+        if (maxEntries <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxEntries), "Max entries must be greater than zero.");
+        if (effectiveSweepInterval <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(sweepInterval), "Sweep interval must be greater than zero.");
+
         _maxEntries = maxEntries;
         _evictionPolicy = evictionPolicy;
         _sweepTimer = new Timer(
             _ => SweepExpired(),
             null,
-            sweepInterval ?? TimeSpan.FromSeconds(60),
-            sweepInterval ?? TimeSpan.FromSeconds(60));
+            effectiveSweepInterval,
+            effectiveSweepInterval);
     }
 
     public ValueTask<ToolResult?> TryGetAsync(string toolName, Dictionary<string, object>? parameters, CancellationToken ct = default)

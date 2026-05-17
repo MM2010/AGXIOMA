@@ -1,6 +1,8 @@
 // T-68..T-79 — AI/ML Toolkits
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using System.Text.Json;
+using AGXIOME.Core.Utils;
 using AGXIOME.Shared.Errors;
 
 namespace AGXIOME.Toolkits.AiMl;
@@ -8,7 +10,20 @@ namespace AGXIOME.Toolkits.AiMl;
 // ── shared HTTP client ─────────────────────────────────────────────────────
 file static class Http
 {
-    internal static readonly HttpClient Client = new() { Timeout = TimeSpan.FromSeconds(120) }; // models are slow
+    internal static HttpClient Client { get; private set; } = new() { Timeout = TimeSpan.FromSeconds(120) }; // models are slow
+
+    internal static IDisposable UseClient(HttpClient client)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        var previous = Client;
+        Client = client;
+        return new RestoreClient(previous);
+    }
+
+    private sealed class RestoreClient(HttpClient previous) : IDisposable
+    {
+        public void Dispose() => Client = previous;
+    }
 }
 
 // T-68 — OpenAI Vision (GPT-4o / gpt-4-vision — api_key required)
@@ -17,18 +32,104 @@ public sealed class OpenAiVisionToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg
     public override string Id=>"openai_vision";public override string Name=>"OpenAI Vision";
     public override ToolkitCategory Category=>ToolkitCategory.AiMl;
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
+    internal static IDisposable UseHttpClient(HttpClient client) => Http.UseClient(client);
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         var key=GetRequiredSetting("api_key");
         var model=GetParam<string>(p,"model")??GetSetting("model")??"gpt-4o";
-        var prompt=GetParam<string>(p,"prompt")??"Describe this image.";
         var imageUrl=GetParam<string>(p,"image_url")??GetParam<string>(p,"url");
         var imageBase64=GetParam<string>(p,"image_base64");
-        object imageContent=imageUrl!=null
-            ?(object)new{type="image_url",image_url=new{url=imageUrl}}
-            :new{type="image_url",image_url=new{url=$"data:image/jpeg;base64,{imageBase64}"}};
+        ValidateImageInput(imageUrl, imageBase64);
+        var prompt=GetParam<string>(p,"prompt")??GetDefaultPrompt(a);
+        var detail=GetParam<string>(p,"detail")??"auto";
+        object imageContent=imageUrl is not null
+            ? ImageUtil.BuildOpenAIImageContent(imageUrl, detail)
+            : ImageUtil.BuildOpenAIImageContent($"data:image/jpeg;base64,{imageBase64}", detail);
         var payload=new{model,messages=new[]{new{role="user",content=new object[]{new{type="text",text=prompt},imageContent}}},max_tokens=GetParam<int?>(p,"max_tokens")??500};
-        return await OaiPost("chat/completions",payload,key,ct).ConfigureAwait(false);
+        var result = await OaiPost("chat/completions",payload,key,ct).ConfigureAwait(false);
+        return NormalizeVisionResult(a, result);
     }
+
+    private static string GetDefaultPrompt(string action) => action switch
+    {
+        "analyze_image" => "Analyze this image and summarize the important details.",
+        "describe" => "Describe this image clearly and concisely.",
+        "ocr" => "Extract all readable text from this image and return plain text.",
+        "object_detect" => "Identify the main objects visible in this image and return a concise list.",
+        _ => throw AgxiomeToolkitException.UnknownAction("openai_vision", action)
+    };
+
+    private static void ValidateImageInput(string? imageUrl, string? imageBase64)
+    {
+        var hasUrl = !string.IsNullOrWhiteSpace(imageUrl);
+        var hasBase64 = !string.IsNullOrWhiteSpace(imageBase64);
+
+        if (hasUrl == hasBase64)
+            throw AgxiomeToolkitException.MissingParameter("openai_vision", "image_url|image_base64");
+
+        if (hasUrl && !ImageUtil.ValidateImageUrl(imageUrl!))
+            throw AgxiomeToolkitException.MissingParameter("openai_vision", "image_url");
+
+        if (!hasBase64)
+            return;
+
+        try
+        {
+            _ = Convert.FromBase64String(imageBase64!);
+        }
+        catch (FormatException ex)
+        {
+            throw AgxiomeToolkitException.ExecutionFailed("openai_vision", "validate_image", ex);
+        }
+    }
+
+    internal static ToolkitResult NormalizeVisionResult(string action, ToolkitResult result)
+    {
+        if (result.Status != ToolkitResultStatus.Ok || result.Data is not JsonElement root)
+            return result;
+
+        var text = ExtractVisionText(root);
+        if (string.IsNullOrWhiteSpace(text))
+            return ToolkitResult.Success(new { action, raw = root }, result.Duration);
+
+        object normalized = action switch
+        {
+            "analyze_image" => new { action, analysis = text, raw = root },
+            "describe" => new { action, description = text, raw = root },
+            "ocr" => new { action, text, raw = root },
+            "object_detect" => new { action, objects = SplitDetectedObjects(text), raw = root },
+            _ => throw AgxiomeToolkitException.UnknownAction("openai_vision", action)
+        };
+
+        return ToolkitResult.Success(normalized, result.Duration);
+    }
+
+    private static string? ExtractVisionText(JsonElement root)
+    {
+        if (!root.TryGetProperty("choices", out var choices) || choices.ValueKind != JsonValueKind.Array || choices.GetArrayLength() == 0)
+            return null;
+
+        var message = choices[0].GetProperty("message");
+        if (!message.TryGetProperty("content", out var content))
+            return null;
+
+        return content.ValueKind switch
+        {
+            JsonValueKind.String => content.GetString(),
+            JsonValueKind.Array => string.Join("\n", content.EnumerateArray()
+                .Where(static item => item.TryGetProperty("type", out var type) && type.GetString() == "text")
+                .Select(static item => item.TryGetProperty("text", out var textNode) ? textNode.GetString() : null)
+                .Where(static text => !string.IsNullOrWhiteSpace(text))),
+            _ => null
+        };
+    }
+
+    private static string[] SplitDetectedObjects(string text)
+        => text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(static line => Regex.Replace(line, "^[\\-\\*\\d\\.\\)\\s]+", string.Empty))
+            .Where(static line => !string.IsNullOrWhiteSpace(line))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
     internal static async Task<ToolkitResult> OaiPost(string path,object payload,string key,CancellationToken ct){
         var req=new HttpRequestMessage(HttpMethod.Post,$"https://api.openai.com/v1/{path}"){Content=JsonContent.Create(payload)};
         req.Headers.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",key);

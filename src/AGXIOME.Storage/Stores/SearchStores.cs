@@ -36,8 +36,11 @@ public sealed class ElasticsearchCommandStore : ICommandStore
         Elastic.Clients.Elasticsearch.ElasticsearchClientSettings settings;
         if (!string.IsNullOrWhiteSpace(opts.NodeUri))
         {
-            settings = new Elastic.Clients.Elasticsearch.ElasticsearchClientSettings(new Uri(opts.NodeUri))
-                .Authentication(new Elastic.Transport.ApiKey(opts.ApiKey));
+            settings = new Elastic.Clients.Elasticsearch.ElasticsearchClientSettings(new Uri(opts.NodeUri));
+            if (!string.IsNullOrWhiteSpace(opts.ApiKey))
+            {
+                settings = settings.Authentication(new Elastic.Transport.ApiKey(opts.ApiKey));
+            }
         }
         else
         {

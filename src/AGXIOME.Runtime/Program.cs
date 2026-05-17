@@ -9,6 +9,7 @@ using AGXIOME.Runtime.Workers;
 using AGXIOME.Shared.Errors;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,6 +48,22 @@ builder.AddAgxiomeSecurityDefaults();
 builder.Services.AddSignalR(opts => {
     opts.EnableDetailedErrors = builder.Environment.IsDevelopment();
 });
+builder.Services.AddSingleton<IAgentEventReplayStore, InMemoryAgentEventReplayStore>();
+
+var redisConnectionString = builder.Configuration.GetConnectionString("Redis")
+    ?? builder.Configuration["ConnectionStrings:Redis"];
+if (!string.IsNullOrWhiteSpace(redisConnectionString))
+{
+    builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+    {
+        var options = ConfigurationOptions.Parse(redisConnectionString);
+        options.AbortOnConnectFail = false;
+        options.ConnectTimeout = Math.Max(options.ConnectTimeout, 5000);
+        options.SyncTimeout = Math.Max(options.SyncTimeout, 5000);
+        return ConnectionMultiplexer.Connect(options);
+    });
+    builder.Services.AddSingleton<IAgentEventReplayStore, RedisAgentEventReplayStore>();
+}
 
 // ── Background Workers ────────────────────────────────────────────────────────
 builder.Services.AddHostedService<BackgroundRunWorker>();

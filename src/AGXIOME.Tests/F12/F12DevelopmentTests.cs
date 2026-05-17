@@ -1,5 +1,6 @@
 using AGXIOME.Toolkits;
 using AGXIOME.Toolkits.Development;
+using System.Runtime.CompilerServices;
 
 namespace AGXIOME.Tests.F12;
 
@@ -59,19 +60,38 @@ public sealed class BitbucketToolkitTests
 
 public sealed class GitToolkitTests
 {
+    private static readonly string RepositoryRoot = ResolveRepositoryRoot();
+
     [Fact] public async Task Id_IsCorrect() => Assert.Equal("git", new GitToolkit().Id);
     [Fact] public async Task Name_IsCorrect() => Assert.Equal("Git", new GitToolkit().Name);
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.Development, new GitToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
-        var r = await new GitToolkit().ExecuteAsync("status", [], default);
+        var r = await new GitToolkit().ExecuteAsync("status", new Dictionary<string, object?> { ["working_dir"] = RepositoryRoot }, default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("git", new Dictionary<string, string> { ["api_key"] = "test" });
-        var r = await new GitToolkit(cfg).ExecuteAsync("status", new Dictionary<string, object?> { ["path"] = "." }, default);
+        var r = await new GitToolkit(cfg).ExecuteAsync("status", new Dictionary<string, object?> { ["working_dir"] = RepositoryRoot }, default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+
+    private static string ResolveRepositoryRoot([CallerFilePath] string sourceFilePath = "")
+    {
+        var directory = new DirectoryInfo(Path.GetDirectoryName(sourceFilePath) ?? AppContext.BaseDirectory);
+
+        while (directory is not null)
+        {
+            if (Directory.Exists(Path.Combine(directory.FullName, ".git")))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new InvalidOperationException("Unable to locate the AGXIOMA git repository root for GitToolkit tests.");
     }
 }
 

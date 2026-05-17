@@ -1,3 +1,6 @@
+using System.Net;
+using System.Text;
+using System.Text.Json;
 using AGXIOME.Toolkits;
 using AGXIOME.Toolkits.AiMl;
 
@@ -19,7 +22,151 @@ public sealed class OpenAiVisionToolkitTests
         var r = await new OpenAiVisionToolkit(cfg).ExecuteAsync("analyze_image", new Dictionary<string, object?> { ["image_url"] = "https://x.com/img.png" }, default);
         Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
+    [Fact] public async Task Execute_UnknownAction_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("openai_vision", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new OpenAiVisionToolkit(cfg).ExecuteAsync("unknown_action", new Dictionary<string, object?> { ["image_url"] = "https://x.com/img.png" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+    [Fact] public async Task Execute_BothImageInputs_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("openai_vision", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new OpenAiVisionToolkit(cfg).ExecuteAsync("ocr", new Dictionary<string, object?> { ["image_url"] = "https://x.com/img.png", ["image_base64"] = Convert.ToBase64String(new byte[] { 1, 2, 3 }) }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+    [Fact] public async Task Execute_InvalidImageUrl_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("openai_vision", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new OpenAiVisionToolkit(cfg).ExecuteAsync("describe", new Dictionary<string, object?> { ["image_url"] = "https://x.com/file.pdf" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+        [Fact] public async Task Execute_Ocr_UsesOcrPrompt_AndNormalizesText()
+        {
+                var cfg = new ToolkitConfig("openai_vision", new Dictionary<string, string> { ["api_key"] = "test" });
+                using var http = new HttpClient(new OpenAiVisionTestHandler(req =>
+                {
+                        Assert.Equal(HttpMethod.Post, req.Method);
+                        Assert.Equal("https://api.openai.com/v1/chat/completions", req.RequestUri!.ToString());
+                        var body = req.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                        Assert.Contains("Extract all readable text from this image and return plain text.", body);
+                        Assert.Contains("https://x.com/img.png", body);
+                }, """
+                        {
+                            "choices": [
+                                {
+                                    "message": {
+                                        "content": "Invoice 001\nTotal: 25 EUR"
+                                    }
+                                }
+                            ]
+                        }
+                        """));
+                using var _ = OpenAiVisionToolkit.UseHttpClient(http);
+
+                var result = await new OpenAiVisionToolkit(cfg).ExecuteAsync("ocr", new Dictionary<string, object?> { ["image_url"] = "https://x.com/img.png" }, default);
+
+                Assert.Equal(ToolkitResultStatus.Ok, result.Status);
+                var data = JsonSerializer.Serialize(result.Data);
+                Assert.Contains("\"action\":\"ocr\"", data);
+                Assert.Contains("\"text\":\"Invoice 001\\nTotal: 25 EUR\"", data);
+        }
+        [Fact] public async Task Execute_ObjectDetect_UsesDefaultPrompt_AndNormalizesObjects()
+        {
+                var cfg = new ToolkitConfig("openai_vision", new Dictionary<string, string> { ["api_key"] = "test" });
+                using var http = new HttpClient(new OpenAiVisionTestHandler(req =>
+                {
+                        var body = req.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                        Assert.Contains("Identify the main objects visible in this image and return a concise list.", body);
+                }, """
+                        {
+                            "choices": [
+                                {
+                                    "message": {
+                                        "content": "1. cat\n2. sofa\n- lamp"
+                                    }
+                                }
+                            ]
+                        }
+                        """));
+                using var _ = OpenAiVisionToolkit.UseHttpClient(http);
+
+                var result = await new OpenAiVisionToolkit(cfg).ExecuteAsync("object_detect", new Dictionary<string, object?> { ["image_url"] = "https://x.com/img.png" }, default);
+
+                Assert.Equal(ToolkitResultStatus.Ok, result.Status);
+                var data = JsonSerializer.Serialize(result.Data);
+                Assert.Contains("\"action\":\"object_detect\"", data);
+                Assert.Contains("cat", data);
+                Assert.Contains("sofa", data);
+                Assert.Contains("lamp", data);
+        }
+        [Fact] public void NormalizeVisionResult_Ocr_MapsTextPayload()
+        {
+                using var doc = JsonDocument.Parse("""
+                        {
+                            "choices": [
+                                {
+                                    "message": {
+                                        "content": "Invoice 001\nTotal: 25 EUR"
+                                    }
+                                }
+                            ]
+                        }
+                        """);
+
+                var result = OpenAiVisionToolkit.NormalizeVisionResult("ocr", ToolkitResult.Success(doc.RootElement.Clone()));
+
+                Assert.Equal(ToolkitResultStatus.Ok, result.Status);
+                var data = JsonSerializer.Serialize(result.Data);
+                Assert.Contains("\"action\":\"ocr\"", data);
+                Assert.Contains("\"text\":\"Invoice 001\\nTotal: 25 EUR\"", data);
+        }
+        [Fact] public void NormalizeVisionResult_ObjectDetect_SplitsList()
+        {
+                using var doc = JsonDocument.Parse("""
+                        {
+                            "choices": [
+                                {
+                                    "message": {
+                                        "content": "1. cat\n2. sofa\n- lamp"
+                                    }
+                                }
+                            ]
+                        }
+                        """);
+
+                var result = OpenAiVisionToolkit.NormalizeVisionResult("object_detect", ToolkitResult.Success(doc.RootElement.Clone()));
+
+                Assert.Equal(ToolkitResultStatus.Ok, result.Status);
+                var data = JsonSerializer.Serialize(result.Data);
+                Assert.Contains("\"action\":\"object_detect\"", data);
+                Assert.Contains("cat", data);
+                Assert.Contains("sofa", data);
+                Assert.Contains("lamp", data);
+        }
+        [Fact] public void NormalizeVisionResult_MissingChoices_PreservesRaw()
+        {
+                using var doc = JsonDocument.Parse("""{ "id": "chatcmpl-1" }""");
+
+                var result = OpenAiVisionToolkit.NormalizeVisionResult("describe", ToolkitResult.Success(doc.RootElement.Clone()));
+
+                Assert.Equal(ToolkitResultStatus.Ok, result.Status);
+                var data = JsonSerializer.Serialize(result.Data);
+                Assert.Contains("\"action\":\"describe\"", data);
+                Assert.Contains("\"raw\"", data);
+        }
 }
+
+    internal sealed class OpenAiVisionTestHandler(Action<HttpRequestMessage> assertRequest, string jsonBody) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            assertRequest(request);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(jsonBody, Encoding.UTF8, "application/json")
+            });
+        }
+    }
 
 public sealed class DallEToolkitTests
 {

@@ -17,45 +17,80 @@ public sealed record AdminMetricEvent(string Metric, double Value, long Seq, Dat
 
 /// <summary>
 /// Realtime hub for agent run lifecycle events.
-/// Groups: "run:{runId}", "agent:{agentId}"
+/// Groups: "run:{runId}", "agent:{agentId}", "plan:{planId}"
 /// Clients subscribe on StartRun; server pushes progress/completion/error events.
 /// </summary>
 public sealed class AgentHub : Hub
 {
-    private long _seq;
+    private readonly IAgentEventReplayStore _replayStore;
+
+    public AgentHub(IAgentEventReplayStore replayStore)
+    {
+        _replayStore = replayStore;
+    }
 
     /// <summary>Subscribe to events for a specific run. Adds caller to the run group.</summary>
     public async Task StartRun(string runId, string agentId)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, $"run:{runId}");
         await Groups.AddToGroupAsync(Context.ConnectionId, $"agent:{agentId}");
-        await Clients.Caller.SendAsync("RunStarted", new AgentRunEvent(
-            runId, agentId, "started", string.Empty,
-            Interlocked.Increment(ref _seq), DateTimeOffset.UtcNow));
+
+        var evt = await _replayStore.AppendRunEventAsync(
+            runId,
+            agentId,
+            "started",
+            string.Empty,
+            Context.ConnectionAborted);
+        await Clients.Caller.SendAsync("RunStarted", evt, Context.ConnectionAborted);
     }
 
     /// <summary>Request cancellation of a run. Server validates authority before acting.</summary>
     public async Task CancelRun(string runId)
     {
         // Production: send cancellation command to BackgroundRunWorker via Channel
-        await Clients.Group($"run:{runId}").SendAsync("RunCancelled", new AgentRunEvent(
-            runId, string.Empty, "cancelled", string.Empty,
-            Interlocked.Increment(ref _seq), DateTimeOffset.UtcNow));
+        var evt = await _replayStore.AppendRunEventAsync(
+            runId,
+            string.Empty,
+            "cancelled",
+            string.Empty,
+            Context.ConnectionAborted);
+        await Clients.Group($"run:{runId}").SendAsync("RunCancelled", evt, Context.ConnectionAborted);
     }
 
     /// <summary>Resume a paused run.</summary>
     public async Task ResumeRun(string runId)
     {
-        await Clients.Group($"run:{runId}").SendAsync("RunResumed", new AgentRunEvent(
-            runId, string.Empty, "resumed", string.Empty,
-            Interlocked.Increment(ref _seq), DateTimeOffset.UtcNow));
+        var evt = await _replayStore.AppendRunEventAsync(
+            runId,
+            string.Empty,
+            "resumed",
+            string.Empty,
+            Context.ConnectionAborted);
+        await Clients.Group($"run:{runId}").SendAsync("RunResumed", evt, Context.ConnectionAborted);
     }
 
-    /// <summary>Replay last N events from in-memory buffer (stub — production uses Redis sorted set).</summary>
-    public Task RequestReplay(string runId, int lastN)
+    /// <summary>Subscribe to orchestration plan fan-out updates.</summary>
+    public Task JoinPlan(string planId)
     {
-        // Production: fetch from replay window in Redis, emit in order
-        return Clients.Caller.SendAsync("ReplayStart", new { runId, lastN, message = "No events buffered (stub)" });
+        return Groups.AddToGroupAsync(Context.ConnectionId, $"plan:{planId}");
+    }
+
+    /// <summary>Unsubscribe from orchestration plan fan-out updates.</summary>
+    public Task LeavePlan(string planId)
+    {
+        return Groups.RemoveFromGroupAsync(Context.ConnectionId, $"plan:{planId}");
+    }
+
+    /// <summary>Replay last N events from the configured replay store.</summary>
+    public async Task RequestReplay(string runId, int lastN)
+    {
+        var replayEvents = await _replayStore.GetRecentRunEventsAsync(runId, lastN, Context.ConnectionAborted);
+        await Clients.Caller.SendAsync("ReplayStart", new { runId, lastN, replayed = replayEvents.Count }, Context.ConnectionAborted);
+        foreach (var evt in replayEvents)
+        {
+            await Clients.Caller.SendAsync("ReplayEvent", evt, Context.ConnectionAborted);
+        }
+        await Clients.Caller.SendAsync("ReplayCompleted", new { runId, replayed = replayEvents.Count }, Context.ConnectionAborted);
     }
 
     public override async Task OnDisconnectedAsync(Exception? ex)

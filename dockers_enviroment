@@ -1,0 +1,96 @@
+# F4 DB test environment
+# Load in PowerShell with:
+#   Get-Content .\dockers_enviroment | ForEach-Object {
+#     if ($_ -match '^(?!#)([^=]+)=(.*)$') { [Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process') }
+#   }
+# Start containers with:
+#   docker --context desktop-linux compose --env-file .\dockers_enviroment -f .\docker-compose.f4-test-stack.yml up -d
+
+# Docker control path for Testcontainers and docker CLI.
+DOCKER_HOST=npipe://./pipe/dockerDesktopLinuxEngine
+
+# PostgreSQL host-backed proof
+AGXIOME_POSTGRES_TEST_CONNECTION=Host=127.0.0.1;Port=5432;Database=agxiome_f4_host;Username=postgres;Password=gturri1975;SSL Mode=Disable;Trust Server Certificate=true;Pooling=false;Timeout=5;Command Timeout=30;Include Error Detail=true
+
+# Redis real proof
+AGXIOME_REDIS_TEST_CONNECTION=127.0.0.1:6390,abortConnect=false
+
+# SQL Server docker proof
+AGXIOME_SQLSERVER_HOST_PORT=11433
+AGXIOME_SQLSERVER_SA_PASSWORD=Agxioma_sql_2026!
+AGXIOME_SQLSERVER_TEST_CONNECTION=Server=127.0.0.1,11433;Database=master;User Id=sa;Password=Agxioma_sql_2026!;TrustServerCertificate=true;Encrypt=false;Connection Timeout=5
+
+# DynamoDB Local / LocalStack proof
+AGXIOME_DYNAMODB_HOST_PORT=14566
+AGXIOME_DYNAMODB_TEST_SERVICEURL=http://127.0.0.1:14566
+AGXIOME_DYNAMODB_TEST_REGION=us-east-1
+AWS_ACCESS_KEY_ID=test
+AWS_SECRET_ACCESS_KEY=test
+AWS_DEFAULT_REGION=us-east-1
+
+# SurrealDB proof
+AGXIOME_SURREAL_HOST_PORT=18000
+AGXIOME_SURREAL_ROOT_USER=root
+AGXIOME_SURREAL_ROOT_PASSWORD=root
+AGXIOME_SURREAL_TEST_BASEURL=http://127.0.0.1:18000
+
+# Elasticsearch proof
+AGXIOME_ELASTIC_HOST_PORT=19200
+AGXIOME_ELASTIC_TEST_ENDPOINT=http://127.0.0.1:19200
+AGXIOME_ELASTIC_API_KEY=
+
+# Meilisearch proof
+AGXIOME_MEILI_HOST_PORT=17700
+AGXIOME_MEILI_MASTER_KEY=agxioma_meili_master_2026
+AGXIOME_MEILI_TEST_ENDPOINT=http://127.0.0.1:17700
+
+# RavenDB proof
+AGXIOME_RAVEN_HOST_PORT=18080
+AGXIOME_RAVEN_TEST_URL=http://127.0.0.1:18080
+AGXIOME_RAVEN_DATABASE=agxiome-f4
+
+# etcd proof
+AGXIOME_ETCD_HOST_PORT=12379
+AGXIOME_ETCD_TEST_ENDPOINT=127.0.0.1:12379
+
+# ClickHouse proof
+AGXIOME_CLICKHOUSE_HOST_PORT=18123
+AGXIOME_CLICKHOUSE_NATIVE_PORT=19000
+AGXIOME_CLICKHOUSE_DATABASE=default
+AGXIOME_CLICKHOUSE_USERNAME=default
+AGXIOME_CLICKHOUSE_PASSWORD=
+AGXIOME_CLICKHOUSE_TEST_CONNECTION=Host=127.0.0.1;Port=18123;Username=default;Password=;Protocol=http
+
+# InfluxDB proof
+AGXIOME_INFLUX_HOST_PORT=18086
+AGXIOME_INFLUX_ORG=agxioma
+AGXIOME_INFLUX_BUCKET=agxioma_f4
+AGXIOME_INFLUX_TOKEN=agxioma-influx-token-2026
+AGXIOME_INFLUX_TEST_URL=http://127.0.0.1:18086
+
+# Couchbase proof
+AGXIOME_COUCHBASE_HOST_PORT=18091
+AGXIOME_COUCHBASE_USERNAME=Administrator
+AGXIOME_COUCHBASE_PASSWORD=Agxioma_couchbase_2026!
+AGXIOME_COUCHBASE_BUCKET=agxioma
+AGXIOME_COUCHBASE_SCOPE=_default
+AGXIOME_COUCHBASE_COLLECTION=_default
+AGXIOME_COUCHBASE_TEST_CONNECTION=couchbase://127.0.0.1
+
+# Hazelcast proof
+AGXIOME_HAZELCAST_HOST_PORT=15701
+AGXIOME_HAZELCAST_CLUSTER_NAME=agxioma-dev
+AGXIOME_HAZELCAST_MAP_NAME=agxioma-f4
+AGXIOME_HAZELCAST_TEST_ADDRESS=127.0.0.1:15701
+
+# Deferred providers: keep placeholders centralized even if not yet wired.
+AGXIOME_SINGLESTORE_HOST_PORT=13306
+AGXIOME_SINGLESTORE_USERNAME=root
+AGXIOME_SINGLESTORE_PASSWORD=Agxioma_singlestore_2026!
+AGXIOME_SINGLESTORE_DATABASE=agxioma_f4
+
+AGXIOME_FIRESTORE_HOST_PORT=18090
+AGXIOME_FIRESTORE_PROJECT_ID=agxioma-f4
+
+AGXIOME_COSMOS_HOST_PORT=18081
+AGXIOME_COSMOS_KEY=C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+YQ==

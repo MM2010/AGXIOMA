@@ -1,0 +1,120 @@
+services:
+  f4-sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: agxioma-f4-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${AGXIOME_SQLSERVER_SA_PASSWORD}
+    ports:
+      - "${AGXIOME_SQLSERVER_HOST_PORT}:1433"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"${AGXIOME_SQLSERVER_SA_PASSWORD}\" -Q \"SELECT 1\""]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+    restart: unless-stopped
+
+  f4-dynamodb:
+    image: localstack/localstack:3.0
+    container_name: agxioma-f4-dynamodb
+    environment:
+      SERVICES: dynamodb
+      AWS_DEFAULT_REGION: ${AGXIOME_DYNAMODB_TEST_REGION}
+    ports:
+      - "${AGXIOME_DYNAMODB_HOST_PORT}:4566"
+    restart: unless-stopped
+
+  f4-surreal:
+    image: surrealdb/surrealdb:latest
+    container_name: agxioma-f4-surreal
+    command: ["start", "--bind", "0.0.0.0:8000", "--user", "${AGXIOME_SURREAL_ROOT_USER}", "--pass", "${AGXIOME_SURREAL_ROOT_PASSWORD}", "memory"]
+    ports:
+      - "${AGXIOME_SURREAL_HOST_PORT}:8000"
+    restart: unless-stopped
+
+  f4-elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.0.0
+    container_name: agxioma-f4-elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "${AGXIOME_ELASTIC_HOST_PORT}:9200"
+    restart: unless-stopped
+
+  f4-meilisearch:
+    image: getmeili/meilisearch:v1.13
+    container_name: agxioma-f4-meilisearch
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_MASTER_KEY: ${AGXIOME_MEILI_MASTER_KEY}
+    ports:
+      - "${AGXIOME_MEILI_HOST_PORT}:7700"
+    restart: unless-stopped
+
+  f4-ravendb:
+    image: ravendb/ravendb:7.0-ubuntu-latest
+    container_name: agxioma-f4-ravendb
+    environment:
+      RAVEN_Setup_Mode: None
+      RAVEN_Security_UnsecuredAccessAllowed: PrivateNetwork
+      RAVEN_Logs_Mode: None
+    ports:
+      - "${AGXIOME_RAVEN_HOST_PORT}:8080"
+    restart: unless-stopped
+
+  f4-etcd:
+    image: quay.io/coreos/etcd:v3.5.15
+    container_name: agxioma-f4-etcd
+    command:
+      - /usr/local/bin/etcd
+      - --advertise-client-urls=http://0.0.0.0:2379
+      - --listen-client-urls=http://0.0.0.0:2379
+    ports:
+      - "${AGXIOME_ETCD_HOST_PORT}:2379"
+    restart: unless-stopped
+
+  f4-clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: agxioma-f4-clickhouse
+    environment:
+      CLICKHOUSE_DB: ${AGXIOME_CLICKHOUSE_DATABASE}
+      CLICKHOUSE_USER: ${AGXIOME_CLICKHOUSE_USERNAME}
+      CLICKHOUSE_PASSWORD: ${AGXIOME_CLICKHOUSE_PASSWORD}
+    ports:
+      - "${AGXIOME_CLICKHOUSE_HOST_PORT}:8123"
+      - "${AGXIOME_CLICKHOUSE_NATIVE_PORT}:9000"
+    restart: unless-stopped
+
+  f4-influxdb:
+    image: influxdb:2.7
+    container_name: agxioma-f4-influxdb
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${AGXIOME_INFLUX_TOKEN}
+      DOCKER_INFLUXDB_INIT_ORG: ${AGXIOME_INFLUX_ORG}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${AGXIOME_INFLUX_BUCKET}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${AGXIOME_INFLUX_TOKEN}
+    ports:
+      - "${AGXIOME_INFLUX_HOST_PORT}:8086"
+    restart: unless-stopped
+
+  f4-couchbase:
+    image: couchbase:community-7.6.2
+    container_name: agxioma-f4-couchbase
+    ports:
+      - "${AGXIOME_COUCHBASE_HOST_PORT}:8091"
+      - "11210:11210"
+    restart: unless-stopped
+
+  f4-hazelcast:
+    image: hazelcast/hazelcast:5.5
+    container_name: agxioma-f4-hazelcast
+    environment:
+      HZ_CLUSTERNAME: ${AGXIOME_HAZELCAST_CLUSTER_NAME}
+    ports:
+      - "${AGXIOME_HAZELCAST_HOST_PORT}:5701"
+    restart: unless-stopped

@@ -7,6 +7,7 @@ using AgxiomaSupportHub.Tools;
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 var builder = WebApplication.CreateBuilder(args);
 builder.AddAgxiomeSecurityDefaults();
+builder.Services.AddSingleton<BackofficeRuntimeService>();
 
 var provider = builder.Configuration["Agent:Provider"] ?? "deepseek";
 var model    = builder.Configuration["Agent:Model"];
@@ -70,6 +71,44 @@ builder.Services.AddAgxiome()
                           "where", "account", "profile");
     })
 
+    .AddForestSwarm("backoffice-router", forest =>
+    {
+        forest.AddTree("orders")
+            .AddAgent("orders-router", "Route order and shipping issues to the operations lane.")
+            .WithKeywords("order", "tracking", "shipment", "delivery", "address", "package", "spedizione");
+
+        forest.AddTree("billing")
+            .AddAgent("billing-router", "Route invoice and payment issues to the billing lane.")
+            .WithKeywords("invoice", "fattura", "billing", "payment", "charge", "vat", "receipt", "addebito");
+
+        forest.AddTree("refunds")
+            .AddAgent("refunds-router", "Route refund and dispute issues to the refunds lane.")
+            .WithKeywords("refund", "rimborso", "return", "chargeback", "cancel", "dispute", "contestazione");
+
+        forest.AddTree("account")
+            .AddAgent("account-router", "Route account and identity issues to the account lane.")
+            .WithKeywords("account", "login", "access", "password", "identity", "profile", "profilo");
+
+        forest.AddTree("technical")
+            .AddAgent("technical-router", "Route technical incidents to the technical lane.")
+            .WithKeywords("bug", "error", "api", "integration", "timeout", "platform", "incident");
+    })
+
+    .AddForestSwarm("backoffice-content", forest =>
+    {
+        forest.AddTree("composer")
+            .AddAgent("backoffice-composer",
+                "You are a senior backoffice operations coordinator for an enterprise support desk. " +
+                "Given a customer case, produce only valid JSON with exactly these string properties: " +
+                "resolutionPlan, reviewNotes, customerReply. " +
+                "resolutionPlan must be a concise numbered plan in the same language as the customer context. " +
+                "reviewNotes must be short internal notes for operators, highlighting risk, approvals, and next checks. " +
+                "customerReply must be suitable for sending directly to the customer, concise, professional, and action-oriented. " +
+                "Never add greetings, signatures, placeholders, markdown fences, or extra fields. " +
+                "Do not invent facts, approvals, payments, or completed actions that are not present in the case data.")
+            .WithKeywords("backoffice", "ticket", "customer", "reply", "resolution", "plan", "review", "billing", "refund", "order", "account", "technical");
+    })
+
     // ── Deep research pipeline (HeavySwarm) ───────────────────────────────
     .AddHeavySwarm("analyst", heavy =>
     {
@@ -93,6 +132,7 @@ builder.Services.AddAgxiome()
 
 var app = builder.Build();
 await app.UseAgxiomeSecurityDefaultsAsync();
+await app.Services.GetRequiredService<BackofficeRuntimeService>().InitializeAsync();
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
@@ -108,11 +148,12 @@ app.MapGet("/health", (IConfiguration cfg) => Results.Ok(new
     .AllowAnonymousAgxiome();
 
 // POST /support — route customer message to the best-matching agent
-app.MapPost("/support", async (SupportRequest req, ForestSwarm support) =>
+app.MapPost("/support", async (SupportRequest req, IEnumerable<ForestSwarm> swarms) =>
 {
     if (string.IsNullOrWhiteSpace(req.Message))
         return Results.BadRequest(new { error = "message is required." });
 
+    var support = swarms.First(s => string.Equals(s.Name, "support", StringComparison.OrdinalIgnoreCase));
     var result = await support.RunAsync(req.Message);
     return Results.Ok(new
     {
@@ -146,8 +187,88 @@ app.MapPost("/analyze", async (AnalysisRequest req, HeavySwarm analyst) =>
     .RequireAgxiomePermission(AgxiomePermission.WorkflowExecute)
     .WithAgxiomeRateLimit(10, TimeSpan.FromMinutes(1));
 
+app.MapPost("/backoffice", async (BackofficeRequestInput req, BackofficeRuntimeService runtime, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(req.CustomerId) ||
+        string.IsNullOrWhiteSpace(req.CustomerEmail) ||
+        string.IsNullOrWhiteSpace(req.Subject) ||
+        string.IsNullOrWhiteSpace(req.Message))
+    {
+        return Results.BadRequest(new { error = "customerId, customerEmail, subject and message are required." });
+    }
+
+    var run = await runtime.CreateRunAsync(req, ct);
+    return Results.Created($"/backoffice/{run.RunId}", run);
+})
+    .AllowAnonymousAgxiome();
+
+app.MapGet("/backoffice/dashboard", async (BackofficeRuntimeService runtime, CancellationToken ct) =>
+{
+    var dashboard = await runtime.GetDashboardAsync(ct);
+    return Results.Ok(dashboard);
+})
+    .AllowAnonymousAgxiome();
+
+app.MapGet("/backoffice/runs", async (BackofficeRuntimeService runtime, CancellationToken ct) =>
+{
+    var runs = await runtime.ListRunsAsync(50, ct);
+    return Results.Ok(runs);
+})
+    .AllowAnonymousAgxiome();
+
+app.MapGet("/backoffice/tickets", async (BackofficeRuntimeService runtime, CancellationToken ct) =>
+{
+    var tickets = await runtime.ListTicketsAsync(50, ct);
+    return Results.Ok(tickets);
+})
+    .AllowAnonymousAgxiome();
+
+app.MapGet("/backoffice/surveys", async (BackofficeRuntimeService runtime, CancellationToken ct) =>
+{
+    var surveys = await runtime.ListSurveysAsync(50, ct);
+    return Results.Ok(surveys);
+})
+    .AllowAnonymousAgxiome();
+
+app.MapGet("/backoffice/{runId}", async (string runId, BackofficeRuntimeService runtime, CancellationToken ct) =>
+{
+    var run = await runtime.GetRunAsync(runId, ct);
+    return run is null ? Results.NotFound(new { error = "Run not found." }) : Results.Ok(run);
+})
+    .AllowAnonymousAgxiome();
+
+app.MapPatch("/backoffice/{runId}", async (string runId, BackofficeRunActionRequest req, BackofficeRuntimeService runtime, CancellationToken ct) =>
+{
+    if (!string.Equals(req.Action, "close", StringComparison.OrdinalIgnoreCase))
+        return Results.BadRequest(new { error = "Unsupported action." });
+
+    var run = await runtime.CloseRunAsync(runId, ct);
+    return run is null ? Results.NotFound(new { error = "Run not found." }) : Results.Ok(run);
+})
+    .AllowAnonymousAgxiome();
+
+app.MapPost("/backoffice/confirm", async (BackofficeConfirmRequest req, BackofficeRuntimeService runtime, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(req.Token))
+        return Results.BadRequest(new { error = "Token required." });
+
+    var run = await runtime.ConfirmRunAsync(req.Token, ct);
+    return run is null ? Results.NotFound(new { error = "Invalid token." }) : Results.Ok(run);
+})
+    .AllowAnonymousAgxiome();
+
+app.MapPost("/backoffice/survey", async (BackofficeSurveyRequest req, BackofficeRuntimeService runtime, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(req.TicketId) || req.Score is < 1 or > 5)
+        return Results.BadRequest(new { error = "ticketId is required and score must be between 1 and 5." });
+
+    var survey = await runtime.SaveSurveyAsync(req.TicketId, req.Score, req.Comment, ct);
+    return Results.Created($"/backoffice/survey/{survey.TicketId}", survey);
+})
+    .AllowAnonymousAgxiome();
+
 app.MapGet("/", () =>
-    "AGXIOME Support Hub — POST /support (customer questions) | POST /analyze (deep research)")
+    "AGXIOME Support Hub — POST /support | POST /analyze | POST /backoffice | GET /backoffice/dashboard")
     .AllowAnonymousAgxiome();
 
 app.Run();
@@ -159,5 +280,41 @@ public record SupportRequest(string Message);
 
 /// <summary>Topic to research via HeavySwarm parallel pipeline.</summary>
 public record AnalysisRequest(string Topic);
+
+public sealed record BackofficeRequestInput(
+    string CustomerId,
+    string CustomerEmail,
+    string? CustomerPhone,
+    string? TelegramChatId,
+    string Subject,
+    string Message,
+    string PreferredLanguage,
+    IReadOnlyList<string> PreferredChannels);
+
+public sealed record BackofficeRunActionRequest(string? Action);
+
+public sealed record BackofficeConfirmRequest(string? Token);
+
+public sealed record BackofficeSurveyRequest(string? TicketId, int Score, string? Comment);
+
+public sealed record SurveyRecord(string TicketId, int Score, string? Comment, DateTimeOffset SubmittedAt);
+
+public sealed record RunTimelineEntry(string Key, string Title, string Description, DateTimeOffset CreatedAt);
+
+public sealed record RunRecord(
+    string RunId,
+    string Status,
+    string Area,
+    string Priority,
+    string? TicketId,
+    string? CheckpointId,
+    string? ConfirmationToken,
+    string CustomerReply,
+    string ResolutionPlan,
+    string ReviewNotes,
+    DateTimeOffset CreatedAt,
+    double AvgResponseSeconds,
+    IReadOnlyList<string> ChannelsNotified,
+    IReadOnlyList<RunTimelineEntry> Timeline);
 
 public partial class Program { }

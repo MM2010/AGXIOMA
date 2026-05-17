@@ -100,7 +100,7 @@ public sealed class SkillLabOrchestrator
                 new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
                 ?? throw new InvalidOperationException("Null deserialization");
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             proposal = new ToolProposal(
                 ToolId: $"tool-{Guid.NewGuid().ToString("N")[..8]}",

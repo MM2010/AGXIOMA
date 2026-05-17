@@ -89,6 +89,8 @@ public sealed class StopAfterToolEvaluator : IStopAfterToolEvaluator
     {
         ArgumentNullException.ThrowIfNull(rule);
         ArgumentException.ThrowIfNullOrWhiteSpace(rule.ToolName);
+        if (!Enum.IsDefined(rule.Mode))
+            throw new ArgumentOutOfRangeException(nameof(rule), rule.Mode, "Stop-after-tool mode is not valid.");
         _rules[rule.ToolName] = rule;
     }
 

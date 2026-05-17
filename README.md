@@ -256,6 +256,16 @@ dotnet build          # 0 errors
 dotnet test           # 164 passed, 0 failed
 ```
 
+Per i rerun che usano `Microsoft.AspNetCore.Mvc.Testing`, in alcuni ambienti Windows il file
+`MvcTestingAppManifest.json` sotto `src/AGXIOME.Tests/obj` puo` restare lockato da un processo
+esterno. In quel caso usa il runner isolato, che usa `--artifacts-path` in una directory temporanea
+senza riusare il path `obj` condiviso del progetto.
+
+```powershell
+pwsh .\scripts\test-agxiome-tests-isolated.ps1
+pwsh .\scripts\test-agxiome-tests-isolated.ps1 -Filter FullyQualifiedName~F16_TS01_RealWorldScenarioTests
+```
+
 ## Struttura progetto
 
 ```

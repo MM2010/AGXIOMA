@@ -83,7 +83,10 @@ public sealed class SqlServerCommandStore : SqlServerCommandStoreBase
     public override StorageProviderType ProviderType => StorageProviderType.SQLServer;
 
     public SqlServerCommandStore(SqlServerStoreOptions opts)
-        => _opts = opts ?? throw new ArgumentNullException(nameof(opts));
+    {
+        _opts = opts ?? throw new ArgumentNullException(nameof(opts));
+        ArgumentException.ThrowIfNullOrWhiteSpace(_opts.ConnectionString);
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -104,5 +107,8 @@ public sealed class SqlServerLocalDbCommandStore : SqlServerCommandStoreBase
     public override StorageProviderType ProviderType => StorageProviderType.SQLServerLocalDB;
 
     public SqlServerLocalDbCommandStore(SqlServerLocalDbStoreOptions opts)
-        => _opts = opts ?? throw new ArgumentNullException(nameof(opts));
+    {
+        _opts = opts ?? throw new ArgumentNullException(nameof(opts));
+        ArgumentException.ThrowIfNullOrWhiteSpace(_opts.ConnectionString);
+    }
 }

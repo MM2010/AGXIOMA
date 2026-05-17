@@ -1,5 +1,7 @@
 using System.Text.Json.Nodes;
+using AGXIOME.Core.Agent;
 using AGXIOME.Core.Tools;
+using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 using NSubstitute;
@@ -17,6 +19,14 @@ namespace AGXIOME.Tests;
 public class ToolResultCacheTests : IDisposable
 {
     private readonly ToolResultCache _cache = new(defaultTtl: TimeSpan.FromMinutes(5));
+
+    [Fact]
+    public void Constructor_InvalidArguments_Throw()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ToolResultCache(defaultTtl: TimeSpan.Zero));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ToolResultCache(maxEntries: 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ToolResultCache(sweepInterval: TimeSpan.Zero));
+    }
 
     [Fact]
     public async Task SetThenGet_ReturnsCachedResult()
@@ -86,6 +96,20 @@ public class ToolResultCacheTests : IDisposable
         var h2 = await _cache.TryGetAsync("tool_e", p2);
         Assert.Equal("r1", h1!.Data);
         Assert.Equal("r2", h2!.Data);
+    }
+
+    [Fact]
+    public async Task SetAsync_EmptyToolName_Throws()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _cache.SetAsync(string.Empty, null, new ToolResult(true, "x")).AsTask());
+    }
+
+    [Fact]
+    public async Task SetAsync_NullResult_Throws()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            _cache.SetAsync("tool_f", null, null!).AsTask());
     }
 
     public void Dispose() => _cache.Dispose();
@@ -163,6 +187,54 @@ public class ToolCallLimiterTests
         Assert.False(check.Allowed);
         Assert.Equal(ToolCallLimitViolation.PerToolCallsExceeded, check.Violation);
     }
+
+    [Fact]
+    public void Constructor_NegativeLimits_Throw()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ToolCallLimiter(new ToolCallLimits(MaxTotalCalls: -1)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ToolCallLimiter(new ToolCallLimits(MaxConsecutiveErrors: -1)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ToolCallLimiter(new ToolCallLimits(MaxCallsPerTool: -1)));
+    }
+
+    [Fact]
+    public void RecordSuccess_InvalidArguments_Throw()
+    {
+        Assert.Throws<ArgumentException>(() => _limiter.RecordSuccess(string.Empty, "tool_a"));
+        Assert.Throws<ArgumentException>(() => _limiter.RecordSuccess("run-8", string.Empty));
+    }
+
+    [Fact]
+    public void RecordError_InvalidArguments_Throw()
+    {
+        Assert.Throws<ArgumentException>(() => _limiter.RecordError(string.Empty, "tool_a"));
+        Assert.Throws<ArgumentException>(() => _limiter.RecordError("run-9", string.Empty));
+    }
+
+    [Fact]
+    public void Reset_ClearsStatsForRun()
+    {
+        _limiter.RecordError("run-10", "tool_a");
+        _limiter.RecordSuccess("run-10", "tool_b");
+
+        _limiter.Reset("run-10");
+
+        var stats = _limiter.GetStats("run-10");
+        Assert.NotNull(stats);
+        Assert.Equal(0, stats!.TotalCalls);
+        Assert.Equal(0, stats.ConsecutiveErrors);
+        Assert.Equal(0, stats.TotalErrors);
+        Assert.Empty(stats.CallsPerTool);
+    }
+
+    [Fact]
+    public void Remove_DeletesRunState()
+    {
+        _limiter.RecordSuccess("run-11", "tool_a");
+
+        _limiter.Remove("run-11");
+
+        Assert.Null(_limiter.GetStats("run-11"));
+    }
 }
 
 // ── TI-03 — StopAfterToolEvaluator ───────────────────────────────────────────
@@ -226,6 +298,47 @@ public class StopAfterToolEvaluatorTests
         var rules = _eval.GetRules();
         Assert.Equal(2, rules.Count);
     }
+
+    [Fact]
+    public void AddRule_InvalidMode_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            _eval.AddRule(new StopAfterToolRule("bad", (StopAfterToolMode)999)));
+    }
+
+    [Fact]
+    public void AddRule_ReplacesExistingRule()
+    {
+        _eval.AddRule(new StopAfterToolRule("submit", StopAfterToolMode.AfterSuccess, "first"));
+        _eval.AddRule(new StopAfterToolRule("submit", StopAfterToolMode.AfterError, "second"));
+
+        var result = _eval.Evaluate("submit", success: false);
+
+        Assert.True(result.ShouldStop);
+        Assert.Equal(StopAfterToolMode.AfterError, result.TriggerMode);
+        Assert.Equal("second", result.ExitMessage);
+        Assert.Single(_eval.GetRules());
+    }
+
+    [Fact]
+    public void Clear_RemovesAllRules()
+    {
+        _eval.AddRule(new StopAfterToolRule("a", StopAfterToolMode.AfterSuccess));
+        _eval.AddRule(new StopAfterToolRule("b", StopAfterToolMode.AfterError));
+
+        _eval.Clear();
+
+        Assert.Empty(_eval.GetRules());
+        Assert.False(_eval.Evaluate("a", success: true).ShouldStop);
+    }
+
+    [Fact]
+    public void Evaluate_InvalidToolName_Throws()
+        => Assert.Throws<ArgumentException>(() => _eval.Evaluate(string.Empty, success: true));
+
+    [Fact]
+    public void RemoveRule_InvalidToolName_Throws()
+        => Assert.Throws<ArgumentException>(() => _eval.RemoveRule(string.Empty));
 }
 
 // ── TI-04 — ToolFilter ────────────────────────────────────────────────────────
@@ -466,5 +579,95 @@ public class ToolMetricsCollectorTests
         _collector.Record("tool_r", true, 10.0);
         _collector.Reset("tool_r");
         Assert.Null(_collector.GetSnapshot("tool_r"));
+    }
+}
+
+// ── F8 Integration — AgxiomeAgent ───────────────────────────────────────────
+
+internal sealed class ToolCallingTestEngine : ILLMWIKYEngine
+{
+    public int CallCount { get; private set; }
+
+    public Task<LLMWIKYResponse> InferAsync(LLMWIKYRequest request, CancellationToken ct = default)
+    {
+        CallCount++;
+        return Task.FromResult(new LLMWIKYResponse(
+            Content: string.Empty,
+            ToolCallId: "call-stop-1",
+            ToolName: "stub_search",
+            ToolArguments: "{\"query\":\"blocked\"}"));
+    }
+
+    public async IAsyncEnumerable<LLMWIKYChunk> InferStreamAsync(LLMWIKYRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    {
+        yield return new LLMWIKYChunk(string.Empty, IsToolCall: true, ToolCallId: "call-stop-1", IsFinal: true);
+        await Task.CompletedTask;
+    }
+
+    public Task<float[]> EmbedAsync(string text, CancellationToken ct = default) => throw new NotImplementedException();
+    public Task<float[][]> EmbedBatchAsync(IReadOnlyList<string> texts, CancellationToken ct = default) => throw new NotImplementedException();
+    public void RegisterTools(IReadOnlyList<JsonObject> toolSchemas) { }
+}
+
+internal sealed class CountingExecutableTool : IAgxiomeExecutableTool
+{
+    public int ExecutionCount { get; private set; }
+    public string Name => "stub_search";
+    public string Description => "Counts executions.";
+    public string? Version => "1.0.0";
+    public IReadOnlyList<string> Categories => Array.Empty<string>();
+
+    public Task<ToolResult> ExecuteAsync(ToolContext context, CancellationToken ct)
+    {
+        ExecutionCount++;
+        return Task.FromResult(new ToolResult(true, "executed"));
+    }
+
+    public JsonObject ToJsonSchema() => new()
+    {
+        ["name"] = Name,
+        ["description"] = Description,
+        ["parameters"] = new JsonObject
+        {
+            ["type"] = "object",
+            ["properties"] = new JsonObject
+            {
+                ["query"] = new JsonObject { ["type"] = "string" }
+            }
+        }
+    };
+}
+
+public sealed class AgxiomeAgentToolsIntegrationTests : IDisposable
+{
+    public void Dispose() => StopAfterToolEvaluator.Global.Clear();
+
+    [Fact]
+    public async Task AutoStopRule_StopsAgentBeforeToolExecution()
+    {
+        StopAfterToolEvaluator.Global.Clear();
+        StopAfterToolEvaluator.Global.AddRule(new StopAfterToolRule(
+            "stub_search",
+            StopAfterToolMode.AfterAnyCall,
+            "tool stop triggered"));
+
+        var engine = new ToolCallingTestEngine();
+        var config = new AgentConfig
+        {
+            Id = "f8-agent-stop",
+            MaxIterations = 3,
+            MaxIterationsMode = MaxIterationsMode.Auto
+        };
+
+        var agent = AgentFactory.CreateWithEngine(config, engine);
+        var tool = new CountingExecutableTool();
+        agent.RegisterTool(tool);
+
+        var response = await agent.RunAsync(new AgentRequest("trigger the tool"));
+
+        Assert.Equal(1, engine.CallCount);
+        Assert.Equal(0, tool.ExecutionCount);
+        Assert.Equal(AgentStatus.Completed, response.Status);
+        Assert.Equal("tool stop triggered", response.Content);
     }
 }

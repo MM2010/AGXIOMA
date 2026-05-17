@@ -25,7 +25,10 @@ public sealed class SqliteCommandStore : ICommandStore, IDisposable
     public StorageProviderType ProviderType => StorageProviderType.SQLite;
 
     public SqliteCommandStore(SqliteStoreOptions opts)
-        => _opts = opts ?? throw new ArgumentNullException(nameof(opts));
+    {
+        _opts = opts ?? throw new ArgumentNullException(nameof(opts));
+        ArgumentException.ThrowIfNullOrWhiteSpace(_opts.ConnectionString);
+    }
 
     public async Task SaveAsync<T>(T entity, CancellationToken ct = default) where T : class
     {

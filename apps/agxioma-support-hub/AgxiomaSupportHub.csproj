@@ -11,6 +11,8 @@
     <ProjectReference Include="..\..\src\AGXIOME.Core\AGXIOME.Core.csproj" />
     <ProjectReference Include="..\..\src\AGXIOME.Interfaces\AGXIOME.Interfaces.csproj" />
     <ProjectReference Include="..\..\src\AGXIOME.Runtime\AGXIOME.Runtime.csproj" />
+    <ProjectReference Include="..\..\src\AGXIOME.Storage\AGXIOME.Storage.csproj" />
+    <ProjectReference Include="..\..\src\AGXIOME.Toolkits\AGXIOME.Toolkits.csproj" />
   </ItemGroup>
 
 </Project>

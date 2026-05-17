@@ -199,7 +199,7 @@ public sealed class RateLimiterMiddleware(RequestDelegate next, IRateLimiter lim
 /// Catches unhandled exceptions and returns structured JSON error responses.
 /// Stack traces are never exposed in non-development environments.
 /// </summary>
-public sealed class ErrorHandlerMiddleware(RequestDelegate next, IWebHostEnvironment env)
+public sealed class ErrorHandlerMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext ctx)
     {
@@ -233,7 +233,7 @@ public sealed class ErrorHandlerMiddleware(RequestDelegate next, IWebHostEnviron
                 traceId = ctx.TraceIdentifier
             }));
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             ctx.Response.StatusCode  = (int)HttpStatusCode.InternalServerError;
             ctx.Response.ContentType = "application/json";

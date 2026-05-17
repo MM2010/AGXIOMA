@@ -74,6 +74,31 @@ public static class OrchestrationServiceExtensions
     }
 
     /// <summary>
+    /// Overrides the registered hot store with a concrete implementation.
+    /// Useful for integration hosts and test scenarios that want real Redis-backed behavior
+    /// without rewriting the orchestration registration boilerplate.
+    /// </summary>
+    public static IServiceCollection UseHotStore<THotStore>(this IServiceCollection services)
+        where THotStore : class, IHotStore
+    {
+        services.RemoveAll<IHotStore>();
+        services.AddSingleton<IHotStore, THotStore>();
+        return services;
+    }
+
+    /// <summary>
+    /// Overrides the registered hot store with a factory-based implementation.
+    /// </summary>
+    public static IServiceCollection UseHotStore(
+        this IServiceCollection services,
+        Func<IServiceProvider, IHotStore> factory)
+    {
+        services.RemoveAll<IHotStore>();
+        services.AddSingleton(factory);
+        return services;
+    }
+
+    /// <summary>
     /// Override the default InMemoryOrchestrationStore with a Postgres-backed store.
     /// Call after AddAgxiomeOrchestration.
     /// </summary>
@@ -82,6 +107,52 @@ public static class OrchestrationServiceExtensions
         string connectionString)
     {
         services.Configure<PostgresOrchestrationStoreOptions>(o => o.ConnectionString = connectionString);
+        return services;
+    }
+
+    /// <summary>
+    /// Overrides the canonical orchestration store with a concrete implementation.
+    /// </summary>
+    public static IServiceCollection UseOrchestrationStore<TStore>(this IServiceCollection services)
+        where TStore : class, IOrchestrationStore
+    {
+        services.RemoveAll<IOrchestrationStore>();
+        services.AddSingleton<IOrchestrationStore, TStore>();
+        return services;
+    }
+
+    /// <summary>
+    /// Overrides the canonical orchestration store with a factory-based implementation.
+    /// </summary>
+    public static IServiceCollection UseOrchestrationStore(
+        this IServiceCollection services,
+        Func<IServiceProvider, IOrchestrationStore> factory)
+    {
+        services.RemoveAll<IOrchestrationStore>();
+        services.AddSingleton(factory);
+        return services;
+    }
+
+    /// <summary>
+    /// Overrides the completion notifier with a concrete implementation.
+    /// </summary>
+    public static IServiceCollection UseCompletionNotifier<TNotifier>(this IServiceCollection services)
+        where TNotifier : class, ICompletionNotifier
+    {
+        services.RemoveAll<ICompletionNotifier>();
+        services.AddSingleton<ICompletionNotifier, TNotifier>();
+        return services;
+    }
+
+    /// <summary>
+    /// Overrides the completion notifier with a factory-based implementation.
+    /// </summary>
+    public static IServiceCollection UseCompletionNotifier(
+        this IServiceCollection services,
+        Func<IServiceProvider, ICompletionNotifier> factory)
+    {
+        services.RemoveAll<ICompletionNotifier>();
+        services.AddSingleton(factory);
         return services;
     }
 
