@@ -9,6 +9,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddAgxiomeSecurityDefaults();
 builder.Services.AddSingleton<BackofficeRuntimeService>();
 
+// Allow Next.js frontend (demo)
+builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
+    p.WithOrigins("http://localhost:3000")
+     .AllowAnyHeader()
+     .AllowAnyMethod()));
+
 var provider = builder.Configuration["Agent:Provider"] ?? "deepseek";
 var model    = builder.Configuration["Agent:Model"];
 var workers  = builder.Configuration.GetValue("Agent:ResearchWorkers", 3);
@@ -131,6 +137,7 @@ builder.Services.AddAgxiome()
     });
 
 var app = builder.Build();
+app.UseCors();
 await app.UseAgxiomeSecurityDefaultsAsync();
 await app.Services.GetRequiredService<BackofficeRuntimeService>().InitializeAsync();
 
