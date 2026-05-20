@@ -3,14 +3,14 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using AGXIOME.LLMWIKY.Http;
+using AGXIOME.LlmWiky.Http;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 using AGXIOME.Shared.Resilience;
 using System.Diagnostics;
 
-namespace AGXIOME.LLMWIKY.Providers;
+namespace AGXIOME.LlmWiky.Providers;
 
 /// <summary>OpenAI provider. Also used for DeepSeek, Custom, and any OpenAI-compatible endpoint.
 /// Integrated resilience: retry (429/500/502/503), exponential backoff, circuit breaker, fallback.</summary>

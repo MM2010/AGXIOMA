@@ -3,7 +3,7 @@ using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 using System.Text.Json;
 
-namespace AGXIOME.Interfaces.Slack;
+namespace AGXIOME.Adapters.Slack;
 
 /// <summary>
 /// Slack bot interface for AGXIOME agents.

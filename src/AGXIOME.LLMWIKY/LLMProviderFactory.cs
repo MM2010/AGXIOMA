@@ -1,9 +1,9 @@
-﻿using AGXIOME.LLMWIKY.Http;
+using AGXIOME.LlmWiky.Http;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.LLMWIKY;
+namespace AGXIOME.LlmWiky;
 
 /// <summary>Provider factory: create, register, discover LLM providers.
 /// Keys are <see cref="LLMProviderType"/> — no magic strings in routing logic.</summary>

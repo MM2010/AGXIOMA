@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 
-namespace AGXIOME.Interfaces.Mcp.Transports;
+namespace AGXIOME.Adapters.Mcp.Transports;
 
 /// <summary>SSE-based HTTP MCP transport.</summary>
 public sealed class SseHttpMcpTransport : IMcpTransport

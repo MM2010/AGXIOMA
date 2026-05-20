@@ -4,9 +4,9 @@ namespace AGXIOME.Shared.Interfaces;
 
 public interface ISessionManager
 {
-    Task<Session> CreateSessionAsync(string userId, string componentId, SessionType type, SessionOptions? options = null, CancellationToken ct = default);
-    Task<Session?> GetSessionAsync(string sessionId, CancellationToken ct = default);
-    Task<IReadOnlyList<Session>> ListSessionsAsync(string userId, SessionType? type = null, int limit = 50, CancellationToken ct = default);
+    Task<AgentSession> CreateSessionAsync(string userId, string componentId, SessionType type, SessionOptions? options = null, CancellationToken ct = default);
+    Task<AgentSession?> GetSessionAsync(string sessionId, CancellationToken ct = default);
+    Task<IReadOnlyList<AgentSession>> ListSessionsAsync(string userId, SessionType? type = null, int limit = 50, CancellationToken ct = default);
     Task UpdateSessionStateAsync<T>(string sessionId, T state, CancellationToken ct = default);
     Task<T?> GetSessionStateAsync<T>(string sessionId, CancellationToken ct = default);
     Task AddMessageAsync(string sessionId, AgentMessage msg, CancellationToken ct = default);

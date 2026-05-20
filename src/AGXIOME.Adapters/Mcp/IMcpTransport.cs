@@ -1,7 +1,7 @@
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.Interfaces.Mcp;
+namespace AGXIOME.Adapters.Mcp;
 
 /// <summary>MCP transport abstraction — supports Stdio, SSE, Streamable HTTP.</summary>
 public interface IMcpTransport : IAsyncDisposable

@@ -20,7 +20,7 @@ using System.Text.Json.Nodes;
 using System.Threading.Channels;
 using AGXIOME.CLI.Demo.Tools;
 using AGXIOME.Core.Agent;
-using AGXIOME.LLMWIKY;
+using AGXIOME.LlmWiky;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Models;
 using Microsoft.Extensions.Logging;

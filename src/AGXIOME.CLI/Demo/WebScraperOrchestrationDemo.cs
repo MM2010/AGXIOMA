@@ -25,7 +25,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Channels;
 using System.Web;
 using AGXIOME.Core.Agent;
-using AGXIOME.LLMWIKY;
+using AGXIOME.LlmWiky;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Models;
 using Microsoft.Extensions.Logging;

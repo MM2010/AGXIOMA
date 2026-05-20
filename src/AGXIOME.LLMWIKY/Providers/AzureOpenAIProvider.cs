@@ -2,7 +2,7 @@ using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.LLMWIKY.Providers;
+namespace AGXIOME.LlmWiky.Providers;
 
 /// <summary>Azure OpenAI provider — reuses OpenAI logic with Azure endpoint construction.</summary>
 public sealed class AzureOpenAIProvider : ILLMProvider

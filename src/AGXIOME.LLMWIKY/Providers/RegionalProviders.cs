@@ -2,7 +2,7 @@ using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.LLMWIKY.Providers;
+namespace AGXIOME.LlmWiky.Providers;
 
 // ── M-45 — AI21 Jamba ─────────────────────────────────────────────────────────
 /// <summary>AI21 Jamba SSM-Transformer provider. Jamba 1.5 is a hybrid attention/Mamba model

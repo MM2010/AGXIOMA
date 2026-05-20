@@ -3,7 +3,7 @@ using System.Net.Http.Headers;
 using AGXIOME.Shared.Models;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace AGXIOME.LLMWIKY.Http;
+namespace AGXIOME.LlmWiky.Http;
 
 // ── Per-provider HttpClient profile ──────────────────────────────────────────
 

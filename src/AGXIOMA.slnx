@@ -1,7 +1,7 @@
 <Solution>
   <Project Path="AGXIOME.CLI/AGXIOME.CLI.csproj" />
   <Project Path="AGXIOME.Core/AGXIOME.Core.csproj" />
-  <Project Path="AGXIOME.Interfaces/AGXIOME.Interfaces.csproj" />
+  <Project Path="AGXIOME.Adapters/AGXIOME.Adapters.csproj" />
   <Project Path="AGXIOME.LLMWIKY/AGXIOME.LLMWIKY.csproj" />
   <Project Path="AGXIOME.Realtime/AGXIOME.Realtime.csproj" />
   <Project Path="AGXIOME.Security/AGXIOME.Security.csproj" />
@@ -10,8 +10,6 @@
   <Project Path="AGXIOME.Telemetry/AGXIOME.Telemetry.csproj" />
   <Project Path="AGXIOME.Tests/AGXIOME.Tests.csproj" />
   <Project Path="AGXIOME.XLink/AGXIOME.XLink.csproj" />
-  <Project Path="AGXIOME.Embedders/AGXIOME.Embedders.csproj" />
-  <Project Path="AGXIOME.Readers/AGXIOME.Readers.csproj" />
   <Project Path="AGXIOME.Toolkits/AGXIOME.Toolkits.csproj" />
   <Project Path="AGXIOME.Runtime/AGXIOME.Runtime.csproj" />
   <Project Path="AGXIOME.Orchestration/AGXIOME.Orchestration.csproj" />

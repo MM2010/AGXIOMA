@@ -12,7 +12,6 @@
   <ItemGroup>
     <!-- Direct project references for local development -->
     <ProjectReference Include="..\..\src\AGXIOME.Core\AGXIOME.Core.csproj" />
-    <ProjectReference Include="..\..\src\AGXIOME.LLMWIKY\AGXIOME.LLMWIKY.csproj" />
     <ProjectReference Include="..\..\src\AGXIOME.Shared\AGXIOME.Shared.csproj" />
   </ItemGroup>
 

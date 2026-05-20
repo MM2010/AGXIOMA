@@ -1,6 +1,6 @@
 using AGXIOME.Shared.Models;
 using AGXIOME.Core.Agent;
-using AGXIOME.LLMWIKY;
+using AGXIOME.LlmWiky;
 using System.Text;
 using Xunit;
 

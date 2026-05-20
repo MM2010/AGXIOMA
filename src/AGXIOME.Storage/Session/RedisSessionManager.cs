@@ -4,7 +4,7 @@ using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 using StackExchange.Redis;
 
-namespace AGXIOME.Storage.Stores;
+namespace AGXIOME.Storage.Session;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SS-01 — Redis Session Manager
@@ -82,11 +82,11 @@ public sealed class RedisSessionManager : ISessionManager, IDisposable
 
     // ── ISessionManager ───────────────────────────────────────────────────────
 
-    public async Task<Session> CreateSessionAsync(
+    public async Task<AgentSession> CreateSessionAsync(
         string userId, string componentId, SessionType type,
         SessionOptions? options = null, CancellationToken ct = default)
     {
-        var session = new Session(
+        var session = new AgentSession(
             Id:          Guid.CreateVersion7().ToString(),
             UserId:      userId,
             ComponentId: componentId,
@@ -107,20 +107,20 @@ public sealed class RedisSessionManager : ISessionManager, IDisposable
         return session;
     }
 
-    public async Task<Session?> GetSessionAsync(string sessionId, CancellationToken ct = default)
+    public async Task<AgentSession?> GetSessionAsync(string sessionId, CancellationToken ct = default)
     {
         var raw = await _db.StringGetAsync(SessionKey(sessionId));
-        return raw.HasValue ? JsonSerializer.Deserialize<Session>((string)raw!, JsonOpts) : null;
+        return raw.HasValue ? JsonSerializer.Deserialize<AgentSession>((string)raw!, JsonOpts) : null;
     }
 
-    public async Task<IReadOnlyList<Session>> ListSessionsAsync(
+    public async Task<IReadOnlyList<AgentSession>> ListSessionsAsync(
         string userId, SessionType? type = null, int limit = 50, CancellationToken ct = default)
     {
         // Retrieve sessionIds from user sorted set (newest last = ascending score).
         var members = await _db.SortedSetRangeByRankAsync(
             UserIndexKey(userId), 0, -1, Order.Descending);
 
-        var sessions = new List<Session>();
+        var sessions = new List<AgentSession>();
         foreach (var member in members)
         {
             var session = await GetSessionAsync(member.ToString(), ct);
@@ -229,7 +229,7 @@ public sealed class RedisSessionManager : ISessionManager, IDisposable
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /// <summary>Serializes and writes a session record, refreshing its TTL.</summary>
-    private async Task PersistSessionAsync(Session session, CancellationToken _ = default)
+    private async Task PersistSessionAsync(AgentSession session, CancellationToken _ = default)
     {
         var json = JsonSerializer.Serialize(session, JsonOpts);
         await _db.StringSetAsync(SessionKey(session.Id), json, _opts.SessionTtl);

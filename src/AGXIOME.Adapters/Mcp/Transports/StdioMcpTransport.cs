@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 
-namespace AGXIOME.Interfaces.Mcp.Transports;
+namespace AGXIOME.Adapters.Mcp.Transports;
 
 /// <summary>Stdio MCP transport — communicates over process stdin/stdout.</summary>
 public sealed class StdioMcpTransport : IMcpTransport

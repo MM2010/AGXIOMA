@@ -1,4 +1,4 @@
-using AGXIOME.LLMWIKY.Http;
+using AGXIOME.LlmWiky.Http;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace AGXIOME.LLMWIKY.Providers;
+namespace AGXIOME.LlmWiky.Providers;
 
 /// <summary>Ollama local model provider.</summary>
 public sealed class OllamaProvider : ILLMProvider

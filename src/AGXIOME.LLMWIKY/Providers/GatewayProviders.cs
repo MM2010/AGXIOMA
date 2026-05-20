@@ -2,7 +2,7 @@ using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.LLMWIKY.Providers;
+namespace AGXIOME.LlmWiky.Providers;
 
 // ── M-13 — OpenRouter ────────────────────────────────────────────────────────
 /// <summary>OpenRouter unified gateway. Routes to 200+ models from OpenAI, Anthropic,

@@ -2,7 +2,7 @@ using AGXIOME.Core.Agent;
 using AGXIOME.Core.Tools;
 using AGXIOME.Core.Teams;
 using AGXIOME.Core.Workflows;
-using AGXIOME.Core.Sessions;
+using AGXIOME.Core.Session;
 using AGXIOME.Core.HITL;
 using AGXIOME.Core.Guardrails;
 using AGXIOME.Core.Scheduling;

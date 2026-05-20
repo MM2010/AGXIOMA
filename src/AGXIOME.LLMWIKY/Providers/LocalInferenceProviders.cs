@@ -1,4 +1,4 @@
-using AGXIOME.LLMWIKY.Http;
+using AGXIOME.LlmWiky.Http;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace AGXIOME.LLMWIKY.Providers;
+namespace AGXIOME.LlmWiky.Providers;
 
 // ── M-21 — llama.cpp ─────────────────────────────────────────────────────────
 /// <summary>llama.cpp server provider. Runs GGUF quantised models locally.

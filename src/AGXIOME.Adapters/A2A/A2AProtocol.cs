@@ -3,7 +3,7 @@ using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 using System.Text.Json;
 
-namespace AGXIOME.Interfaces.A2A;
+namespace AGXIOME.Adapters.A2A;
 
 /// <summary>
 /// Agent-to-Agent (A2A) protocol implementation.

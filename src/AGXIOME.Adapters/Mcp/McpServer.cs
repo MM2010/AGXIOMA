@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.Interfaces.Mcp;
+namespace AGXIOME.Adapters.Mcp;
 
 /// <summary>
 /// Model Context Protocol (MCP) server for AGXIOME.

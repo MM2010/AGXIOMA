@@ -3,12 +3,12 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using AGXIOME.LLMWIKY.Http;
+using AGXIOME.LlmWiky.Http;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.LLMWIKY.Providers;
+namespace AGXIOME.LlmWiky.Providers;
 
 /// <summary>Anthropic Claude provider. Full Messages API with tool_use and SSE streaming.</summary>
 public sealed class AnthropicProvider : ILLMProvider

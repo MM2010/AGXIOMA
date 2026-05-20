@@ -2,7 +2,7 @@ using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.LLMWIKY.Providers;
+namespace AGXIOME.LlmWiky.Providers;
 
 // ── M-37 — Moonshot (Kimi) ────────────────────────────────────────────────────
 /// <summary>Moonshot AI Kimi provider. Long-context Chinese/English LLM.

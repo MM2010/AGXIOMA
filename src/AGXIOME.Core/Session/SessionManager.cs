@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
-using Sess = AGXIOME.Shared.Models.Session;
+using Sess = AGXIOME.Shared.Models.AgentSession;
 
-namespace AGXIOME.Core.Sessions;
+namespace AGXIOME.Core.Session;
 
 /// <summary>In-memory session manager. Use PostgresSessionManager in production.</summary>
 public sealed class SessionManager : ISessionManager
@@ -32,7 +32,7 @@ public sealed class SessionManager : ISessionManager
     {
         var query = _sessions.Values.Where(s => s.UserId == userId);
         if (type.HasValue) query = query.Where(s => s.Type == type.Value);
-        return Task.FromResult<IReadOnlyList<Session>>(query.TakeLast(limit).ToList());
+        return Task.FromResult<IReadOnlyList<AgentSession>>(query.TakeLast(limit).ToList());
     }
 
     public Task UpdateSessionStateAsync<T>(string sessionId, T state, CancellationToken ct = default)

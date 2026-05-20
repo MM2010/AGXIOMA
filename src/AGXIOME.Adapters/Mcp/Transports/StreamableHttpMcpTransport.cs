@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 
-namespace AGXIOME.Interfaces.Mcp.Transports;
+namespace AGXIOME.Adapters.Mcp.Transports;
 
 /// <summary>Streamable HTTP MCP transport — uses SSE for streaming responses.</summary>
 public sealed class StreamableHttpMcpTransport : IMcpTransport

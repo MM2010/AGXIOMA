@@ -8,7 +8,7 @@
 // Streaming is enabled: tokens are printed as they arrive.
 
 using AGXIOME.Core.Agent;
-using AGXIOME.LLMWIKY;
+using AGXIOME.LlmWiky;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Models;
 using Microsoft.Extensions.Logging;

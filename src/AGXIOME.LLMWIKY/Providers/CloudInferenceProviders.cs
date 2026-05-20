@@ -3,7 +3,7 @@ using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 using System.Runtime.CompilerServices;
 
-namespace AGXIOME.LLMWIKY.Providers;
+namespace AGXIOME.LlmWiky.Providers;
 
 // ── M-01 — Groq ──────────────────────────────────────────────────────────────
 /// <summary>Groq LPU inference provider. OpenAI-compatible API at api.groq.com.

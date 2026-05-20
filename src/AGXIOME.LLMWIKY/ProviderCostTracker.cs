@@ -1,4 +1,4 @@
-namespace AGXIOME.LLMWIKY;
+namespace AGXIOME.LlmWiky;
 
 /// <summary>Estimates cost per provider/model based on token usage.</summary>
 public sealed class ProviderCostTracker

@@ -1,7 +1,7 @@
 using System.Text.Json;
 using AGXIOME.Core.Agent;
-using AGXIOME.Interfaces.Mcp;
-using AGXIOME.Interfaces.Mcp.Transports;
+using AGXIOME.Adapters.Mcp;
+using AGXIOME.Adapters.Mcp.Transports;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 

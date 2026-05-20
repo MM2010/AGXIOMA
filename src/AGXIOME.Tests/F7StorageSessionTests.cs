@@ -3,6 +3,7 @@ using AGXIOME.Core.Storage;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
+using AGXIOME.Storage.Session;
 using AGXIOME.Storage.Stores;
 using NSubstitute;
 using StackExchange.Redis;

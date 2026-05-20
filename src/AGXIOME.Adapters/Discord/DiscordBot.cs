@@ -2,7 +2,7 @@ using AGXIOME.Core.Agent;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.Interfaces.Discord;
+namespace AGXIOME.Adapters.Discord;
 
 /// <summary>
 /// Discord bot interface for AGXIOME agents.

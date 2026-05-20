@@ -2,7 +2,7 @@ using AGXIOME.Shared.Interfaces;
 
 namespace AGXIOME.Shared.Models;
 
-public record Session(
+public record AgentSession(
     string Id,
     string UserId,
     string ComponentId,

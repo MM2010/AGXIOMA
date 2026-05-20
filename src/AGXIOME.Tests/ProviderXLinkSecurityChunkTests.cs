@@ -1,7 +1,7 @@
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
-using AGXIOME.LLMWIKY;
-using AGXIOME.LLMWIKY.Providers;
+using AGXIOME.LlmWiky;
+using AGXIOME.LlmWiky.Providers;
 using AGXIOME.Storage.Chunkers;
 using AGXIOME.XLink;
 using AGXIOME.Security;

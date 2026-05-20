@@ -2,7 +2,7 @@ using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.LLMWIKY.Providers;
+namespace AGXIOME.LlmWiky.Providers;
 
 // ── M-30 — AI21 Labs ─────────────────────────────────────────────────────────
 /// <summary>AI21 Labs provider. Jamba SSM-Transformer and Jurassic-2 series.

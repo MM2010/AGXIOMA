@@ -1,5 +1,5 @@
 using AGXIOME.Core.HITL;
-using AGXIOME.Core.Sessions;
+using AGXIOME.Core.Session;
 using AGXIOME.Core.Agent;
 using AGXIOME.Core.Learning;
 using AGXIOME.Core.Skills;

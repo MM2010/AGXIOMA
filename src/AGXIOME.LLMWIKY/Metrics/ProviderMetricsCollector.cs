@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.LLMWIKY.Metrics;
+namespace AGXIOME.LlmWiky.Metrics;
 
 /// <summary>
 /// ProviderMetricsCollector — real-time tracking di latency, cost, error rate per provider.

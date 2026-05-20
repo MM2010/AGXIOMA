@@ -2,7 +2,7 @@ using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.LLMWIKY.Providers;
+namespace AGXIOME.LlmWiky.Providers;
 
 // ── M-28 — HuggingFace Inference API ─────────────────────────────────────────
 /// <summary>HuggingFace Inference API provider. Access 200k+ community models.

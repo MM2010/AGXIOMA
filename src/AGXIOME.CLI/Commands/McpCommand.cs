@@ -1,5 +1,5 @@
 using AGXIOME.Core.Agent;
-using AGXIOME.Interfaces.Mcp;
+using AGXIOME.Adapters.Mcp;
 
 namespace AGXIOME.CLI.Commands;
 
@@ -37,9 +37,9 @@ public sealed class McpCommand : ICliCommand
 
         IMcpTransport mcpTransport = transport.ToLowerInvariant() switch
         {
-            "sse" => new AGXIOME.Interfaces.Mcp.Transports.SseHttpMcpTransport(endpoint),
-            "streamable-http" => new AGXIOME.Interfaces.Mcp.Transports.StreamableHttpMcpTransport(endpoint),
-            _ => new AGXIOME.Interfaces.Mcp.Transports.StdioMcpTransport()
+            "sse" => new AGXIOME.Adapters.Mcp.Transports.SseHttpMcpTransport(endpoint),
+            "streamable-http" => new AGXIOME.Adapters.Mcp.Transports.StreamableHttpMcpTransport(endpoint),
+            _ => new AGXIOME.Adapters.Mcp.Transports.StdioMcpTransport()
         };
 
         await server.RunAsync(mcpTransport, ct);

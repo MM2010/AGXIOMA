@@ -2,7 +2,7 @@ using AGXIOME.Core.Agent;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.Interfaces.Telegram;
+namespace AGXIOME.Adapters.Telegram;
 
 /// <summary>
 /// Telegram bot interface for AGXIOME agents.

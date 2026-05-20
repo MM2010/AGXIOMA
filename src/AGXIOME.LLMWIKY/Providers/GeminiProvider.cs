@@ -1,4 +1,4 @@
-using AGXIOME.LLMWIKY.Http;
+using AGXIOME.LlmWiky.Http;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -7,7 +7,7 @@ using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.LLMWIKY.Providers;
+namespace AGXIOME.LlmWiky.Providers;
 
 /// <summary>Google Gemini provider with streaming and embedding support.</summary>
 public sealed class GeminiProvider : ILLMProvider

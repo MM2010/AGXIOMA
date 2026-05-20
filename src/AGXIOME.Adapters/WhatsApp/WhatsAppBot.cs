@@ -2,7 +2,7 @@ using AGXIOME.Core.Agent;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.Interfaces.WhatsApp;
+namespace AGXIOME.Adapters.WhatsApp;
 
 /// <summary>
 /// WhatsApp Business API interface for AGXIOME agents.

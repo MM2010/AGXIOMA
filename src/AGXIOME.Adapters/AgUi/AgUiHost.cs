@@ -5,7 +5,7 @@ using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
 
-namespace AGXIOME.Interfaces.AgUi;
+namespace AGXIOME.Adapters.AgUi;
 
 /// <summary>
 /// AG-UI: ChatGPT-like web interface for AGXIOME agents.

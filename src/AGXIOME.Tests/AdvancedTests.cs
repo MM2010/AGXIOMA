@@ -4,7 +4,7 @@ using AGXIOME.Core.Agent;
 using AGXIOME.Core.Teams;
 using AGXIOME.Core.Skills;
 using AGXIOME.Core.Scheduling;
-using AGXIOME.LLMWIKY;
+using AGXIOME.LlmWiky;
 using AGXIOME.Storage.Chunkers;
 using AGXIOME.Core.Hooks;
 using AGXIOME.Shared.Config;

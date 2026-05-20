@@ -2,7 +2,7 @@ using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.LLMWIKY.Providers;
+namespace AGXIOME.LlmWiky.Providers;
 
 // ── M-09 — AWS Bedrock ────────────────────────────────────────────────────────
 /// <summary>AWS Bedrock provider. Routes Anthropic, Meta, Mistral, and Amazon Titan models

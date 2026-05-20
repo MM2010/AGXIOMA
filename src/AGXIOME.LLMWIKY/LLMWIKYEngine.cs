@@ -2,7 +2,7 @@ using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.LLMWIKY;
+namespace AGXIOME.LlmWiky;
 
 /// <summary>
 /// Core LLMWIKY engine. Routes inference to configured provider,

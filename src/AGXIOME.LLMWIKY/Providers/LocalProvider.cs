@@ -2,7 +2,7 @@ using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.LLMWIKY.Providers;
+namespace AGXIOME.LlmWiky.Providers;
 
 /// <summary>Local provider (vLLM, TGI, llama.cpp) — reuses OpenAI-compatible API.</summary>
 public sealed class LocalProvider : ILLMProvider

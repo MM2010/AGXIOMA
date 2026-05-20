@@ -10,7 +10,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\AGXIOME.Shared\AGXIOME.Shared.csproj" />
-    <ProjectReference Include="..\AGXIOME.LLMWIKY\AGXIOME.LLMWIKY.csproj" />
     <ProjectReference Include="..\AGXIOME.Core\AGXIOME.Core.csproj" />
     <ProjectReference Include="..\AGXIOME.DynamicRuntime\AGXIOME.DynamicRuntime.csproj" />
     <ProjectReference Include="..\AGXIOME.Storage\AGXIOME.Storage.csproj" />

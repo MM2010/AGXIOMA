@@ -1,9 +1,8 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\AGXIOME.Core\AGXIOME.Core.csproj" />
-    <ProjectReference Include="..\AGXIOME.Interfaces\AGXIOME.Interfaces.csproj" />
-    <ProjectReference Include="..\AGXIOME.LLMWIKY\AGXIOME.LLMWIKY.csproj" />
+    <ProjectReference Include="..\AGXIOME.Adapters\AGXIOME.Adapters.csproj" />
     <ProjectReference Include="..\AGXIOME.Storage\AGXIOME.Storage.csproj" />
     <ProjectReference Include="..\AGXIOME.XLink\AGXIOME.XLink.csproj" />
     <ProjectReference Include="..\AGXIOME.Realtime\AGXIOME.Realtime.csproj" />

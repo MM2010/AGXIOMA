@@ -10,21 +10,21 @@ public sealed class PostgresSessionManager : ISessionManager
 
     public PostgresSessionManager(string connectionString) => _connectionString = connectionString;
 
-    public async Task<Session> CreateSessionAsync(string userId, string componentId, SessionType type, SessionOptions? options = null, CancellationToken ct = default)
+    public async Task<AgentSession> CreateSessionAsync(string userId, string componentId, SessionType type, SessionOptions? options = null, CancellationToken ct = default)
     {
         // INSERT INTO sessions (...) VALUES (...)
         await Task.CompletedTask;
-        return new Session(Guid.NewGuid().ToString(), userId, componentId, type, options?.Name, new(), options?.Metadata, DateTime.UtcNow);
+        return new AgentSession(Guid.NewGuid().ToString(), userId, componentId, type, options?.Name, new(), options?.Metadata, DateTime.UtcNow);
     }
 
-    public async Task<Session?> GetSessionAsync(string sessionId, CancellationToken ct = default)
+    public async Task<AgentSession?> GetSessionAsync(string sessionId, CancellationToken ct = default)
     {
         await Task.CompletedTask;
         return null;
     }
 
-    public Task<IReadOnlyList<Session>> ListSessionsAsync(string userId, SessionType? type = null, int limit = 50, CancellationToken ct = default)
-        => Task.FromResult<IReadOnlyList<Session>>(Array.Empty<Session>());
+    public Task<IReadOnlyList<AgentSession>> ListSessionsAsync(string userId, SessionType? type = null, int limit = 50, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<AgentSession>>(Array.Empty<AgentSession>());
 
     public Task UpdateSessionStateAsync<T>(string sessionId, T state, CancellationToken ct = default) => Task.CompletedTask;
     public Task<T?> GetSessionStateAsync<T>(string sessionId, CancellationToken ct = default) => Task.FromResult<T?>(default);

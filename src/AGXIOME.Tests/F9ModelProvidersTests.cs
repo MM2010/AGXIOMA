@@ -1,6 +1,6 @@
 using AGXIOME.Core.DependencyInjection;
-using AGXIOME.LLMWIKY;
-using AGXIOME.LLMWIKY.Providers;
+using AGXIOME.LlmWiky;
+using AGXIOME.LlmWiky.Providers;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;

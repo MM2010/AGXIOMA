@@ -1,6 +1,6 @@
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
-using AGXIOME.LLMWIKY;
+using AGXIOME.LlmWiky;
 using static AGXIOME.Core.Patterns.SwarmFactory;
 
 namespace AGXIOME.Core.Patterns;

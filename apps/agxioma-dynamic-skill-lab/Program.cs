@@ -6,7 +6,7 @@ using AGXIOME.DynamicRuntime.Generation;
 using AGXIOME.DynamicRuntime.Generation.Prompts;
 using AGXIOME.DynamicRuntime.Interfaces;
 using AGXIOME.DynamicRuntime.Registry;
-using AGXIOME.LLMWIKY;
+using AGXIOME.LlmWiky;
 using AGXIOME.Runtime;
 using AGXIOME.Security.Rbac;
 using AGXIOME.Shared.Config;

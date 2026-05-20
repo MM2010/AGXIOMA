@@ -2,7 +2,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AGXIOME.Core\AGXIOME.Core.csproj" />
-    <ProjectReference Include="..\..\src\AGXIOME.LLMWIKY\AGXIOME.LLMWIKY.csproj" />
     <ProjectReference Include="..\..\src\AGXIOME.Storage\AGXIOME.Storage.csproj" />
     <ProjectReference Include="..\..\src\AGXIOME.Shared\AGXIOME.Shared.csproj" />
     <ProjectReference Include="..\OpenClaw.Tools\OpenClaw.Tools.csproj" />
