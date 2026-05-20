@@ -244,6 +244,8 @@ public sealed class PipelineOrchestrator
     public string? GetDraft(string emailId)
         => _drafts.TryGetValue(emailId, out var d) ? d : null;
 
+    public IEnumerable<string> GetAllEmailIds() => _emailStates.Keys;
+
     public void Approve(string emailId)
     {
         _emailStates[emailId] = PipelineState.ReplySent;

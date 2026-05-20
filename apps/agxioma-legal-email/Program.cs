@@ -170,5 +170,36 @@ app.MapGet("/api/legal/query", async (string q, IWikiQueryEngine wiki, LegalRera
 
 app.MapGet("/api/dashboard", (PipelineOrchestrator orch) => Results.Ok(orch.GetDashboard()));
 app.MapGet("/api/legal/ingestion-status", (LegalCodeIngestionService svc) => Results.Ok(new { ingested = svc.IsIngested, chunks = svc.TotalChunks }));
+
+// ── SSE fallback endpoint ───────────────────────────────────────────
+app.MapGet("/api/events/pipeline", async (HttpContext ctx, PipelineOrchestrator orch, CancellationToken ct) =>
+{
+    ctx.Response.ContentType = "text/event-stream";
+    ctx.Response.Headers.CacheControl = "no-cache";
+    ctx.Response.Headers.Connection = "keep-alive";
+
+    var allIds = new HashSet<string>();
+    var lastStates = new Dictionary<string, string>();
+
+    while (!ct.IsCancellationRequested)
+    {
+        // Check all known email IDs for state changes
+        foreach (var id in orch.GetAllEmailIds())
+        {
+            allIds.Add(id);
+            var state = orch.GetState(id).ToString();
+            var timeline = orch.GetTimeline(id);
+            if (!lastStates.TryGetValue(id, out var last) || last != state)
+            {
+                lastStates[id] = state;
+                var payload = System.Text.Json.JsonSerializer.Serialize(new { emailId = id, state, timeline });
+                await ctx.Response.WriteAsync($"data: {payload}\n\n", ct);
+                await ctx.Response.Body.FlushAsync(ct);
+            }
+        }
+        await Task.Delay(2000, ct);
+    }
+});
+
 app.MapGet("/", () => "AGXIOME Legal Email Demo — POST /api/email/ingest | GET /api/legal/query?q=...");
 app.Run();

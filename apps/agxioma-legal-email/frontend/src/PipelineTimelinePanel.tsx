@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { getPipeline } from './api';
+import { useRealtimePipeline, transportLabel } from './useRealtimePipeline';
 
 const STATE_ICONS: Record<string, string> = {
   Ingested: '📥', Categorized: '🏷️', QueryExploded: '💥', RagCompleted: '📚',
@@ -12,7 +11,6 @@ interface Props { emailId: string | null; }
 function formatDuration(d: any): string {
   if (d === null || d === undefined) return '';
   if (typeof d === 'number') return `${(d / 1000).toFixed(1)}s`;
-  // TimeSpan string format: "00:00:23.1636578"
   const parts = (d as string).split(':');
   if (parts.length === 3) {
     const h = parseInt(parts[0]) || 0;
@@ -25,20 +23,7 @@ function formatDuration(d: any): string {
 }
 
 export default function PipelineTimelinePanel({ emailId }: Props) {
-  const [timeline, setTimeline] = useState<any[]>([]);
-  const [state, setState] = useState('');
-
-  useEffect(() => {
-    if (!emailId) return;
-    const id = setInterval(async () => {
-      try {
-        const res = await getPipeline(emailId);
-        setTimeline(res.timeline);
-        setState(res.state);
-      } catch { /* ignore */ }
-    }, 2000);
-    return () => clearInterval(id);
-  }, [emailId]);
+  const { state, timeline, transport } = useRealtimePipeline(emailId);
 
   return (
     <div>
@@ -50,11 +35,16 @@ export default function PipelineTimelinePanel({ emailId }: Props) {
         </p>
       )}
 
-      {state && (
-        <div className="current-state">
-          Stato: <strong>{state}</strong>
-        </div>
-      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        {state && (
+          <div className="current-state">
+            Stato: <strong>{state}</strong>
+          </div>
+        )}
+        <span style={{ fontSize: 10, color: 'var(--text2)', background: 'var(--surface2)', padding: '2px 6px', borderRadius: 4 }}>
+          {transportLabel(transport)}
+        </span>
+      </div>
 
       <div className="timeline">
         {timeline.map((entry, i) => (

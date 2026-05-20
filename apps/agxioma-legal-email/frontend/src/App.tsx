@@ -1,44 +1,28 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import EmailInboxPanel from './EmailInboxPanel';
 import PipelineTimelinePanel from './PipelineTimelinePanel';
 import HITLReviewPanel from './HITLReviewPanel';
 import LegalQueryPanel from './LegalQueryPanel';
 import DashboardPanel from './DashboardPanel';
-import { createHubConnection, type PipelineEntry } from './api';
+import { useRealtimePipeline } from './useRealtimePipeline';
 
 type Tab = 'inbox' | 'hitl' | 'query' | 'dashboard';
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('inbox');
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
-  const [pendingIds, setPendingIds] = useState<string[]>([]);
+  const { state } = useRealtimePipeline(selectedEmailId);
 
-  // SignalR: receive real-time pipeline updates → switch to HITL tab when ready
-  const onStateChanged = useCallback((_emailId: string, _state: string, _timeline: PipelineEntry[]) => {
-    // timeline panel polls every 2s, but this keeps the connection warm
-  }, []);
-
+  // When pipeline completes → auto-navigate to HITL tab
   useEffect(() => {
-    const conn = createHubConnection(onStateChanged);
-    return () => { conn.stop(); };
-  }, [onStateChanged]);
+    if (state === 'HitlPending' || state === 'DraftReady') {
+      setTab('hitl');
+    }
+  }, [state]);
 
   function handleEmailSent(id: string | null) {
     if (!id) return;
     setSelectedEmailId(id);
-    setPendingIds(prev => [...prev, id]);
-    // Use polling to detect when pipeline reaches HITL_PENDING
-    const poll = setInterval(async () => {
-      try {
-        const r = await fetch(`/api/email/${id}/pipeline`);
-        const data = await r.json();
-        if (data.state === 'HitlPending' || data.state === 'DraftReady') {
-          clearInterval(poll);
-          setPendingIds(prev => prev.filter(x => x !== id));
-          setTab('hitl');
-        }
-      } catch { /* ignore */ }
-    }, 2000);
   }
 
   return (
