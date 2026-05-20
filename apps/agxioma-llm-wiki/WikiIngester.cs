@@ -14,7 +14,7 @@ namespace AgxiomaLLMWiki;
 /// </summary>
 public sealed class WikiIngester : IWikiIngester
 {
-    private const int MaxIngestedFilesPerRun = 256;
+    private const int MaxIngestedFilesPerRun = 2500;
     private const int MaxIngestedDirectoryDepth = 10;
     private readonly WikiSettings          _settings;
     private readonly IIngestProfileProvider _profileProvider;

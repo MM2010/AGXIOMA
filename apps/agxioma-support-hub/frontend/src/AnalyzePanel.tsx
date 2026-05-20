@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { analyzeTopic } from './api';
+import { analyzeTopic, describeApiError } from './api';
 
 export default function AnalyzePanel() {
   const [topic, setTopic] = useState('');
@@ -18,9 +18,9 @@ export default function AnalyzePanel() {
     try {
       const res = await analyzeTopic(topic);
       setResult(res);
-    } catch {
+    } catch (error) {
       setResult({
-        synthesis: '⚠️ Errore di connessione. Verifica che il backend sia attivo su http://localhost:5012.',
+        synthesis: describeApiError(error, 'Errore di connessione. Verifica che il backend sia attivo su http://localhost:5012.'),
         analysis: '',
         findings: [],
         phases: [],

@@ -1,0 +1,58 @@
+services:
+  legal-postgres:
+    image: pgvector/pgvector:pg17
+    container_name: agxioma-legal-postgres
+    environment:
+      POSTGRES_DB: agxiome_legal
+      POSTGRES_USER: agxiome
+      POSTGRES_PASSWORD: agxiome_legal_pw
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agxiome -d agxiome_legal"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - legal-postgres-data:/var/lib/postgresql/data
+
+  legal-redis:
+    image: redis:7-alpine
+    container_name: agxioma-legal-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6380:6379"
+    volumes:
+      - legal-redis-data:/data
+
+  legal-backend:
+    build:
+      context: .
+      dockerfile: apps/agxioma-legal-email/Dockerfile
+    container_name: agxioma-legal-backend
+    ports:
+      - "5013:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      Legal__OllamaBaseUrl: http://host.docker.internal:11434
+      ConnectionStrings__PostgreSQL: "Host=legal-postgres;Port=5432;Database=agxiome_legal;Username=agxiome;Password=agxiome_legal_pw"
+      ConnectionStrings__Redis: "legal-redis:6379"
+    depends_on:
+      legal-postgres:
+        condition: service_healthy
+      legal-redis:
+        condition: service_started
+
+  legal-frontend:
+    build:
+      context: apps/agxioma-legal-email/frontend
+    container_name: agxioma-legal-frontend
+    ports:
+      - "3001:80"
+    depends_on:
+      - legal-backend
+
+volumes:
+  legal-postgres-data:
+  legal-redis-data:

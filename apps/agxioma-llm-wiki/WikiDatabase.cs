@@ -88,7 +88,7 @@ public sealed class WikiDatabase : IWikiDatabase
         const int expectedTypmod = EmbedDimensions;
         var existingTypmod = await conn.ExecuteScalarAsync<int?>(
             $"SELECT atttypmod FROM pg_attribute " +
-            $"WHERE attrelid = '{EmbeddingsTable}'::regclass AND attname = 'vector'");
+            $"WHERE attrelid = to_regclass('{EmbeddingsTable}') AND attname = 'vector'");
         if (existingTypmod.HasValue && existingTypmod.Value != expectedTypmod)
         {
             _log.LogWarning(

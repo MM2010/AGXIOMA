@@ -140,7 +140,7 @@ public sealed class RedisStackVectorStore : IVectorStore
             for (int j = 0; j < fields.Length - 1; j += 2)
             {
                 var fname = (string)fields[j]!;
-                if (fname == "score") float.TryParse((string)fields[j + 1]!, out score);
+                if (fname == "score") float.TryParse((string)fields[j + 1]!, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out score);
                 else if (fname == "text_content") text = (string?)fields[j + 1];
             }
             // Redis returns cosine distance (0=identical); convert to similarity.

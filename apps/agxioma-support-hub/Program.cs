@@ -2,6 +2,7 @@ using AGXIOME.Core.DependencyInjection;
 using AGXIOME.Core.Patterns;
 using AGXIOME.Runtime;
 using AGXIOME.Security.Rbac;
+using AGXIOME.Shared.Models;
 using AgxiomaSupportHub.Tools;
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
@@ -15,13 +16,17 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
      .AllowAnyHeader()
      .AllowAnyMethod()));
 
-var provider = builder.Configuration["Agent:Provider"] ?? "deepseek";
-var model    = builder.Configuration["Agent:Model"];
-var workers  = builder.Configuration.GetValue("Agent:ResearchWorkers", 3);
+var providerName = builder.Configuration["Agent:Provider"] ?? "deepseek";
+var configuredModel = builder.Configuration["Agent:Model"];
+var workers = builder.Configuration.GetValue("Agent:ResearchWorkers", 3);
+var (provider, defaultModel, _) = AgxiomeProviderResolver.Resolve(providerName, builder.Configuration);
+var model = string.IsNullOrWhiteSpace(configuredModel) ? defaultModel : configuredModel;
+var apiKey = AgxiomeProviderResolver.ResolveApiKey(provider, builder.Configuration);
+var llmConfigured = !RequiresApiKey(provider) || !string.IsNullOrWhiteSpace(apiKey);
 
 // ── Swarm registration — fluent API ──────────────────────────────────────────
 builder.Services.AddAgxiome()
-    .UseProvider(provider, string.IsNullOrEmpty(model) ? null : model)
+    .UseModel(provider, model, apiKey)
 
     // ── Customer support routing (ForestSwarm) ────────────────────────────
     .AddForestSwarm("support", forest =>
@@ -137,6 +142,14 @@ builder.Services.AddAgxiome()
     });
 
 var app = builder.Build();
+
+if (!llmConfigured)
+{
+    app.Logger.LogWarning(
+        "LLM provider {Provider} is not fully configured. Set the matching API key before running the Support Hub demo.",
+        provider);
+}
+
 app.UseCors();
 await app.UseAgxiomeSecurityDefaultsAsync();
 await app.Services.GetRequiredService<BackofficeRuntimeService>().InitializeAsync();
@@ -147,8 +160,9 @@ await app.Services.GetRequiredService<BackofficeRuntimeService>().InitializeAsyn
 app.MapGet("/health", (IConfiguration cfg) => Results.Ok(new
 {
     status   = "ok",
-    provider = cfg["Agent:Provider"],
-    model    = cfg["Agent:Model"],
+    provider = providerName,
+    model,
+    llmConfigured,
     swarms   = new[] { "support (ForestSwarm)", "analyst (HeavySwarm)" },
     utc      = DateTime.UtcNow
 }))
@@ -160,8 +174,30 @@ app.MapPost("/support", async (SupportRequest req, IEnumerable<ForestSwarm> swar
     if (string.IsNullOrWhiteSpace(req.Message))
         return Results.BadRequest(new { error = "message is required." });
 
+    if (!llmConfigured)
+    {
+        return Results.Json(new
+        {
+            error = "provider_configuration_missing",
+            provider = providerName,
+            message = "The configured LLM provider is missing its API key. Set the provider API key before testing the Support Hub demo."
+        }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+
     var support = swarms.First(s => string.Equals(s.Name, "support", StringComparison.OrdinalIgnoreCase));
     var result = await support.RunAsync(req.Message);
+    if (TryExtractAgxiomeErrorCode(result.Output, out var supportErrorCode))
+    {
+        return Results.Json(new
+        {
+            error = "agent_execution_failed",
+            agxiomeCode = supportErrorCode,
+            agent = result.SelectedAgent,
+            tree = result.SelectedTree,
+            message = "The support agent failed while contacting the configured LLM provider. Check backend logs for the underlying HttpRequestException details."
+        }, statusCode: StatusCodes.Status502BadGateway);
+    }
+
     return Results.Ok(new
     {
         message         = req.Message,
@@ -172,6 +208,7 @@ app.MapPost("/support", async (SupportRequest req, IEnumerable<ForestSwarm> swar
         durationMs      = result.Duration.TotalMilliseconds
     });
 })
+    .AllowAnonymousAgxiome()
     .RequireAgxiomePermission(AgxiomePermission.WorkflowExecute)
     .WithAgxiomeRateLimit(20, TimeSpan.FromMinutes(1));
 
@@ -181,7 +218,34 @@ app.MapPost("/analyze", async (AnalysisRequest req, HeavySwarm analyst) =>
     if (string.IsNullOrWhiteSpace(req.Topic))
         return Results.BadRequest(new { error = "topic is required." });
 
+    if (!llmConfigured)
+    {
+        return Results.Json(new
+        {
+            error = "provider_configuration_missing",
+            provider = providerName,
+            message = "The configured LLM provider is missing its API key. Set the provider API key before testing the analysis demo."
+        }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+
     var result = await analyst.RunAsync(req.Topic);
+    string? analyzeErrorCode = null;
+    var hasAgentFailure = TryExtractAgxiomeErrorCode(result.Question, out analyzeErrorCode)
+        || TryExtractAgxiomeErrorCode(result.Analysis, out analyzeErrorCode)
+        || TryExtractAgxiomeErrorCode(result.Synthesis, out analyzeErrorCode)
+        || result.ResearchFindings.Any(finding => TryExtractAgxiomeErrorCode(finding, out analyzeErrorCode));
+
+    if (hasAgentFailure)
+    {
+        return Results.Json(new
+        {
+            error = "agent_execution_failed",
+            agxiomeCode = analyzeErrorCode,
+            agent = "analyst",
+            message = "The analysis pipeline failed while contacting the configured LLM provider. Check backend logs for the underlying HttpRequestException details."
+        }, statusCode: StatusCodes.Status502BadGateway);
+    }
+
     return Results.Ok(new
     {
         topic     = req.Topic,
@@ -191,6 +255,7 @@ app.MapPost("/analyze", async (AnalysisRequest req, HeavySwarm analyst) =>
         phases    = result.PhaseTiming.Select(kv => new { phase = kv.Key, durationS = kv.Value.TotalSeconds })
     });
 })
+    .AllowAnonymousAgxiome()
     .RequireAgxiomePermission(AgxiomePermission.WorkflowExecute)
     .WithAgxiomeRateLimit(10, TimeSpan.FromMinutes(1));
 
@@ -277,6 +342,23 @@ app.MapPost("/backoffice/survey", async (BackofficeSurveyRequest req, Backoffice
 app.MapGet("/", () =>
     "AGXIOME Support Hub — POST /support | POST /analyze | POST /backoffice | GET /backoffice/dashboard")
     .AllowAnonymousAgxiome();
+
+static bool TryExtractAgxiomeErrorCode(string? text, out string? code)
+{
+    code = null;
+    if (string.IsNullOrWhiteSpace(text) || !text.StartsWith("[ERR-", StringComparison.OrdinalIgnoreCase))
+        return false;
+
+    var end = text.IndexOf(']');
+    if (end <= 1)
+        return false;
+
+    code = text[1..end];
+    return true;
+}
+
+static bool RequiresApiKey(LLMProviderType provider)
+    => provider is not LLMProviderType.Ollama and not LLMProviderType.Local and not LLMProviderType.OllamaResponses;
 
 app.Run();
 

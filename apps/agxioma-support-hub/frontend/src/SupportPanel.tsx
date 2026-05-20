@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { supportChat } from './api';
+import { describeApiError, supportChat } from './api';
 
 interface Msg {
   role: 'user' | 'agent';
@@ -49,8 +49,11 @@ export default function SupportPanel() {
           durationMs: res.durationMs,
         },
       ]);
-    } catch {
-      setMsgs((p) => [...p, { role: 'agent', text: '⚠️ Errore di connessione. Il backend è in esecuzione?' }]);
+    } catch (error) {
+      setMsgs((p) => [...p, {
+        role: 'agent',
+        text: describeApiError(error, 'Errore di connessione. Il backend è in esecuzione?'),
+      }]);
     } finally {
       setLoading(false);
     }
