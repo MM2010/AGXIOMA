@@ -35,6 +35,8 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      Legal__DataPath: /app/data
+      Kestrel__Endpoints__Http__Url: http://+:8080
       Legal__OllamaBaseUrl: http://host.docker.internal:11434
       ConnectionStrings__PostgreSQL: "Host=legal-postgres;Port=5432;Database=agxiome_legal;Username=agxiome;Password=agxiome_legal_pw"
       ConnectionStrings__Redis: "legal-redis:6379"

@@ -23,7 +23,8 @@ var apiKey = AgxiomeProviderResolver.ResolveApiKey(provider, builder.Configurati
 // ── Wiki settings (from AGXIOME library) ─────────────────────────────────
 var wikiSettings = new WikiSettings
 {
-    ProjectRootPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "data")),
+    ProjectRootPath = builder.Configuration["Legal:DataPath"] 
+        ?? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "data")),
     SourceExtensions = [".md"],
     SourceExcludes = [],
     LLMProvider = providerName,

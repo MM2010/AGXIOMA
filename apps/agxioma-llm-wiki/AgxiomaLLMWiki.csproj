@@ -15,6 +15,10 @@
     <ProjectReference Include="..\..\src\AGXIOME.Storage\AGXIOME.Storage.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Content Update="appsettings.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- PostgreSQL + pgvector -->
     <PackageReference Include="Npgsql" Version="10.0.*" />
     <PackageReference Include="Dapper" Version="2.1.*" />
