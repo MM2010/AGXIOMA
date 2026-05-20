@@ -104,12 +104,14 @@ public sealed class PipelineOrchestrator
         // ── Phase 3: Query Explosion via HeavySwarm ───────────────────────
         sw.Restart();
         string researchSynthesis = "";
+        string fullResearch = ""; // Full synthesis for downstream phases
         if (_legalResearcher != null)
         {
             try
             {
                 var r = await _legalResearcher.RunAsync(
                     $"[Richiesta] Oggetto: {req.Subject}\nDescrizione: {req.Body}\nArea: {assignedTree}", ct);
+                fullResearch = r.Synthesis;
                 researchSynthesis = r.Synthesis.Length > 300 ? r.Synthesis[..300] + "…" : r.Synthesis;
                 _log.LogInformation("[{Id}] HeavySwarm: {P} phases, {F} findings", emailId,
                     r.PhaseTiming.Count, r.ResearchFindings.Count);
@@ -132,10 +134,14 @@ public sealed class PipelineOrchestrator
             try
             {
                 var query = $"{req.Subject} {req.Body}";
-                var expanded = _expander != null
-                    ? await _expander.ExpandAsync(query, ct)
+                // Arricchisci la query RAG con la synthesis HeavySwarm
+                var ragQuery = !string.IsNullOrEmpty(fullResearch)
+                    ? $"{query}\n\nContesto ricerca preliminare:\n{fullResearch}"
                     : query;
-                _log.LogInformation("[{Id}] RAG query expanded: {E}", emailId, expanded);
+                var expanded = _expander != null
+                    ? await _expander.ExpandAsync(ragQuery, ct)
+                    : ragQuery;
+                _log.LogInformation("[{Id}] RAG query (con HeavySwarm): {E}", emailId, expanded);
                 var ragResult = await _wiki.QueryAsync(new WikiQueryRequest(Question: expanded), ct);
                 if (ragResult.ContextFound)
                 {
@@ -165,13 +171,17 @@ public sealed class PipelineOrchestrator
         {
             try
             {
+                var researchBlock = !string.IsNullOrEmpty(fullResearch)
+                    ? $"RICERCA MULTI-PROSPETTIVA:\n{fullResearch}\n\n"
+                    : "";
                 var resp = await _llm.RunAsync(new AgentRequest(
-                    $"Analizza giuridicamente la seguente richiesta alla luce delle norme trovate.\n\n" +
+                    $"Analizza giuridicamente la seguente richiesta alla luce delle norme trovate e della ricerca preliminare.\n\n" +
                     $"RICHIESTA DEL CLIENTE:\nOggetto: {req.Subject}\n{req.Body}\n\n" +
-                    $"CONTESTO NORMATIVO:\n{ragContext}\n\n" +
+                    $"{researchBlock}" +
+                    $"CONTESTO NORMATIVO (dal database codici):\n{ragContext}\n\n" +
                     $"Fornisci un'analisi strutturata con:\n1. Qualifica giuridica del caso\n" +
                     $"2. Normativa applicabile (articoli specifici)\n3. Valutazione delle possibilità\n" +
-                    $"4. Rischi e criticità"), ct);
+                    $"4. Rischi e criticità\n5. Riferimenti giurisprudenziali pertinenti"), ct);
                 analysis = resp.Content.Length > 400 ? resp.Content[..400] + "…" : resp.Content;
             }
             catch (Exception ex) { _log.LogWarning(ex, "[{Id}] LLM analysis failed", emailId); }
@@ -191,12 +201,17 @@ public sealed class PipelineOrchestrator
         {
             try
             {
+                var researchBlock = !string.IsNullOrEmpty(fullResearch)
+                    ? $"RICERCA LEGALE PRELIMINARE (prospettive: normativa, giurisprudenziale, dottrinale, prassi, comparata):\n{fullResearch}\n\n"
+                    : "";
                 var resp = await _llm.RunAsync(new AgentRequest(
                     $"Redigi una bozza di risposta email professionale per un cliente di uno studio legale.\n\n" +
                     $"RICHIESTA DEL CLIENTE:\nOggetto: {req.Subject}\n{req.Body}\n\n" +
-                    $"CONTESTO GIURIDICO:\n{ragContext}\n\n" +
+                    $"{researchBlock}" +
+                    $"CONTESTO GIURIDICO (dal database codici):\n{ragContext}\n\n" +
                     $"ANALISI:\n{analysis}\n\n" +
                     $"Formato richiesto:\n- Gentile [Cliente],\n- [Analisi e riferimenti normativi con citazioni [[art-XXX]]]\n" +
+                    $"- [Riferimenti giurisprudenziali pertinenti]\n" +
                     $"- [Prossimi passi consigliati]\n- [Avvertenze]\n- Distinti saluti,\n  [Studio Legale AGXIOME]"), ct);
                 draft = resp.Content;
                 _drafts[emailId] = draft;

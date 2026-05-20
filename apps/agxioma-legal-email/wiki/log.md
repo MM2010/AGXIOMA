@@ -158,3 +158,40 @@ Come mi devo comportare ? Cosa devo fare ?" — 8 pages retrieved
 ## [2026-05-20 08:22] query | ""furto in appartamento art. 187 del Codice Penale denuncia violazione domicilio"" — 8 pages retrieved
 
 ## [2026-05-20 08:27] query | ""furto in appartamento art. 189 del Codice Penale denuncia violazione domicilio"" — 8 pages retrieved
+
+## [2026-05-20 10:09] query | "Furto in appartamento art. 198 del Codice Penale denuncia, interrogazione ufficiale, segnalazione alla polizia, assistenza legale, protezione personale, risarcimento, responsabilità civile, sicurezza domestica, privacy personale" — 8 pages retrieved
+
+## [2026-05-20 10:29] query | "Richiesta urgente – Possibile esposizione di dati riservati tramite sistema AI aziendale e contestazione cliente enterprise Gentile Studio Legale,
+
+Vi contatto in qualità di CTO di una società che sviluppa soluzioni AI per analisi documentale e automazione enterprise.
+
+Negli ultimi giorni uno dei nostri principali clienti enterprise ha aperto una contestazione formale sostenendo che il nostro sistema AI avrebbe generato output contenenti informazioni riconducibili ad altri clienti presenti sulla piattaforma.
+
+In particolare:
+
+durante alcune richieste effett" — 8 pages retrieved
+
+## [2026-05-20 12:51] query | "Richiesta chiarimenti – Fotografie della mia proprietà pubblicate online senza consenso Gentile Studio Legale,
+
+Vi contatto perché da alcune settimane ho scoperto che un vicino di casa ha pubblicato online diverse fotografie della mia abitazione e del mio giardino su gruppi Facebook di quartiere, accompagnandole con commenti piuttosto offensivi riguardanti il modo in cui tengo la proprietà.
+
+In alcune immagini sono visibili:
+
+l’ingresso della mia casa;
+la mia automobile;
+parte del giardino interno;
+e in almeno una" — 8 pages retrieved
+
+## [2026-05-20 13:05] query | "Violazione patto di non concorrenza, storno clienti e diffamazione da parte di ex dipendente Gentile Studio Legale,
+
+Vi contatto in merito a una situazione critica che sta danneggiando la mia azienda (una società di consulenza informatica e sviluppo software).
+
+Un nostro ex Project Manager senior si è dimesso circa quattro mesi fa. Nel suo contratto di assunzione era presente un "Patto di non concorrenza", della durata di 2 anni, per il quale gli abbiamo regolarmente pagato un corris" — 8 pages retrieved
+
+## [2026-05-20 13:07] query | "Richiesta assistenza – Problemi con agenzia viaggi e vacanza gravemente diversa da quanto acquistato Gentile Studio Legale,
+
+Vi contatto perché ritengo di aver subito un grave disservizio da parte di un’agenzia viaggi e vorrei capire se ho diritto a un rimborso o a un risarcimento.
+
+Circa due mesi fa io e la mia famiglia abbiamo acquistato un pacchetto vacanza "all inclusive" per una settimana presso un resort all'estero. Il pacchetto comprendeva:
+
+hotel 4 stelle" — 8 pages retrieved
