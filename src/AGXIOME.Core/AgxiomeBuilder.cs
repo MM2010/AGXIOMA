@@ -1,4 +1,5 @@
 using AGXIOME.Core.Agent;
+using AGXIOME.Core.LLM;
 using AGXIOME.Core.Patterns;
 using AGXIOME.Core.Routing;
 using AGXIOME.Core.Teams;
@@ -117,6 +118,31 @@ public sealed class AgxiomeBuilder
                 ApiKey = apiKey,
                 Endpoint = endpoint
             });
+
+        /// <summary>
+        /// CE-05 — Model-as-string shorthand. Supports two formats:
+        /// <list type="bullet">
+        ///   <item><c>"openai:gpt-4o"</c> → provider:model split on first colon.</item>
+        ///   <item><c>"gpt-4o"</c> → provider inferred from model name prefix.</item>
+        /// </list>
+        /// ApiKey is resolved from the matching environment variable automatically.
+        /// </summary>
+        /// <example>
+        /// AgxiomeBuilder.Agent("a").UseModel("deepseek:deepseek-chat").Build();
+        /// AgxiomeBuilder.Agent("b").UseModel("gpt-4o").Build();
+        /// </example>
+        public AgentBuilder UseModel(string providerModel, string? apiKey = null)
+        {
+            var (provider, model) = ModelCompatibilityMap.ParseProviderModel(providerModel);
+            var key = apiKey ?? ModelCompatibilityMap.ResolveApiKey(provider);
+            return UseModel(provider, model, key);
+        }
+
+        /// <summary>Build and return a <see cref="IAgxiomeAgent"/> that forwards all calls to a remote AGXIOME Runtime.</summary>
+        public IAgxiomeAgent BuildRemote(string baseUrl, string? bearerToken = null)
+            => RemoteAgentFactory.CreateAdapter(
+                new RemoteAgentOptions { BaseUrl = baseUrl, AgentId = _name, BearerToken = bearerToken },
+                agentId: _name);
 
         /// <summary>Auto-configure from environment variables. Picks first available provider.</summary>
         public AgentBuilder AutoDetectProvider()
@@ -271,28 +297,18 @@ public sealed class QuickStartHelper
 {
     public static readonly QuickStartHelper Instance = new();
 
-    /// <summary>Create a ready-to-use agent. ApiKey from env if not provided.</summary>
-    public IAgxiomeAgent CreateAgent(
+    public static IAgxiomeAgent CreateAgent(
         string providerModel = "deepseek-chat",
         string? apiKey = null,
         string? systemPrompt = null)
     {
-        var (provider, model) = ParseProviderModel(providerModel);
+        var (provider, model) = ModelCompatibilityMap.ParseProviderModel(providerModel);
+        var key     = apiKey ?? ModelCompatibilityMap.ResolveApiKey(provider);
         var builder = AgxiomeBuilder.Agent(providerModel)
-            .UseModel(provider, model, apiKey)
+            .UseModel(provider, model, key)
             .WithMaxIterations(10);
 
         if (systemPrompt is not null) builder.WithSystemPrompt(systemPrompt);
         return builder.Build();
     }
-
-    private static (LLMProviderType, string) ParseProviderModel(string providerModel) => providerModel.ToLowerInvariant() switch
-    {
-        var m when m.StartsWith("gpt") => (LLMProviderType.OpenAI, providerModel),
-        var m when m.StartsWith("claude") => (LLMProviderType.Anthropic, providerModel),
-        var m when m.StartsWith("gemini") => (LLMProviderType.Gemini, providerModel),
-        var m when m.StartsWith("deepseek") => (LLMProviderType.DeepSeek, providerModel),
-        var m when m.StartsWith("llama") || m.StartsWith("mistral") || m.StartsWith("phi") => (LLMProviderType.Ollama, providerModel),
-        _ => (LLMProviderType.Custom, providerModel)
-    };
 }

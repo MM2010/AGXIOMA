@@ -153,4 +153,78 @@ public sealed class ModelCompatibilityMap
             msg += $" {entry.DeprecationNote}";
         return msg;
     }
+
+    // ── Static convenience helpers (CE-05 integration) ────────────────────────
+
+    private static readonly ModelCompatibilityMap _default = new();
+
+    /// <summary>
+    /// Parse a model string into (provider, modelId). Supports two formats:
+    /// <list type="bullet">
+    ///   <item><c>"openai:gpt-4o"</c> — explicit provider prefix.</item>
+    ///   <item><c>"gpt-4o"</c> — bare model name; provider inferred by model-map lookup,
+    ///   then by common name prefixes.</item>
+    /// </list>
+    /// </summary>
+    public static (LLMProviderType Provider, string ModelId) ParseProviderModel(string providerModel)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerModel);
+
+        // 1. Try "provider:model" colon format via ModelStringParser
+        var parsed = ModelStringParser.TryParse(providerModel);
+        if (parsed is not null)
+            return (parsed.Provider, parsed.ModelId);
+
+        // 2. Look up bare model name in the compatibility map
+        if (_default._entries.TryGetValue(providerModel, out var entry))
+            return (entry.Provider, providerModel);
+
+        // 3. Infer from well-known model name prefixes (fallback for unlisted models)
+        var lower = providerModel.ToLowerInvariant();
+        if (lower.StartsWith("gpt") || lower.StartsWith("o1") || lower.StartsWith("o3"))
+            return (LLMProviderType.OpenAI, providerModel);
+        if (lower.StartsWith("claude"))
+            return (LLMProviderType.Anthropic, providerModel);
+        if (lower.StartsWith("gemini"))
+            return (LLMProviderType.Gemini, providerModel);
+        if (lower.StartsWith("deepseek"))
+            return (LLMProviderType.DeepSeek, providerModel);
+        if (lower.StartsWith("mistral-large") || lower.StartsWith("mistral-small"))
+            return (LLMProviderType.Mistral, providerModel);
+        if (lower.StartsWith("llama") || lower.StartsWith("phi") || lower.StartsWith("qwen"))
+            return (LLMProviderType.Ollama, providerModel);
+
+        return (LLMProviderType.Custom, providerModel);
+    }
+
+    /// <summary>
+    /// Resolve the API key for a provider from well-known environment variables.
+    /// Returns null if the environment variable is unset.
+    /// </summary>
+    public static string? ResolveApiKey(LLMProviderType provider) => provider switch
+    {
+        LLMProviderType.OpenAI           => GetEnv("OPENAI_API_KEY"),
+        LLMProviderType.Anthropic        => GetEnv("ANTHROPIC_API_KEY"),
+        LLMProviderType.Gemini           => GetEnv("GEMINI_API_KEY"),
+        LLMProviderType.DeepSeek         => GetEnv("DEEPSEEK_API_KEY"),
+        LLMProviderType.Groq             => GetEnv("GROQ_API_KEY"),
+        LLMProviderType.Mistral          => GetEnv("MISTRAL_API_KEY"),
+        LLMProviderType.Cohere           => GetEnv("COHERE_API_KEY"),
+        LLMProviderType.AWSBedrock       => GetEnv("AWS_ACCESS_KEY_ID"),
+        LLMProviderType.AzureOpenAI      => GetEnv("AZURE_OPENAI_API_KEY"),
+        LLMProviderType.AzureAIFoundry   => GetEnv("AZURE_AI_API_KEY"),
+        LLMProviderType.XAIGrok          => GetEnv("XAI_API_KEY"),
+        LLMProviderType.TogetherAI       => GetEnv("TOGETHER_API_KEY"),
+        LLMProviderType.FireworksAI      => GetEnv("FIREWORKS_API_KEY"),
+        LLMProviderType.Perplexity       => GetEnv("PERPLEXITY_API_KEY"),
+        LLMProviderType.HuggingFaceInference => GetEnv("HUGGINGFACE_API_KEY"),
+        LLMProviderType.OpenRouter       => GetEnv("OPENROUTER_API_KEY"),
+        LLMProviderType.Cerebras         => GetEnv("CEREBRAS_API_KEY"),
+        LLMProviderType.SambaNova        => GetEnv("SAMBANOVA_API_KEY"),
+        LLMProviderType.NvidiaNIM        => GetEnv("NVIDIA_API_KEY"),
+        _ => null
+    };
+
+    private static string? GetEnv(string name) =>
+        Environment.GetEnvironmentVariable(name) is { Length: > 0 } v ? v : null;
 }

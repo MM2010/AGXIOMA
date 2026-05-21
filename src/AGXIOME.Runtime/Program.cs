@@ -6,10 +6,15 @@ using AGXIOME.Runtime;
 using AGXIOME.Runtime.Controllers;
 using AGXIOME.Runtime.Hubs;
 using AGXIOME.Runtime.Workers;
+using AGXIOME.Core.DependencyInjection;
+using AGXIOME.Core.Execution;
+using AGXIOME.Core.Tools;
 using AGXIOME.Shared.Errors;
+using AGXIOME.Shared.Models;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using StackExchange.Redis;
+using RuntimeBackgroundWorker = AGXIOME.Runtime.Workers.BackgroundRunWorker;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -66,9 +71,35 @@ if (!string.IsNullOrWhiteSpace(redisConnectionString))
 }
 
 // ── Background Workers ────────────────────────────────────────────────────────
-builder.Services.AddHostedService<BackgroundRunWorker>();
+builder.Services.AddHostedService<RuntimeBackgroundWorker>();
 builder.Services.AddHostedService<SessionCleanupJob>();
 builder.Services.AddHostedService<TokenRotationJob>();
+
+// ── Execution Pipeline + Tool Infra (optional — configured via appsettings) ──
+// Set "Agxiome:ExecutionPipeline:Enabled": true to activate P09/P11 pipelines.
+// When enabled, RunController and ToolController use real pipeline dispatch.
+// When disabled, they run in stub mode (safe for local dev without a model key).
+if (builder.Configuration.GetValue<bool>("Agxiome:ExecutionPipeline:Enabled"))
+{
+    var providerStr  = builder.Configuration["Agxiome:Provider"] ?? "DeepSeek";
+    var model        = builder.Configuration["Agxiome:Model"] ?? "deepseek-chat";
+    var apiKey       = builder.Configuration["Agxiome:ApiKey"]
+                       ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY")
+                       ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+
+    if (Enum.TryParse<LLMProviderType>(providerStr, ignoreCase: true, out var provider))
+    {
+        var agent = AGXIOME.Core.AgxiomeBuilder
+            .Agent("runtime-agent")
+            .UseModel(provider, model, apiKey)
+            .WithSystemPrompt("You are a helpful AI assistant.")
+            .Build();
+
+        builder.Services.AddSingleton(agent);
+        builder.Services.AddSingleton<AGXIOME.Shared.Interfaces.IAgxiomeAgent>(_ => agent);
+        builder.Services.AddAgxiome().AddExecutionPipeline().AddToolInfra();
+    }
+}
 
 var app = builder.Build();
 await app.UseAgxiomeSecurityDefaultsAsync();

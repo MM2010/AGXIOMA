@@ -3,11 +3,15 @@
 // Auth + RBAC is enforced upstream in middleware.
 
 using Microsoft.AspNetCore.Mvc;
+using AGXIOME.Core.Execution;
+using AGXIOME.Core.Tools;
 using AGXIOME.Security.Audit;
 using AGXIOME.Security.Sanitization;
 using AGXIOME.Security.ApiKey;
 using AGXIOME.Security.Rbac;
 using AGXIOME.Shared.Errors;
+using AGXIOME.Shared.Interfaces;
+using AGXIOME.Shared.Models;
 
 namespace AGXIOME.Runtime.Controllers;
 
@@ -168,27 +172,76 @@ public sealed class AgentController(AuditLogger audit, IInputSanitizer sanitizer
 // ═══════════════════════════════════════════════════════════════
 
 [ApiController, Route("api/runs")]
-public sealed class RunController : ControllerBase
+public sealed class RunController(IAgentRunPipeline? pipeline = null) : ControllerBase
 {
+    private readonly IAgentRunPipeline? _pipeline = pipeline;
     private static readonly Dictionary<string, RunDto> _runs = [];
 
     [HttpPost]
-    public IActionResult Start([FromBody] StartRunRequest req)
+    public async Task<IActionResult> Start([FromBody] StartRunRequest req, CancellationToken ct)
     {
         var runId = Guid.NewGuid().ToString("N")[..12];
         var run   = new RunDto(runId, req.AgentId, "running", DateTimeOffset.UtcNow, null, null);
         _runs[runId] = run;
+
+        if (_pipeline is not null)
+        {
+            var response = await _pipeline.RunAsync(new AgentRequest(req.Input), runId: runId, ct: ct);
+            var status   = response.Status == AgentStatus.Completed ? "completed" : "error";
+            _runs[runId] = run with { Status = status, EndedAt = DateTimeOffset.UtcNow };
+            return Ok(new { runId, status, content = response.Content });
+        }
+
+        // Stub mode — no pipeline registered
         return Accepted(run);
+    }
+
+    [HttpPost("async")]
+    public IActionResult StartAsync([FromBody] StartRunRequest req)
+    {
+        if (_pipeline is null)
+            return Accepted(new { status = "queued", message = "No pipeline registered — stub mode" });
+
+        var jobId = _pipeline.RunBackground(new AgentRequest(req.Input));
+        _runs[jobId] = new RunDto(jobId, req.AgentId, "queued", DateTimeOffset.UtcNow, null, null);
+        return Accepted(new { runId = jobId, status = "queued" });
     }
 
     [HttpGet("{runId}")]
     public IActionResult Status(string runId) =>
         _runs.TryGetValue(runId, out var r) ? Ok(r) : NotFound();
 
+    [HttpGet("{runId}/result")]
+    public IActionResult Result(string runId) =>
+        _runs.TryGetValue(runId, out var r) ? Ok(r) : NotFound();
+
+    [HttpGet("{runId}/stream")]
+    public async Task Stream(string runId, [FromQuery] string input = "hello", CancellationToken ct = default)
+    {
+        Response.ContentType  = "text/event-stream";
+        Response.Headers["Cache-Control"] = "no-cache";
+        Response.Headers["X-Accel-Buffering"] = "no";
+
+        if (_pipeline is null)
+        {
+            await Response.WriteAsync($"data: {{\"chunk\":\"Pipeline not configured\"}}\n\n", ct);
+            return;
+        }
+
+        await foreach (var chunk in _pipeline.RunStreamAsync(new AgentRequest(input), runId: runId, ct: ct))
+        {
+            if (ct.IsCancellationRequested) break;
+            var payload = System.Text.Json.JsonSerializer.Serialize(new { chunk = chunk.Content, isFinal = chunk.IsFinal });
+            await Response.WriteAsync($"data: {payload}\n\n", ct);
+            await Response.Body.FlushAsync(ct);
+        }
+    }
+
     [HttpDelete("{runId}")]
     public IActionResult Cancel(string runId)
     {
         if (!_runs.TryGetValue(runId, out var r)) return NotFound();
+        _pipeline?.CancelRun(runId);
         _runs[runId] = r with { Status = "cancelled", EndedAt = DateTimeOffset.UtcNow };
         return Ok(_runs[runId]);
     }
@@ -202,22 +255,6 @@ public sealed class RunController : ControllerBase
         return Ok(_runs[runId]);
     }
 
-    [HttpGet]
-    public IActionResult List([FromQuery] string? agentId) =>
-        Ok(_runs.Values.Where(r => agentId == null || r.AgentId == agentId).ToList());
-
-    [HttpGet("{runId}/stream")]
-    public IActionResult Stream(string runId)
-    {
-        // SSE endpoint stub — real impl uses IAsyncEnumerable + Server-Sent Events
-        if (!_runs.ContainsKey(runId)) return NotFound();
-        return Ok(new { runId, message = "stream not yet connected" });
-    }
-
-    [HttpGet("{runId}/result")]
-    public IActionResult Result(string runId) =>
-        _runs.TryGetValue(runId, out var r) ? Ok(r) : NotFound();
-
     [HttpPost("{runId}/pause")]
     public IActionResult Pause(string runId)
     {
@@ -225,6 +262,10 @@ public sealed class RunController : ControllerBase
         _runs[runId] = r with { Status = "paused" };
         return Ok(_runs[runId]);
     }
+
+    [HttpGet]
+    public IActionResult List([FromQuery] string? agentId) =>
+        Ok(_runs.Values.Where(r => agentId == null || r.AgentId == agentId).ToList());
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -371,14 +412,38 @@ public sealed class KnowledgeController : ControllerBase
 // ═══════════════════════════════════════════════════════════════
 
 [ApiController, Route("api/tools")]
-public sealed class ToolController : ControllerBase
+public sealed class ToolController(IToolExecutor? executor = null) : ControllerBase
 {
+    private readonly IToolExecutor? _executor = executor;
     private static readonly List<ToolDto> _tools = [];
 
     [HttpGet]              public IActionResult List()                              => Ok(_tools);
     [HttpGet("{id}/schema")] public IActionResult Schema(string id)                => Ok(new { toolId = id, schema = "{}" });
     [HttpPost("register")] public IActionResult Register([FromBody] ToolDto tool)  { _tools.Add(tool); return Created($"/api/tools/{tool.ToolId}", tool); }
     [HttpGet("toolkits")]  public IActionResult Toolkits()                          => Ok(Array.Empty<string>());
+
+    /// <summary>Execute a registered tool by name. Uses IToolExecutor pipeline if available.</summary>
+    [HttpPost("{toolId}/execute")]
+    public async Task<IActionResult> Execute(
+        string toolId,
+        [FromBody] Dictionary<string, object>? parameters = null,
+        [FromQuery] string? runId = null,
+        [FromQuery] string? agentId = null,
+        CancellationToken ct = default)
+    {
+        if (_executor is null)
+            return Ok(new { toolId, status = "stub", message = "No ToolExecutor registered." });
+
+        var ctx    = new ToolContext(agentId ?? "api", runId ?? Guid.NewGuid().ToString("N")[..8], null, parameters, null, null, null);
+        var result = await _executor.ExecuteAsync(toolId, ctx, ct);
+
+        if (!result.Success)
+            return ApiErrors.Unprocessable(
+                $"Tool '{toolId}' execution failed: {result.ErrorMessage}",
+                result.ErrorMessage ?? "Esecuzione tool fallita.");
+
+        return Ok(new { toolId, success = result.Success, data = result.Data, executionTimeMs = result.ExecutionTime?.TotalMilliseconds });
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════

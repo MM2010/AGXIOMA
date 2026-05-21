@@ -172,6 +172,10 @@ public sealed class AgxiomeServiceBuilder
 
         Services.AddSingleton(opts);
 
+        // ToolRegistry — must be registered before the pipeline factory
+        Services.AddSingleton<ToolRegistry>();
+        Services.AddSingleton<IToolRegistry>(sp => sp.GetRequiredService<ToolRegistry>());
+
         // Infrastructure singletons
         Services.AddSingleton<IToolFilter, ToolFilter>();
         Services.AddSingleton<IToolCallLimiter, ToolCallLimiter>();
@@ -182,7 +186,7 @@ public sealed class AgxiomeServiceBuilder
 
         // Pipeline
         Services.AddSingleton<ToolExecutionPipeline>(sp => new ToolExecutionPipeline(
-            sp.GetRequiredService<IToolRegistry>(),
+            sp.GetRequiredService<ToolRegistry>(),
             sp.GetRequiredService<ToolExecutionPipelineOptions>(),
             sp.GetService<IToolFilter>(),
             sp.GetService<IToolCallLimiter>(),
@@ -192,10 +196,9 @@ public sealed class AgxiomeServiceBuilder
         // IToolExecutor: resolve ToolRegistry and attach pipeline
         Services.AddSingleton<IToolExecutor>(sp =>
         {
-            var registry = sp.GetRequiredService<IToolRegistry>();
-            if (registry is ToolRegistry tr)
-                tr.AttachPipeline(sp.GetRequiredService<ToolExecutionPipeline>());
-            return (IToolExecutor)registry;
+            var registry = sp.GetRequiredService<ToolRegistry>();
+            registry.AttachPipeline(sp.GetRequiredService<ToolExecutionPipeline>());
+            return registry;
         });
 
         return this;
