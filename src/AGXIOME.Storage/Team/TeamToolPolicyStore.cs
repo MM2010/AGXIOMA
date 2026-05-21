@@ -1,7 +1,7 @@
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.Core.Storage;
+namespace AGXIOME.Storage.Team;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SS-08 — Team Default Tools

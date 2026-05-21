@@ -1,7 +1,7 @@
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.Core.Storage;
+namespace AGXIOME.Core.Runtime;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SS-09 — Callable Members

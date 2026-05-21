@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
 namespace AGXIOME.Core.Storage;
@@ -22,7 +21,7 @@ namespace AGXIOME.Core.Storage;
 //   • WorkflowSerializer — stateless utility:
 //       Serialize(def) → string (JSON)
 //       Deserialize(json) → WorkflowDefinition
-//       SaveAsync / LoadAsync  helpers for ICommandStore round-trip.
+//     Persistence (SaveAsync/LoadAsync) moved to AGXIOME.Storage.Workflow.WorkflowStorage.
 //
 // Security: never execute deserialized handler code. The condition string is
 // a lookup key only — real logic lives in a server-side registry.
@@ -129,28 +128,6 @@ public static class WorkflowSerializer
         ArgumentException.ThrowIfNullOrWhiteSpace(json);
         return JsonSerializer.Deserialize<WorkflowDefinition>(json, JsonOpts)
                ?? throw new InvalidOperationException("Deserialized workflow definition was null.");
-    }
-
-    /// <summary>Persist a definition to an <see cref="ICommandStore"/>.</summary>
-    public static async Task SaveAsync(
-        WorkflowDefinition definition,
-        ICommandStore store,
-        CancellationToken ct = default)
-    {
-        ArgumentNullException.ThrowIfNull(definition);
-        ArgumentNullException.ThrowIfNull(store);
-
-        var now   = DateTimeOffset.UtcNow;
-        var entry = new WorkflowDefinitionEntry
-        {
-            Id             = definition.Id,
-            Name           = definition.Name,
-            DefinitionJson = Serialize(definition),
-            SchemaVersion  = definition.SchemaVersion,
-            CreatedAt      = definition.CreatedAt,
-            UpdatedAt      = now,
-        };
-        await store.SaveAsync(entry, ct);
     }
 
     /// <summary>

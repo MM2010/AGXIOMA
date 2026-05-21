@@ -1,14 +1,35 @@
 # Storage & RAG — AGXIOME
 
-Persistenza multi-provider con CQRS. Tutti i database supportati come First-Class Citizen.
+Persistenza multi-provider con CQRS. Architettura a 2 livelli:
+
+```
+AGXIOME.Core (Interfacce)         AGXIOME.Storage (Implementazioni)
+├── ICommandStore                 ├── Stores/          → 25+ DB provider
+├── IQueryStore<T>                ├── VectorStores/    → 12+ vector DB
+├── IUnitOfWork                   ├── Embedders/       → 15+ embedder
+├── ISessionManager               ├── Chunkers/        → 10+ chunker
+├── IAgentMemory                  ├── Readers/         → 15+ document reader
+├── IAgentMemoryStore             ├── Rerankers/       → 5+ reranker
+├── ISemanticFactStore            ├── Session/         → RedisSessionManager
+└── ICacheStore                   ├── Agent/           → AgentStorageBridge
+                                  ├── Team/            → TeamStorageBridge, TeamToolPolicyStore
+                                  ├── Knowledge/       → ContentStore, MarkdownMemoryStore
+                                  └── Workflow/        → WorkflowHistoryStore, WorkflowHitlStore, WorkflowStorage
+```
+
+**Regola**: Core definisce interfacce e orchestrazione. Storage implementa persistenza.
 
 ---
+
+## Provider supportati
 
 ## Provider supportati
 
 | Database | Namespace | Classe | Uso principale | ACID |
 |----------|-----------|--------|---------------|------|
 | **PostgreSQL** | `AGXIOME.Storage.Stores` | `PostgresCommandStore` | Canonical state, pgvector, RAG | ✅ |
+| **PostgreSQL(Session)** | `AGXIOME.Storage.Session` | `PostgresSessionManager` | Session lifecycle + history | ✅ |
+| **Redis(Session)** | `AGXIOME.Storage.Session` | `RedisSessionManager` | Session hot cache with TTL | ❌ |
 | **MySQL** | `AGXIOME.Storage.Stores` | `MySqlCommandStore` | Session storage, chat history | ✅ |
 | **MariaDB** | `AGXIOME.Storage.Stores` | `MariaDbStore` | Drop-in MySQL compat | ✅ |
 | **MongoDB** | `AGXIOME.Storage.Stores` | `MongoStore` | Document store, unstructured memory | ✅ (replica) |

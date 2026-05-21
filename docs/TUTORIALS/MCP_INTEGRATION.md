@@ -5,8 +5,8 @@ AGXIOME supports the Model Context Protocol (MCP) for integration with Claude, V
 ## Server Setup
 
 ```csharp
-using AGXIOME.Interfaces.Mcp;
-using AGXIOME.Interfaces.Mcp.Transports;
+using AGXIOME.Adapters.Mcp;
+using AGXIOME.Adapters.Mcp.Transports;
 
 var agent = AgxiomeBuilder.Agent("mcp-agent").UseDeepSeek().Build();
 var server = new McpServer(agent, "my-agent", "1.0.0");

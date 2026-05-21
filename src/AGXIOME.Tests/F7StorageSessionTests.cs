@@ -1,10 +1,17 @@
 using AGXIOME.Core.Agent;
+using AGXIOME.Core.Orchestration;
+using AGXIOME.Core.Runtime;
 using AGXIOME.Core.Storage;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
+using AGXIOME.Storage;
+using AGXIOME.Storage.Agent;
+using AGXIOME.Storage.Knowledge;
 using AGXIOME.Storage.Session;
 using AGXIOME.Storage.Stores;
+using AGXIOME.Storage.Team;
+using AGXIOME.Storage.Workflow;
 using NSubstitute;
 using StackExchange.Redis;
 using Xunit;
@@ -639,7 +646,7 @@ public class WorkflowSerializerTests
         store.SaveAsync(Arg.Any<WorkflowDefinitionEntry>(), Arg.Any<CancellationToken>())
              .Returns(Task.CompletedTask);
 
-        await WorkflowSerializer.SaveAsync(MakeDefinition(), store);
+        await WorkflowStorage.SaveAsync(MakeDefinition(), store);
 
         await store.Received(1).SaveAsync(
             Arg.Any<WorkflowDefinitionEntry>(), Arg.Any<CancellationToken>());

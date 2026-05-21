@@ -1,6 +1,6 @@
 using System.Text.Json;
 using AGXIOME.Core.Patterns;
-using AGXIOME.Core.Storage;
+using AGXIOME.Storage.Workflow;
 using AGXIOME.Core.Workflows;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;

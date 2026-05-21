@@ -1,4 +1,5 @@
-using AGXIOME.Core.Storage;
+using AGXIOME.Storage;
+using AGXIOME.Storage.Knowledge;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Models;
 

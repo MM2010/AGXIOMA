@@ -1,0 +1,71 @@
+namespace AGXIOME.Shared.Models;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LLM / Model providers — 50 providers, zero hardcoded strings in routing code
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// <summary>Typed LLM provider discriminator. Use this enum instead of raw strings in all routing code.</summary>
+public enum LLMProviderType
+{
+    // Existing 8
+    OpenAI = 0,
+    Anthropic = 1,
+    Gemini = 2,
+    DeepSeek = 3,
+    Ollama = 4,
+    AzureOpenAI = 5,
+    Local = 6,
+    Custom = 7,
+
+    // New 42 — M-01..M-50
+    Groq = 10,
+    Mistral = 11,
+    XAIGrok = 12,
+    Cohere = 13,
+    Perplexity = 14,
+    TogetherAI = 15,
+    FireworksAI = 16,
+    Cerebras = 17,
+    AWSBedrock = 18,
+    AzureAIFoundry = 19,
+    IBMWatsonX = 20,
+    SambaNova = 21,
+    OpenRouter = 22,
+    LiteLLM = 23,
+    AIMLApi = 24,
+    NovitaAI = 25,
+    DeepInfra = 26,
+    Replicate = 27,
+    RekaAI = 28,
+    Modal = 29,
+    LlamaCpp = 30,
+    LMStudio = 31,
+    OllamaResponses = 32,
+    LocalAI = 33,
+    GPT4All = 34,
+    TextGenWebUI = 35,
+    KoboldCPP = 36,
+    HuggingFaceInference = 37,
+    HuggingFaceTGI = 38,
+    AI21Labs = 39,
+    Writer = 40,
+    NvidiaNIM = 41,
+    Anyscale = 42,
+    OctoAI = 43,
+    LeptonAI = 44,
+    FriendliAI = 45,
+    MoonshotKimi = 46,
+    ZhipuGLM = 47,
+    Baichuan = 48,
+    ByteDanceDoubao = 49,
+    AlibabaQwen = 50,
+    BaiduERNIE = 51,
+    TencentHunyuan = 52,
+    YiAI = 53,
+    AI21Jamba = 54,
+    SnowflakeArctic = 55,
+    Phind = 56,
+    YouCom = 57,
+    Hyperbolic = 58,
+    Featherless = 59,
+}

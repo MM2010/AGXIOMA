@@ -4,7 +4,7 @@ using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.Core.Storage;
+namespace AGXIOME.Storage.Team;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SS-03 — Team Storage Bridge

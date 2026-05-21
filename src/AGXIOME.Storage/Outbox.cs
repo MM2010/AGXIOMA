@@ -1,5 +1,6 @@
 using Dapper;
 using Npgsql;
+using AGXIOME.Shared.Interfaces;
 
 namespace AGXIOME.Storage;
 
@@ -27,8 +28,13 @@ public sealed class OutboxWriter
 public sealed class OutboxPoller
 {
     private readonly string _connectionString;
+    private readonly IReadOnlyList<IOutboundDispatcher> _dispatchers;
 
-    public OutboxPoller(string connectionString) => _connectionString = connectionString;
+    public OutboxPoller(string connectionString, IEnumerable<IOutboundDispatcher>? dispatchers = null)
+    {
+        _connectionString = connectionString;
+        _dispatchers = dispatchers?.ToList() ?? new List<IOutboundDispatcher>();
+    }
 
     /// <summary>Process up to batchSize pending outbox messages. Call every N seconds.</summary>
     public async Task<int> ProcessBatchAsync(int batchSize = 50, CancellationToken ct = default)
@@ -46,7 +52,9 @@ public sealed class OutboxPoller
         {
             try
             {
-                // TODO: publish to message bus (SignalR, RabbitMQ, etc.)
+                foreach (var d in _dispatchers)
+                    await d.DispatchAsync(msg.EventType, msg.EventBodyJson, msg.CorrelationId, ct);
+
                 await conn.ExecuteAsync(
                     "UPDATE outbox_messages SET processed_at = NOW() WHERE id = @Id",
                     new { msg.Id }, commandTimeout: 30);
@@ -56,5 +64,5 @@ public sealed class OutboxPoller
         return messages.Count;
     }
 
-    private record OutboxMessage(Guid Id, string EventType, string EventBodyJson, string? CorrelationId);
+    private sealed record OutboxMessage(Guid Id, string EventType, string EventBodyJson, string? CorrelationId);
 }

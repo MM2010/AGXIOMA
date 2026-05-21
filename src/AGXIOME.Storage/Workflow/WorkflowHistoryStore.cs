@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.Core.Storage;
+namespace AGXIOME.Storage.Workflow;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SS-04 — Workflow History

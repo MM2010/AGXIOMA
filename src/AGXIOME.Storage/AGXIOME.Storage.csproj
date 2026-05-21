@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AGXIOME.Shared\AGXIOME.Shared.csproj" />
+    <ProjectReference Include="..\AGXIOME.Core\AGXIOME.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

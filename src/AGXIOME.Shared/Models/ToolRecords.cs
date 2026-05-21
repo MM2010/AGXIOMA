@@ -1,41 +1,9 @@
-using AGXIOME.Shared.Interfaces;
-
-namespace AGXIOME.Shared.Models;
-
-public record ToolContext(
-    string AgentId,
-    string RunId,
-    string? TenantId = null,
-    Dictionary<string, object>? Parameters = null,
-    TimeSpan? Timeout = null,
-    ISessionState? SessionState = null,
-    IDependencyProvider? Dependencies = null
-);
-
-public record ToolResult(
-    bool Success,
-    object? Data,
-    string? ErrorMessage = null,
-    TimeSpan? ExecutionTime = null,
-    ToolMetadata? Metadata = null
-);
-
-public record ToolMetadata(
-    string ToolName,
-    string? Version,
-    long BytesProcessed = 0,
-    int ItemsProcessed = 0
-);
-
-public record ToolRegistration(
-    string TypeName,
-    Dictionary<string, object>? Config = null
-);
-
-public record ToolCallResult(
-    string ToolName,
-    string ToolCallId,
-    bool Success,
-    object? Result,
-    TimeSpan? Duration = null
-);
+// ─────────────────────────────────────────────────────────────────────────────
+// All tool records have been split into individual files under
+// Models/Records/Tools/.
+//
+// ToolContext                         → Records/Tools/ToolContext.cs
+// ToolResult, ToolMetadata            → Records/Tools/ToolResult.cs
+// ToolRegistration                    → Records/Tools/ToolRegistration.cs
+// ToolCallResult                      → Records/Tools/ToolCallResult.cs
+// ─────────────────────────────────────────────────────────────────────────────

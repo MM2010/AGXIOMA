@@ -3,7 +3,7 @@ using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.Core.Storage;
+namespace AGXIOME.Storage.Knowledge;
 
 /// <summary>
 /// MarkdownMemoryStore — implements IAgentMemory using Markdown files on disk.

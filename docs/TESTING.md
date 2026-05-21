@@ -75,7 +75,7 @@ public void MyNewFeature_Works()
 |--------|--------|
 | AGXIOME.Shared | ≥ 95% |
 | AGXIOME.Core | ≥ 90% |
-| AGXIOME.LLMWIKY | ≥ 85% |
+| AGXIOME.LlmWiky | ≥ 85% |
 | AGXIOME.Storage | ≥ 85% |
 | AGXIOME.XLink | ≥ 90% |
 | AGXIOME.Security | ≥ 95% |

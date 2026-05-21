@@ -20,7 +20,7 @@ var swarm = AgxiomeBuilder.Swarm()
 
 ```csharp
 using AGXIOME.Core.Patterns;
-using AGXIOME.LLMWIKY;
+using AGXIOME.LlmWiky;
 
 var engine = new LLMWIKYEngine(new LLMWIKYConfig { Model = "gpt-4o" });
 var autoBuilder = new AutoSwarmBuilder(engine, "Build a customer support system with routing, escalation, and FAQ handling");

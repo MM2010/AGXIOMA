@@ -126,14 +126,17 @@ if (result.Status == AgentStatus.Error)
 
 ## Nuove funzionalità (v1.1)
 
-| Funzionalità | Descrizione |
-|-------------|-------------|
-| [AutoSwarm](TUTORIALS/AUTO_SWARM.md) | Swarm zero-config con analisi goal via LLM |
-| [AgentRearrange](TUTORIALS/MCP_INTEGRATION.md) | DAG flow con sintassi einsum-style "A -> B, C" |
-| [Markdown Memory](TUTORIALS/MARKDOWN_MEMORY.md) | RAG con file Markdown + full-text search |
-| [HeavySwarm](docs riferimento) | Analisi 5-fasi Grok-style |
-| [SocialAlgorithm](docs riferimento) | Callable custom per orchestrazione team |
-| [MCP Integration](TUTORIALS/MCP_INTEGRATION.md) | Supporto Streamable HTTP + resources/list |
+| Funzionalità | Descrizione | Documentazione |
+|-------------|-------------|----------------|
+| **Agent Memory Store** | Memoria L1/L2/L3 con pointer cache | `CORE_CONCEPTS.md` |
+| **Token Budget Tracker** | Budget 4K token con compressione automatica | `CORE_CONCEPTS.md` |
+| **Content Pointer Cache** | Hash SHA-256, skip già inviato, risparmio ~70% | `CORE_CONCEPTS.md` |
+| **Workflow Checkpoint** | Recovery sessioni interrotte con hash chain | `CORE_CONCEPTS.md` |
+| **SemanticFact** | Fatti cross-sessione con embedding (pgvector) | `CORE_CONCEPTS.md` |
+| **AutoSwarm** | Swarm zero-config con analisi goal via LLM | `TUTORIALS/AUTO_SWARM.md` |
+| **AgentRearrange** | DAG flow con sintassi einsum | `TUTORIALS/MCP_INTEGRATION.md` |
+| **HeavySwarm** | Analisi 5-fasi Grok-style | (docs riferimento) |
+| **MCP Streamable HTTP** | Supporto Streamable HTTP | `TUTORIALS/MCP_INTEGRATION.md` |
 
 ## Prossimi passi
 

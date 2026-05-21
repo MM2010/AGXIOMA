@@ -1,20 +1,23 @@
-# Interfaces — AGXIOME
+# Interfaces — AGXIOME Adapters
 
-Exponi agenti AGXIOME su Slack, Telegram, WhatsApp, Discord, AG-UI, A2A, MCP.
+Esponi agenti AGXIOME su canali esterni: Slack, Telegram, WhatsApp, Discord, AG-UI, A2A, MCP.
+
+**Progetto**: `src/AGXIOME.Adapters` (ex `AGXIOME.Interfaces`)  
+**Namespace radice**: `AGXIOME.Adapters`
 
 ---
 
 ## Provider supportati
 
 | Interfaccia | Namespace | Classe | Backend |
-|-----------|-----------|--------|---------|
-| **AG-UI** | `AGXIOME.Interfaces.AgUi` | `AgUiHost` | Web (Minimal API / SignalR) |
-| **Slack** | `AGXIOME.Interfaces.Slack` | `SlackBot` | Slack Events API |
-| **Telegram** | `AGXIOME.Interfaces.Telegram` | `TelegramBot` | Telegram Bot API |
-| **WhatsApp** | `AGXIOME.Interfaces.WhatsApp` | `WhatsAppBot` | WhatsApp Cloud API |
-| **Discord** | `AGXIOME.Interfaces.Discord` | `DiscordBot` | Discord Interactions API |
-| **A2A** | `AGXIOME.Interfaces.A2A` | `A2AClient` / `A2AServerHandler` | Agent-to-Agent JSON-RPC |
-| **MCP** | `AGXIOME.Interfaces.Mcp` | `McpServer` | Model Context Protocol |
+|------------|-----------|--------|---------|
+| **AG-UI** | `AGXIOME.Adapters.AgUi` | `AgUiHost` | Web (Minimal API / SignalR) |
+| **Slack** | `AGXIOME.Adapters.Slack` | `SlackBot` | Slack Events API |
+| **Telegram** | `AGXIOME.Adapters.Telegram` | `TelegramBot` | Telegram Bot API |
+| **WhatsApp** | `AGXIOME.Adapters.WhatsApp` | `WhatsAppBot` | WhatsApp Cloud API |
+| **Discord** | `AGXIOME.Adapters.Discord` | `DiscordBot` | Discord Interactions API |
+| **A2A** | `AGXIOME.Adapters.A2A` | `A2AProtocol` | Agent-to-Agent JSON-RPC |
+| **MCP** | `AGXIOME.Adapters.Mcp` | `McpServer` | Model Context Protocol |
 
 ---
 
@@ -23,7 +26,7 @@ Exponi agenti AGXIOME su Slack, Telegram, WhatsApp, Discord, AG-UI, A2A, MCP.
 ChatGPT-like web interface per agenti AGXIOME.
 
 ```csharp
-var host = new AgUiHost();
+using AGXIOME.Adapters.AgUi;
 var session = host.CreateSession("user-1", agent);
 
 // Bloccante

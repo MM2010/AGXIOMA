@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 using AGXIOME.Core.Agent;
 using AGXIOME.Shared.Interfaces;
 
-namespace AGXIOME.Core.Storage;
+namespace AGXIOME.Storage.Agent;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SS-02 — Agent Storage Bridge

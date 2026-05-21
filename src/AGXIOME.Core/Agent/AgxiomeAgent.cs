@@ -43,7 +43,7 @@ public sealed class AgxiomeAgent : IAgxiomeAgent, IAsyncDisposable
         Id = id; _engine = engine; _config = config; _log = log;
         _axiomeLog = AgxiomeLoggerFactory.Default($"AGXIOME.Core.Agent.{id}");
         _tools = new ToolRegistry();
-        Memory = new AgentMemoryManager(config.Persistence);
+        Memory = new AgentMemoryManager(); // In-memory by default; override via DI for production
         _axiomeLog.Information("Agent '{0}' created (engine={1})", id, engine?.GetType().Name ?? "none");
     }
 

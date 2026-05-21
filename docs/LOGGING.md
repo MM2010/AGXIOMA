@@ -45,7 +45,7 @@ factory.Configure(new LoggingConfig
         new() { Module = "AGXIOME.Core.Agent.*", MinimumLevel = LogLevel.Debug },
 
         // Warning per LLM
-        new() { Module = "AGXIOME.LLMWIKY*", MinimumLevel = LogLevel.Warning },
+        new() { Module = "AGXIOME.LlmWiky*", MinimumLevel = LogLevel.Warning },
 
         // Silenzia Storage
         new() { Module = "AGXIOME.Storage.*", MinimumLevel = LogLevel.Exception },

@@ -36,7 +36,7 @@ agxiome memory search "query text" --dir ./my-memory
 ## Programmatic Usage
 
 ```csharp
-using AGXIOME.Core.Storage;
+using AGXIOME.Storage.Knowledge;
 using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Models;
 

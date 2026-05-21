@@ -6,6 +6,7 @@
     <RootNamespace>AgxiomaMultiAgentTeam</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="AGXIOME" Version="1.0.0-*" />
+        <ProjectReference Include="..\..\src\AGXIOME.Core\AGXIOME.Core.csproj" />
+    <ProjectReference Include="..\..\src\AGXIOME.Shared\AGXIOME.Shared.csproj" />
   </ItemGroup>
 </Project>

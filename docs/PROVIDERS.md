@@ -47,7 +47,7 @@ new LLMWIKYConfig
 new LLMWIKYConfig
 {
     Provider = "DeepSeek",
-    Model = "deepseek-chat",        // o deepseek-reasoner, deepseek-coder
+    Model = "deepseek-v4-flash",    // o deepseek-chat, deepseek-reasoner
     ApiKey = Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY")
 }
 ```

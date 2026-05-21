@@ -21,7 +21,14 @@ AGXIOME is a .NET 10 agentic AI orchestration framework with 18 projects, 319+ s
 | ✅ Docker + Helm | Complete |
 | ✅ Vision/Multimodal | Complete |
 | ✅ Marketplace skeleton | Complete |
-| ✅ ROADMAP.md | Complete |
+| ✅ Namespace refactoring (LLMWIKY→LlmWiky, Interfaces→Adapters) | Complete |
+| ✅ Agent Memory System (L1/L2/L3 + Pointer Cache) | Complete |
+| ✅ Token Budget Tracker + ContextAssembler | Complete |
+| ✅ Content-addressable pointer cache | Complete |
+| ✅ Workflow Checkpoint + Session Recovery | Complete |
+| ✅ Episodic/Semantic/Procedural memory split | Complete |
+| ✅ ICacheStore abstraction (svincola Core da Redis) | Complete |
+| ✅ SemanticFact cross-session memory | Complete |
 
 **Target: 143/150 (95%)**
 

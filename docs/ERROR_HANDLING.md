@@ -29,7 +29,7 @@ AgxiomeException
 ```
 [ERR-0101] Agent 'agent-1' run failed: TimeoutException: LLM did not respond...
    at AGXIOME.Core.Agent.AgxiomeAgent.RunAsync(...)
-   at AGXIOME.LLMWIKY.LLMWIKYEngine.InferAsync(...)
+   at AGXIOME.LlmWiky.LLMWIKYEngine.InferAsync(...)
 ```
 
 ## Codici errore

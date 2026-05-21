@@ -1,7 +1,7 @@
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
-namespace AGXIOME.Core.Storage;
+namespace AGXIOME.Core.Orchestration;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SS-10 — Distributed RAG Team
