@@ -78,4 +78,18 @@ public sealed class ClickHouseCommandStore : ICommandStore
         var prop = typeof(T).GetProperty("Id");
         return prop?.GetValue(entity)?.ToString() ?? string.Empty;
     }
+
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            await using var conn = new ClickHouseConnection(_opts.ConnectionString);
+            await conn.OpenAsync(ct);
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT 1";
+            await cmd.ExecuteScalarAsync(ct);
+            return true;
+        }
+        catch { return false; }
+    }
 }

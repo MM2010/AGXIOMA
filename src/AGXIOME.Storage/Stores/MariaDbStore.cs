@@ -1,4 +1,5 @@
 using AGXIOME.Shared.Interfaces;
+using AGXIOME.Shared.Models;
 using Dapper;
 using MySqlConnector; // MariaDB is wire-compatible with MySQL
 
@@ -13,6 +14,8 @@ namespace AGXIOME.Storage.Stores;
 public sealed class MariaDbStore : ICommandStore
 {
     private readonly string _connectionString;
+
+    public StorageProviderType ProviderType => StorageProviderType.MariaDB;
 
     public MariaDbStore(string connectionString) => _connectionString = connectionString;
 
@@ -53,5 +56,17 @@ public sealed class MariaDbStore : ICommandStore
         var cols = string.Join(", ", props.Select(p => $"`{p.Name.ToLower()}`"));
         var vals = string.Join(", ", props.Select(p => "@" + p.Name));
         return string.Format(format, table, cols, vals);
+    }
+
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            await using var conn = new MySqlConnection(_connectionString);
+            await conn.OpenAsync(ct);
+            await conn.ExecuteScalarAsync<int>("SELECT 1");
+            return true;
+        }
+        catch { return false; }
     }
 }

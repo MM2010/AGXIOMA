@@ -59,6 +59,18 @@ public abstract class NpgsqlCommandStoreBase : ICommandStore
         typeof(T).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
 
     private static string TableName<T>() => typeof(T).Name.ToLowerInvariant() + "s";
+
+    public virtual async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync(ct);
+            await conn.ExecuteScalarAsync<int>("SELECT 1");
+            return true;
+        }
+        catch { return false; }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -85,5 +85,16 @@ public sealed class SqliteCommandStore : ICommandStore, IDisposable
 
     private static string TableName<T>() => typeof(T).Name + "s";
 
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            await using var conn = new SqliteConnection(_opts.ConnectionString);
+            await conn.OpenAsync(ct);
+            return true;
+        }
+        catch { return false; }
+    }
+
     public void Dispose() { /* Connection per-call; nothing to dispose at store level. */ }
 }

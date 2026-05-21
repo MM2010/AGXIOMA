@@ -4,12 +4,14 @@ using AGXIOME.Shared.Models;
 
 namespace AGXIOME.Core.Tools;
 
-/// <summary>Thread-safe tool registry. Global + per-agent tool sets.</summary>
-public sealed class ToolRegistry : IToolRegistry
+/// <summary>Thread-safe tool registry. Global + per-agent tool sets.
+/// Also implements <see cref="IToolExecutor"/> via an optional <see cref="ToolExecutionPipeline"/>.</summary>
+public sealed class ToolRegistry : IToolRegistry, IToolExecutor
 {
     private readonly ConcurrentDictionary<string, IAgxiomeTool> _global = new();
     private readonly ConcurrentDictionary<string, HashSet<string>> _perAgent = new();
     private readonly List<IToolHook> _toolHooks = new();
+    private ToolExecutionPipeline? _pipeline;
 
     public void Register<T>() where T : IAgxiomeTool
     {
@@ -49,6 +51,30 @@ public sealed class ToolRegistry : IToolRegistry
     }
 
     public void AddToolHook(IToolHook hook) => _toolHooks.Add(hook);
+
+    /// <summary>
+    /// Attach a <see cref="ToolExecutionPipeline"/> to enable the full P11 infrastructure
+    /// (filter, limits, cache, metrics) on every <see cref="IToolExecutor.ExecuteAsync"/> call.
+    /// Without a pipeline, <see cref="IToolExecutor.ExecuteAsync"/> delegates directly to the tool.
+    /// </summary>
+    public void AttachPipeline(ToolExecutionPipeline pipeline) => _pipeline = pipeline;
+
+    /// <inheritdoc/>
+    public Task<ToolResult> ExecuteAsync(string toolName, ToolContext context, CancellationToken ct = default)
+    {
+        // If a pipeline is attached, route through it (filter → limits → cache → execute → metrics)
+        if (_pipeline is not null)
+            return _pipeline.ExecuteAsync(toolName, context, ct);
+
+        // Fallback: direct execution without middleware
+        var tool = _global.GetValueOrDefault(toolName);
+        return tool switch
+        {
+            null                       => Task.FromResult(new ToolResult(false, null, $"Tool '{toolName}' is not registered.")),
+            IAgxiomeExecutableTool et  => et.ExecuteAsync(context, ct),
+            _                          => Task.FromResult(new ToolResult(false, null, $"Tool '{toolName}' is not executable."))
+        };
+    }
 }
 
 public static class ToolRegistryExtensions

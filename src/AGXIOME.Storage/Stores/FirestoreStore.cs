@@ -88,4 +88,16 @@ public sealed class FirestoreCommandStore : ICommandStore
         var id    = idProp?.GetValue(entity)?.ToString() ?? Guid.NewGuid().ToString();
         return (coll, id);
     }
+
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            // Attempt to read a non-existent document — successful response means Firestore is reachable.
+            var probe = _db.Collection("_health_").Document("_probe_");
+            _ = await probe.GetSnapshotAsync(ct);
+            return true;
+        }
+        catch { return false; }
+    }
 }

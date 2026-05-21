@@ -109,5 +109,17 @@ public sealed class DuckDbCommandStore : ICommandStore, IDisposable
 
     private static string TableName<T>() => typeof(T).Name.ToLowerInvariant() + "s";
 
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            using var cmd = _conn.CreateCommand();
+            cmd.CommandText = "SELECT 1";
+            _ = cmd.ExecuteScalar();
+            return true;
+        }
+        catch { return false; }
+    }
+
     public void Dispose() => _conn.Dispose();
 }

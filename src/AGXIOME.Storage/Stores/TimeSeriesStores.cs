@@ -89,6 +89,15 @@ public sealed class InfluxDbCommandStore : ICommandStore, IDisposable
 
     private static string Measurement<T>() => typeof(T).Name.ToLowerInvariant();
 
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            return await _client.PingAsync();
+        }
+        catch { return false; }
+    }
+
     public void Dispose() => _client.Dispose();
 }
 
@@ -175,5 +184,15 @@ public sealed class QuestDbCommandStore : ICommandStore
     {
         var prop = typeof(T).GetProperty("Id");
         return prop?.GetValue(entity)?.ToString() ?? Guid.NewGuid().ToString();
+    }
+
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var res = await _http.GetAsync("/exec?query=SELECT+1", ct);
+            return res.IsSuccessStatusCode;
+        }
+        catch { return false; }
     }
 }

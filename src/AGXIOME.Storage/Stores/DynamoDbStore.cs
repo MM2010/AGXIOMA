@@ -93,4 +93,10 @@ public sealed class DynamoDbCommandStore : ICommandStore
         }
         return result;
     }
+
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try { await _client.ListTablesAsync(new ListTablesRequest { Limit = 1 }, ct); return true; }
+        catch { return false; }
+    }
 }

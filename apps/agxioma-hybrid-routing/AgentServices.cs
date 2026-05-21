@@ -16,41 +16,16 @@ public record SupportResponse(
     string Duration,
     object? RoutingDiagnostics = null);
 
-// ─── Conversation history ─────────────────────────────────────────────────────
+// ─── Conversation models ──────────────────────────────────────────────────────
 
 public record ConversationMessage(string Role, string Content);
 
-// ─── Session store ────────────────────────────────────────────────────────────
-
-public sealed class SupportSessionStore
+/// <summary>Serializable session state stored via ISessionStore&lt;ConversationSession&gt;.</summary>
+public record ConversationSession
 {
-    private readonly Dictionary<string, List<ConversationMessage>> _sessions = new();
-    private readonly object _lock = new();
-
-    public List<ConversationMessage> Get(string sessionId)
-    {
-        lock (_lock)
-        {
-            if (!_sessions.TryGetValue(sessionId, out var history))
-            {
-                history = new List<ConversationMessage>();
-                _sessions[sessionId] = history;
-            }
-            return history;
-        }
-    }
-
-    public void Append(string sessionId, string role, string content)
-    {
-        lock (_lock)
-        {
-            var history = Get(sessionId);
-            history.Add(new ConversationMessage(role, content));
-            // Keep last 20 turns to avoid unbounded growth
-            if (history.Count > 20)
-                history.RemoveAt(0);
-        }
-    }
+    public string SessionId { get; init; } = string.Empty;
+    public List<ConversationMessage> Messages { get; init; } = new();
+    public DateTime LastActive { get; init; } = DateTime.UtcNow;
 }
 
 // ─── App configuration ────────────────────────────────────────────────────────

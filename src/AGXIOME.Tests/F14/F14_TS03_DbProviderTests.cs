@@ -98,7 +98,7 @@ public sealed class TS03_PostgresContractTests
 
     [Fact] public async Task Constructor_NullString_DoesNotCrashRuntime()
     {
-        try { _ = new PostgresCommandStore(null!); }
+        try { _ = new PostgresCommandStore((string)null!); }
         catch (Exception) { /* acceptable */ }
     }
 

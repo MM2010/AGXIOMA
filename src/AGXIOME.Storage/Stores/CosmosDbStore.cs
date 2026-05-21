@@ -52,5 +52,15 @@ public sealed class CosmosDbCommandStore : ICommandStore, IDisposable
         await _container.DeleteItemAsync<T>(id, partitionKey, cancellationToken: ct);
     }
 
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            await _client.GetDatabaseQueryIterator<dynamic>("SELECT VALUE 1").ReadNextAsync(ct);
+            return true;
+        }
+        catch { return false; }
+    }
+
     public void Dispose() => _client.Dispose();
 }

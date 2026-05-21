@@ -1,16 +1,39 @@
 using AGXIOME.Shared.Interfaces;
+using AGXIOME.Shared.Models;
 using Dapper;
 using Npgsql;
 
 namespace AGXIOME.Storage.Stores;
+
+public sealed record PostgresStoreOptions
+{
+    public required string ConnectionString { get; init; }
+}
 
 /// <summary>PostgreSQL command store. All writes go through this.</summary>
 public sealed class PostgresCommandStore : ICommandStore
 {
     private readonly string _connectionString;
 
+    public StorageProviderType ProviderType => StorageProviderType.PostgreSQL;
+
     public PostgresCommandStore(string connectionString)
         => _connectionString = connectionString;
+
+    public PostgresCommandStore(PostgresStoreOptions opts)
+        => _connectionString = (opts ?? throw new ArgumentNullException(nameof(opts))).ConnectionString;
+
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync(ct);
+            await conn.ExecuteScalarAsync<int>("SELECT 1");
+            return true;
+        }
+        catch { return false; }
+    }
 
     public async Task SaveAsync<T>(T entity, CancellationToken ct = default) where T : class
     {

@@ -57,6 +57,12 @@ public sealed class RedisSessionStore : ICommandStore, IDisposable
 
     private RedisKey BuildKey<T>(string id) => $"{_opts.KeyPrefix}:{typeof(T).Name}:{id}";
 
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try { return await _db.PingAsync() >= TimeSpan.Zero; }
+        catch { return false; }
+    }
+
     private static string GetId<T>(T entity)
     {
         var prop = typeof(T).GetProperty("Id");

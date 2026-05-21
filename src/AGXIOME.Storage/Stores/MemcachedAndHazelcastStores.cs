@@ -89,6 +89,17 @@ public sealed class MemcachedCommandStore : ICommandStore
         await stream.WriteAsync(cmd);
         await stream.FlushAsync();
     }
+
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            using var tcp = new System.Net.Sockets.TcpClient();
+            await tcp.ConnectAsync(_opts.Host, _opts.Port, ct);
+            return tcp.Connected;
+        }
+        catch { return false; }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -160,6 +171,17 @@ public sealed class HazelcastCommandStore : ICommandStore, IAsyncDisposable
     {
         var prop = typeof(T).GetProperty("Id");
         return prop?.GetValue(entity)?.ToString() ?? Guid.NewGuid().ToString();
+    }
+
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var map = await GetMapAsync(ct);
+            _ = map.Name;
+            return true;
+        }
+        catch { return false; }
     }
 
     public async ValueTask DisposeAsync()

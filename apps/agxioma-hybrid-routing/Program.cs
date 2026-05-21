@@ -1,6 +1,9 @@
 using AGXIOME.Core;
 using AGXIOME.Core.DependencyInjection;
+using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
+using AGXIOME.Storage.DependencyInjection;
+using AGXIOME.Storage.Session;
 using AgxiomaHybridRouting.AgentServices;
 using AgxiomaHybridRouting.Routing;
 using Microsoft.Extensions.Logging;
@@ -155,7 +158,15 @@ var hybridConfig = new HybridForestSwarmConfig
 
 // ── Register services ─────────────────────────────────────────────────────────
 
-builder.Services.AddSingleton<SupportSessionStore>();
+// ISessionStore<ConversationSession> — backend agnostico selezionato da config.
+// Default: SQLite embedded. Swap con:
+//   .AddAgxiomeRedisSessionStore<ConversationSession>(connStr)
+//   .AddAgxiomePostgresSessionStore<ConversationSession>(connStr)
+//   .AddAgxiomeInMemorySessionStore<ConversationSession>()
+var sessionConnStr = builder.Configuration.GetConnectionString("SessionStore")
+    ?? $"Data Source={Path.Combine(Path.GetTempPath(), "agxioma-hybrid-routing.db")};Pooling=False";
+
+builder.Services.AddAgxiomeSqliteSessionStore<ConversationSession>(sessionConnStr);
 
 builder.Services.AddSingleton<IRouteEmbedder>(sp =>
 {
@@ -235,18 +246,26 @@ app.MapGet("/health", (HybridForestSwarm swarm, IRouteEmbedder embedder) =>
 app.MapPost("/support", async (
     SupportRequest req,
     HybridForestSwarm swarm,
-    SupportSessionStore sessions,
+    ISessionStore<ConversationSession> sessions,
     CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(req.Message))
         return Results.BadRequest(new { error = "Message cannot be empty." });
 
-    var history = sessions.Get(req.SessionId);
-    sessions.Append(req.SessionId, "user", req.Message);
+    var session = await sessions.GetAsync(req.SessionId, ct)
+        ?? new ConversationSession { SessionId = req.SessionId };
 
+    var history = session.Messages;
     var result = await swarm.RunAsync(req.Message, history, ct);
 
-    sessions.Append(req.SessionId, "assistant", result.Output);
+    var updated = session with
+    {
+        Messages   = history.Append(new ConversationMessage("user", req.Message))
+                            .Append(new ConversationMessage("assistant", result.Output))
+                            .TakeLast(20).ToList(),
+        LastActive = DateTime.UtcNow
+    };
+    await sessions.SetAsync(req.SessionId, updated, ct);
 
     var matchedKw = result.RoutingDecision.Candidates.Count > 0
         ? result.RoutingDecision.Candidates[0].MatchedKeywords
@@ -269,13 +288,14 @@ app.MapPost("/support", async (
 app.MapPost("/route/diagnose", async (
     SupportRequest req,
     HybridForestSwarm swarm,
-    SupportSessionStore sessions,
+    ISessionStore<ConversationSession> sessions,
     CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(req.Message))
         return Results.BadRequest(new { error = "Message cannot be empty." });
 
-    var history  = sessions.Get(req.SessionId);
+    var session  = await sessions.GetAsync(req.SessionId, ct);
+    var history  = session?.Messages ?? new List<ConversationMessage>();
     var decision = await swarm.DiagnoseAsync(req.Message, history, ct);
 
     return Results.Ok(new

@@ -71,6 +71,17 @@ public sealed class RavenDbCommandStore : ICommandStore, IDisposable
         return prop?.GetValue(entity)?.ToString() ?? Guid.NewGuid().ToString();
     }
 
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            using var session = _store.OpenSession();
+            _ = session.Advanced.DocumentStore.Identifier;
+            return true;
+        }
+        catch { return false; }
+    }
+
     public void Dispose() => _store.Dispose();
 }
 
@@ -146,6 +157,17 @@ public sealed class CouchbaseCommandStore : ICommandStore, IAsyncDisposable
     {
         var prop = typeof(T).GetProperty("Id");
         return prop?.GetValue(entity)?.ToString() ?? Guid.NewGuid().ToString();
+    }
+
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var col = await GetCollectionAsync(ct);
+            _ = col.Name;
+            return true;
+        }
+        catch { return false; }
     }
 
     public async ValueTask DisposeAsync()

@@ -1,5 +1,7 @@
 using AGXIOME.Shared.Interfaces;
+using AGXIOME.Shared.Models;
 using AGXIOME.Storage.Embedders;
+using AGXIOME.Storage.Session;
 using AGXIOME.Storage.VectorStores;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -121,6 +123,97 @@ public static class AgxiomeInfraExtensions
 
         services.AddSingleton<IVectorStore>(_ => new PgVectorStore(connectionString));
 
+        return services;
+    }
+
+    // ── IStoreFactory ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Registers <see cref="StoreFactory"/> as <see cref="IStoreFactory"/>.
+    /// Must be called after all <see cref="ICommandStore"/> implementations are registered.
+    /// The factory allows agnostic provider selection at runtime:
+    /// <code>var store = factory.GetStore(StorageProviderType.SQLite);</code>
+    /// </summary>
+    public static IServiceCollection AddAgxiomeStoreFactory(this IServiceCollection services)
+    {
+        services.AddSingleton<IStoreFactory>(sp =>
+            new StoreFactory(sp.GetServices<ICommandStore>()));
+        return services;
+    }
+
+    // ── ISessionStore<T> adapters ─────────────────────────────────────────────
+
+    /// <summary>Registers a volatile <see cref="InMemorySessionStore{T}"/>. Zero infrastructure, dev/test only.</summary>
+    public static IServiceCollection AddAgxiomeInMemorySessionStore<T>(
+        this IServiceCollection services) where T : class
+    {
+        services.AddSingleton<ISessionStore<T>, InMemorySessionStore<T>>();
+        return services;
+    }
+
+    /// <summary>Registers a SQLite-backed <see cref="SqliteSessionStore{T}"/>. Embedded, zero-server.</summary>
+    public static IServiceCollection AddAgxiomeSqliteSessionStore<T>(
+        this IServiceCollection services,
+        string connectionString,
+        string tableName = "agxiome_sessions") where T : class
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        services.AddSingleton<ISessionStore<T>>(_ =>
+            new SqliteSessionStore<T>(new SqliteSessionStoreOptions
+            {
+                ConnectionString = connectionString,
+                TableName        = tableName
+            }));
+        return services;
+    }
+
+    /// <summary>Registers a Redis-backed <see cref="RedisSessionStoreAdapter{T}"/>. Distributed, production-grade.</summary>
+    public static IServiceCollection AddAgxiomeRedisSessionStore<T>(
+        this IServiceCollection services,
+        string connectionString,
+        string keyPrefix = "agxioma:session",
+        TimeSpan? expiry = null) where T : class
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        services.AddSingleton<ISessionStore<T>>(_ =>
+            new RedisSessionStoreAdapter<T>(new RedisSessionAdapterOptions
+            {
+                ConnectionString = connectionString,
+                KeyPrefix        = keyPrefix,
+                Expiry           = expiry
+            }));
+        return services;
+    }
+
+    /// <summary>Registers a PostgreSQL-backed <see cref="PostgresSessionStore{T}"/>. ACID, multi-tenant.</summary>
+    public static IServiceCollection AddAgxiomePostgresSessionStore<T>(
+        this IServiceCollection services,
+        string connectionString,
+        string tableName  = "agxiome_sessions",
+        string schemaName = "public") where T : class
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        services.AddSingleton<ISessionStore<T>>(_ =>
+            new PostgresSessionStore<T>(new PostgresSessionStoreOptions
+            {
+                ConnectionString = connectionString,
+                TableName        = tableName,
+                SchemaName       = schemaName
+            }));
+        return services;
+    }
+
+    /// <summary>Registers a JSON-file-backed <see cref="JsonFileSessionStore{T}"/>. Zero infrastructure.</summary>
+    public static IServiceCollection AddAgxiomeJsonFileSessionStore<T>(
+        this IServiceCollection services,
+        string baseDirectory) where T : class
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(baseDirectory);
+        services.AddSingleton<ISessionStore<T>>(_ =>
+            new JsonFileSessionStore<T>(new JsonFileSessionStoreOptions
+            {
+                BaseDirectory = baseDirectory
+            }));
         return services;
     }
 }

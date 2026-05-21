@@ -68,5 +68,16 @@ public sealed class EtcdCommandStore : ICommandStore, IDisposable
         return prop?.GetValue(entity)?.ToString() ?? Guid.NewGuid().ToString();
     }
 
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            // etcd gRPC health: list KV with range limit 1
+            await _client.GetAsync(new Etcdserverpb.RangeRequest { Key = Google.Protobuf.ByteString.CopyFromUtf8("/"), RangeEnd = Google.Protobuf.ByteString.CopyFromUtf8("0"), Limit = 1 }, cancellationToken: ct);
+            return true;
+        }
+        catch { return false; }
+    }
+
     public void Dispose() => _client.Dispose();
 }

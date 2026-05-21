@@ -77,6 +77,16 @@ public sealed class ElasticsearchCommandStore : ICommandStore
         var prop = typeof(T).GetProperty("Id");
         return prop?.GetValue(entity)?.ToString() ?? Guid.NewGuid().ToString();
     }
+
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var ping = await _client.PingAsync(ct);
+            return ping.IsValidResponse;
+        }
+        catch { return false; }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -124,4 +134,14 @@ public sealed class MeilisearchCommandStore : ICommandStore
     }
 
     private string IndexName<T>() => $"{_opts.IndexPrefix}-{typeof(T).Name.ToLowerInvariant()}";
+
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var res = await _meili.HealthAsync(ct);
+            return res.Status == "available";
+        }
+        catch { return false; }
+    }
 }

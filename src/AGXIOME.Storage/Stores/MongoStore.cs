@@ -1,4 +1,5 @@
 using AGXIOME.Shared.Interfaces;
+using AGXIOME.Shared.Models;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
@@ -9,11 +10,14 @@ namespace AGXIOME.Storage.Stores;
 public sealed class MongoStore : ICommandStore
 {
     private readonly IMongoDatabase _db;
+    private readonly MongoClient _client;
+
+    public StorageProviderType ProviderType => StorageProviderType.MongoDB;
 
     public MongoStore(string connectionString, string databaseName = "agxiome")
     {
-        var client = new MongoClient(connectionString);
-        _db = client.GetDatabase(databaseName);
+        _client = new MongoClient(connectionString);
+        _db = _client.GetDatabase(databaseName);
     }
 
     public async Task SaveAsync<T>(T entity, CancellationToken ct = default) where T : class
@@ -58,6 +62,17 @@ public sealed class MongoStore : ICommandStore
     {
         var prop = typeof(T).GetProperty("Id") ?? typeof(T).GetProperty("id");
         return prop?.GetValue(entity)?.ToString();
+    }
+
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            await _db.RunCommandAsync<MongoDB.Bson.BsonDocument>(
+                new MongoDB.Bson.BsonDocument("ping", 1), cancellationToken: ct);
+            return true;
+        }
+        catch { return false; }
     }
 }
 

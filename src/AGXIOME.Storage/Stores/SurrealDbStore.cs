@@ -74,4 +74,14 @@ public sealed class SurrealDbCommandStore : ICommandStore
         var prop = typeof(T).GetProperty("Id");
         return prop?.GetValue(entity)?.ToString() ?? Guid.NewGuid().ToString();
     }
+
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var res = await _http.GetAsync("/health", ct);
+            return res.IsSuccessStatusCode;
+        }
+        catch { return false; }
+    }
 }

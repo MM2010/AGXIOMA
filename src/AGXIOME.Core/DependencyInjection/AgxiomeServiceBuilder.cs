@@ -1,4 +1,6 @@
+using AGXIOME.Core.Execution;
 using AGXIOME.Core.Patterns;
+using AGXIOME.Core.Tools;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 using Microsoft.Extensions.DependencyInjection;
@@ -91,6 +93,111 @@ public sealed class AgxiomeServiceBuilder
         var hb = new HeavySwarmBuilder(name, _provider, _model, _apiKey);
         configure(hb);
         Services.AddSingleton(hb.Build());
+        return this;
+    }
+
+    // ── P09 / P11 Infrastructure ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Register the <see cref="AgentRunPipeline"/> and its P09 cross-cutting components:
+    /// <see cref="AGXIOME.Core.Execution.CancellationManager"/>,
+    /// <see cref="AGXIOME.Core.LLM.TokenCounter"/>, and optionally
+    /// <see cref="AGXIOME.Core.LLM.ResponseCache"/>.
+    /// <para>
+    /// After registration, resolve <see cref="IAgentRunPipeline"/> in place of running agents directly.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// builder.Services.AddAgxiome(o => o.UseDeepSeek(apiKey).AddAgent("assistant"))
+    ///     .AddExecutionPipeline(o => o with { EnableResponseCache = true });
+    /// </code>
+    /// </example>
+    /// </summary>
+    public AgxiomeServiceBuilder AddExecutionPipeline(
+        Func<AgentRunPipelineOptions, AgentRunPipelineOptions>? configure = null)
+    {
+        var opts = new AgentRunPipelineOptions();
+        if (configure is not null) opts = configure(opts);
+
+        Services.AddSingleton(opts);
+        Services.AddSingleton<AGXIOME.Core.Execution.ICancellationManager, AGXIOME.Core.Execution.CancellationManager>();
+        Services.AddSingleton<AGXIOME.Core.LLM.TokenCounter>();
+
+        if (opts.EnableResponseCache)
+            Services.AddSingleton<AGXIOME.Core.LLM.ResponseCache>();
+
+        // BackgroundRunWorker requires IAgxiomeAgent — register lazily so agent is resolved first.
+        Services.AddSingleton<AGXIOME.Core.Execution.IBackgroundRunWorker>(sp =>
+        {
+            var agent = sp.GetService<IAgxiomeAgent>();
+            return agent is not null
+                ? new AGXIOME.Core.Execution.BackgroundRunWorker(agent)
+                : throw new InvalidOperationException(
+                    "IAgxiomeAgent must be registered before resolving IBackgroundRunWorker. " +
+                    "Call .AddAgent() before .AddExecutionPipeline().");
+        });
+
+        // Main pipeline — all optional services resolved from DI.
+        Services.AddSingleton<IAgentRunPipeline>(sp =>
+        {
+            var agent   = sp.GetRequiredService<IAgxiomeAgent>();
+            var options = sp.GetRequiredService<AgentRunPipelineOptions>();
+            return new AgentRunPipeline(
+                agent,
+                options,
+                responseCache:       sp.GetService<AGXIOME.Core.LLM.ResponseCache>(),
+                cancellationManager: sp.GetService<AGXIOME.Core.Execution.ICancellationManager>(),
+                tokenCounter:        sp.GetService<AGXIOME.Core.LLM.TokenCounter>(),
+                backgroundWorker:    sp.GetService<AGXIOME.Core.Execution.IBackgroundRunWorker>());
+        });
+
+        return this;
+    }
+
+    /// <summary>
+    /// Register the <see cref="ToolExecutionPipeline"/> and all P11 tool infrastructure components:
+    /// <see cref="IToolFilter"/>, <see cref="IToolCallLimiter"/>,
+    /// <see cref="IToolMetricsCollector"/>, and optionally <see cref="IToolResultCache"/>.
+    /// <para>
+    /// Also registers a <see cref="ToolRegistry"/> that implements both
+    /// <see cref="IToolRegistry"/> and <see cref="IToolExecutor"/>,
+    /// wired with the pipeline automatically.
+    /// </para>
+    /// </summary>
+    public AgxiomeServiceBuilder AddToolInfra(
+        Func<ToolExecutionPipelineOptions, ToolExecutionPipelineOptions>? configure = null)
+    {
+        var opts = new ToolExecutionPipelineOptions();
+        if (configure is not null) opts = configure(opts);
+
+        Services.AddSingleton(opts);
+
+        // Infrastructure singletons
+        Services.AddSingleton<IToolFilter, ToolFilter>();
+        Services.AddSingleton<IToolCallLimiter, ToolCallLimiter>();
+        Services.AddSingleton<IToolMetricsCollector, ToolMetricsCollector>();
+
+        if (opts.EnableResultCache)
+            Services.AddSingleton<IToolResultCache, ToolResultCache>();
+
+        // Pipeline
+        Services.AddSingleton<ToolExecutionPipeline>(sp => new ToolExecutionPipeline(
+            sp.GetRequiredService<IToolRegistry>(),
+            sp.GetRequiredService<ToolExecutionPipelineOptions>(),
+            sp.GetService<IToolFilter>(),
+            sp.GetService<IToolCallLimiter>(),
+            sp.GetService<IToolResultCache>(),
+            sp.GetService<IToolMetricsCollector>()));
+
+        // IToolExecutor: resolve ToolRegistry and attach pipeline
+        Services.AddSingleton<IToolExecutor>(sp =>
+        {
+            var registry = sp.GetRequiredService<IToolRegistry>();
+            if (registry is ToolRegistry tr)
+                tr.AttachPipeline(sp.GetRequiredService<ToolExecutionPipeline>());
+            return (IToolExecutor)registry;
+        });
+
         return this;
     }
 }

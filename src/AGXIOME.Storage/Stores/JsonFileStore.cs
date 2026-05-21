@@ -100,5 +100,11 @@ public sealed class JsonFileCommandStore : ICommandStore, IDisposable
         return prop?.GetValue(entity)?.ToString() ?? Guid.NewGuid().ToString();
     }
 
+    public Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try { return Task.FromResult(Directory.Exists(_opts.BaseDirectory)); }
+        catch { return Task.FromResult(false); }
+    }
+
     public void Dispose() => _lock.Dispose();
 }

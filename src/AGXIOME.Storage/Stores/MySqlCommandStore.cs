@@ -1,4 +1,5 @@
 using AGXIOME.Shared.Interfaces;
+using AGXIOME.Shared.Models;
 using Dapper;
 using MySqlConnector;
 
@@ -8,6 +9,8 @@ namespace AGXIOME.Storage.Stores;
 public sealed class MySqlCommandStore : ICommandStore
 {
     private readonly string _connectionString;
+
+    public StorageProviderType ProviderType => StorageProviderType.MySQL;
 
     public MySqlCommandStore(string connectionString) => _connectionString = connectionString;
 
@@ -47,5 +50,17 @@ public sealed class MySqlCommandStore : ICommandStore
         var set = string.Join(", ", t.GetProperties().Where(p => p.Name != "Id")
             .Select(p => $"`{p.Name.ToLower()}` = @{p.Name}"));
         return $"UPDATE `{table}` SET {set} WHERE `id` = @Id";
+    }
+
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            await using var conn = new MySqlConnection(_connectionString);
+            await conn.OpenAsync(ct);
+            await conn.ExecuteScalarAsync<int>("SELECT 1");
+            return true;
+        }
+        catch { return false; }
     }
 }
