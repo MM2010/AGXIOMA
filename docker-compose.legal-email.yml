@@ -1,4 +1,16 @@
 services:
+  legal-seq:
+    image: datalust/seq:latest
+    container_name: agxioma-legal-seq
+    environment:
+      ACCEPT_EULA: Y
+      SEQ_FIRSTRUN_ADMINPASSWORD: ${SEQ_ADMIN_PASSWORD:-AgxiomaSeq2026!}
+    ports:
+      - "15341:5341"  # ingestion API → http://localhost:15341
+      - "18080:80"    # web UI        → http://localhost:18080
+    volumes:
+      - legal-seq-data:/data
+
   legal-postgres:
     image: pgvector/pgvector:pg17
     container_name: agxioma-legal-postgres
@@ -42,10 +54,14 @@ services:
       Legal__OllamaBaseUrl: http://host.docker.internal:11434
       ConnectionStrings__PostgreSQL: "Host=legal-postgres;Port=5432;Database=agxiome_legal;Username=agxiome;Password=agxiome_legal_pw"
       ConnectionStrings__Redis: "legal-redis:6379"
+      Serilog__WriteTo__1__Args__serverUrl: "http://legal-seq:5341"
+      Serilog__WriteTo__1__Args__apiKey: ${SEQ_INGESTION_KEY:-}
     depends_on:
       legal-postgres:
         condition: service_healthy
       legal-redis:
+        condition: service_started
+      legal-seq:
         condition: service_started
 
   legal-frontend:
@@ -61,3 +77,4 @@ volumes:
   legal-postgres-data:
   legal-redis-data:
   legal-wiki-data:
+  legal-seq-data:

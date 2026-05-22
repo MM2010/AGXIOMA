@@ -6,6 +6,7 @@ using AgxiomaLLMWiki;
 using AgxiomaLegalEmail.Hubs;
 using AgxiomaLegalEmail.Models;
 using Microsoft.AspNetCore.SignalR;
+using Serilog.Context;
 
 namespace AgxiomaLegalEmail.Services;
 
@@ -31,6 +32,7 @@ public sealed class PipelineOrchestrator
     private readonly IHubContext<PipelineHub, IPipelineHubClient> _hub;
     private readonly LegalQueryExpander? _expander;
     private readonly LegalConceptExtractor? _conceptExtractor;
+    private readonly LegalReranker? _reranker;
 
     public PipelineOrchestrator(
         ILogger<PipelineOrchestrator> log,
@@ -40,7 +42,8 @@ public sealed class PipelineOrchestrator
         IAgxiomeAgent? llm = null,
         IHubContext<PipelineHub, IPipelineHubClient>? hub = null,
         LegalQueryExpander? expander = null,
-        LegalConceptExtractor? conceptExtractor = null)
+        LegalConceptExtractor? conceptExtractor = null,
+        LegalReranker? reranker = null)
     {
         _log = log;
         _legalRouter = forests?.FirstOrDefault(s => string.Equals(s.Name, "legal-router", StringComparison.OrdinalIgnoreCase));
@@ -50,6 +53,7 @@ public sealed class PipelineOrchestrator
         _hub = hub!;
         _expander = expander;
         _conceptExtractor = conceptExtractor;
+        _reranker = reranker;
     }
 
     public string StartPipelineAsync(IngestEmailRequest req)
@@ -73,9 +77,14 @@ public sealed class PipelineOrchestrator
 
     private async Task RunPipelineAsync(string emailId, IngestEmailRequest req)
     {
+        using var _ = LogContext.PushProperty("EmailId", emailId);
+        using var _sender = LogContext.PushProperty("Sender", req.Sender);
+
         var ct = CancellationToken.None;
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var timeline = _timelines.GetOrAdd(emailId, []);
+
+        _log.LogInformation("PipelineStarted Subject={Subject} Sender={Sender}", req.Subject, req.Sender);
 
         // ── Phase 2: Categorized via ForestSwarm ──────────────────────────
         sw.Restart();
@@ -91,8 +100,9 @@ public sealed class PipelineOrchestrator
                 assignedTree = bestTree.TreeName;
                 assignedAgent = bestAgent.AgentId;
                 matchedKeywords = matched.ToArray();
-                _log.LogInformation("[{Id}] ForestSwarm → {Tree}/{Agent} [{Kw}]", emailId,
-                    assignedTree, assignedAgent, string.Join(",", matchedKeywords));
+                _log.LogInformation(
+                    "ForestSwarmRoute Tree={Tree} Agent={Agent} MatchedKeywords={@Keywords}",
+                    assignedTree, assignedAgent, matchedKeywords);
             }
             catch (Exception ex) { _log.LogWarning(ex, "[{Id}] ForestSwarm failed", emailId); }
         }
@@ -132,12 +142,17 @@ public sealed class PipelineOrchestrator
                 else
                     concepts = [req.Subject];  // fallback se servizio non registrato
 
-                _log.LogInformation("[{Id}] RAG multi-concept ({N}): {C}",
-                    emailId, concepts.Length, string.Join(" | ", concepts));
+                _log.LogInformation(
+                    "ConceptsExtracted Count={Count} Concepts={@Concepts}",
+                    concepts.Length, concepts);
 
-                // 2. Retrieve parallelo per ogni concetto (embed + pgvector, no LLM)
-                var retrieveTasks = concepts
-                    .Select(c => _wiki.RetrieveAsync(c, topK: 5, minScore: 0.25f, ct))
+                // 1b. QueryExpander disabled — Ollama too resource-constrained on local dev
+                // Re-enable when running on adequate hardware: expand each concept sequentially
+                string[] queryTerms = concepts;
+
+                // 2. Retrieve parallelo per ogni queryTerm espanso (embed + pgvector, no LLM)
+                var retrieveTasks = queryTerms
+                    .Select(q => _wiki.RetrieveAsync(q, topK: 5, minScore: 0.25f, ct))
                     .ToList();
                 var allResults = await Task.WhenAll(retrieveTasks);
 
@@ -152,22 +167,68 @@ public sealed class PipelineOrchestrator
 
                 if (deduped.Count > 0)
                 {
+                    // 3b. Re-rank with LLM cross-encoder (Ollama ~3-6s for top-5)
+                    List<(WikiPageChunk Source, float CombinedScore, float? RerankScore)>? reranked = null;
+                    if (_reranker != null && deduped.Count > 1)
+                    {
+                        var rerankQuery = $"{req.Subject}\n{string.Join("; ", concepts)}";
+                        reranked = await _reranker.RerankChunksAsync(rerankQuery, deduped, ct);
+                    }
+
                     // 4. Build unified context block (raw pages — Phase 5 LLM synthesizes)
                     var sb = new System.Text.StringBuilder();
-                    foreach (var p in deduped)
+                    if (reranked != null)
                     {
-                        sb.AppendLine($"### [{p.Slug}] {p.Title} (score: {p.Score:F3})");
-                        var trimmed = p.Content.Length > 2500 ? p.Content[..2500] + "\n… [truncated]" : p.Content;
-                        sb.AppendLine(trimmed);
-                        sb.AppendLine();
+                        foreach (var r in reranked.Take(7))
+                        {
+                            sb.AppendLine($"### [{r.Source.Slug}] {r.Source.Title} (combined: {r.CombinedScore:F3}  embed: {r.Source.Score:F3})");
+                            var trimmed = r.Source.Content.Length > 2500 ? r.Source.Content[..2500] + "\n… [truncated]" : r.Source.Content;
+                            sb.AppendLine(trimmed);
+                            sb.AppendLine();
+                        }
+                    }
+                    else
+                    {
+                        foreach (var p in deduped)
+                        {
+                            sb.AppendLine($"### [{p.Slug}] {p.Title} (score: {p.Score:F3})");
+                            var trimmed = p.Content.Length > 2500 ? p.Content[..2500] + "\n… [truncated]" : p.Content;
+                            sb.AppendLine(trimmed);
+                            sb.AppendLine();
+                        }
                     }
                     ragContext = sb.ToString();
-                    _log.LogInformation("[{Id}] RAG: {N} unique pages from {C} concepts, {L} chars context",
-                        emailId, deduped.Count, concepts.Length, ragContext.Length);
+
+                    // Structured audit: ogni chunk con slug, titolo, score e snippet
+                    _log.LogInformation(
+                        "RagArticlesRetrieved UniqueCount={UniqueCount} ConceptCount={ConceptCount} ContextChars={ContextChars} Reranked={Reranked} Articles={@Articles}",
+                        reranked?.Count ?? deduped.Count, concepts.Length, ragContext.Length, reranked != null,
+                        (reranked != null
+                            ? reranked.Take(7).Select(r => (object)new
+                                {
+                                    Slug = r.Source.Slug, Title = r.Source.Title,
+                                    Score   = Math.Round(r.CombinedScore, 4),
+                                    Rerank  = r.RerankScore,
+                                    Snippet = r.Source.Content.Length > 220
+                                              ? r.Source.Content[..220].Replace('\n', ' ').Trim() + "…"
+                                              : r.Source.Content.Replace('\n', ' ').Trim()
+                                })
+                            : deduped.Select(p => (object)new
+                                {
+                                    p.Slug, p.Title,
+                                    Score   = Math.Round(p.Score, 4),
+                                    Rerank  = (float?)null,
+                                    Snippet = p.Content.Length > 220
+                                              ? p.Content[..220].Replace('\n', ' ').Trim() + "…"
+                                              : p.Content.Replace('\n', ' ').Trim()
+                                }))
+                        .ToArray());
                 }
                 else
                 {
-                    _log.LogInformation("[{Id}] RAG: no context found across {N} concepts", emailId, concepts.Length);
+                    _log.LogInformation(
+                        "RagArticlesRetrieved UniqueCount=0 ConceptCount={ConceptCount} — no context found",
+                        concepts.Length);
                 }
             }
             catch (Exception ex) { _log.LogWarning(ex, "[{Id}] RAG multi-concept failed", emailId); }
@@ -182,6 +243,9 @@ public sealed class PipelineOrchestrator
 
         // ── Phase 5: Legal Analysis via LLM ───────────────────────────────
         sw.Restart();
+        var specBlock = assignedTree != "fallback"
+            ? $"AREA GIURIDICA: diritto {assignedTree} — specializzazione richiesta: {assignedAgent.Replace("-", " ")}.\n\n"
+            : "";
         string analysis = "";
         if (_llm != null && !string.IsNullOrEmpty(ragContext))
         {
@@ -193,14 +257,18 @@ public sealed class PipelineOrchestrator
                 var resp = await _llm.RunAsync(new AgentRequest(
                     $"Analizza giuridicamente la seguente richiesta alla luce delle norme trovate e della ricerca preliminare.\n\n" +
                     $"RICHIESTA DEL CLIENTE:\nOggetto: {req.Subject}\n{req.Body}\n\n" +
+                    $"{specBlock}" +
                     $"{researchBlock}" +
                     $"CONTESTO NORMATIVO (dal database codici):\n{ragContext}\n\n" +
                     $"Fornisci un'analisi strutturata con:\n1. Qualifica giuridica del caso\n" +
                     $"2. Normativa applicabile (articoli specifici)\n3. Valutazione delle possibilità\n" +
                     $"4. Rischi e criticità\n5. Riferimenti giurisprudenziali pertinenti"), ct);
                 analysis = resp.Content.Length > 400 ? resp.Content[..400] + "…" : resp.Content;
+                _log.LogInformation(
+                    "LlmAnalysisCompleted LatencyMs={LatencyMs} AnalysisChars={Chars}",
+                    sw.ElapsedMilliseconds, analysis.Length);
             }
-            catch (Exception ex) { _log.LogWarning(ex, "[{Id}] LLM analysis failed", emailId); }
+            catch (Exception ex) { _log.LogWarning(ex, "LLM analysis failed"); }
         }
 
         _emailStates[emailId] = PipelineState.AnalysisDone;
@@ -223,6 +291,7 @@ public sealed class PipelineOrchestrator
                 var resp = await _llm.RunAsync(new AgentRequest(
                     $"Redigi una bozza di risposta email professionale per un cliente di uno studio legale.\n\n" +
                     $"RICHIESTA DEL CLIENTE:\nOggetto: {req.Subject}\n{req.Body}\n\n" +
+                    $"{specBlock}" +
                     $"{researchBlock}" +
                     $"CONTESTO GIURIDICO (dal database codici):\n{ragContext}\n\n" +
                     $"ANALISI:\n{analysis}\n\n" +
@@ -231,8 +300,11 @@ public sealed class PipelineOrchestrator
                     $"- [Prossimi passi consigliati]\n- [Avvertenze]\n- Distinti saluti,\n  [Studio Legale AGXIOME]"), ct);
                 draft = resp.Content;
                 _drafts[emailId] = draft;
+                _log.LogInformation(
+                    "DraftGenerated LatencyMs={LatencyMs} DraftChars={Chars}",
+                    sw.ElapsedMilliseconds, draft.Length);
             }
-            catch (Exception ex) { _log.LogWarning(ex, "[{Id}] LLM draft failed", emailId); }
+            catch (Exception ex) { _log.LogWarning(ex, "LLM draft failed"); }
         }
 
         _emailStates[emailId] = PipelineState.DraftReady;
@@ -249,8 +321,9 @@ public sealed class PipelineOrchestrator
             null, DateTime.UtcNow));
         await Notify(emailId, timeline);
 
-        _log.LogInformation("[{Id}] Pipeline complete → HITL_PENDING. Draft: {D} chars.",
-            emailId, draft.Length);
+        _log.LogInformation(
+            "PipelineComplete FinalState=HitlPending DraftChars={DraftChars}",
+            draft.Length);
     }
 
     public PipelineState GetState(string emailId)
@@ -264,20 +337,24 @@ public sealed class PipelineOrchestrator
 
     public void Approve(string emailId)
     {
+        using var _ctx = LogContext.PushProperty("EmailId", emailId);
         _emailStates[emailId] = PipelineState.ReplySent;
         var t = _timelines.GetOrAdd(emailId, []);
         t.Add(new(nameof(PipelineState.ReplySent), PipelineState.ReplySent,
             "📤 Risposta approvata e inviata al cliente", null, DateTime.UtcNow));
         _ = Notify(emailId, t);
+        _log.LogInformation("HitlDecision Decision=Approved");
     }
 
     public void Reject(string emailId, string notes)
     {
+        using var _ctx = LogContext.PushProperty("EmailId", emailId);
         _emailStates[emailId] = PipelineState.AwaitingRevision;
         var t = _timelines.GetOrAdd(emailId, []);
         t.Add(new(nameof(PipelineState.AwaitingRevision), PipelineState.AwaitingRevision,
             $"🔄 Bozza rigettata — note: {notes}", null, DateTime.UtcNow));
         _ = Notify(emailId, t);
+        _log.LogInformation("HitlDecision Decision=Rejected Notes={Notes}", notes);
     }
 
     public DashboardResponse GetDashboard()

@@ -10,8 +10,17 @@ using AgxiomaLegalEmail.Models;
 using AgxiomaLegalEmail.Services;
 using System.Globalization;
 using StackExchange.Redis;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ── Serilog + Seq ─────────────────────────────────────────────────────────
+builder.Host.UseSerilog((ctx, lc) => lc
+    .ReadFrom.Configuration(ctx.Configuration)
+    .Enrich.FromLogContext()
+    .Enrich.WithMachineName()
+    .Enrich.WithThreadId()
+    .Enrich.WithProperty("Application", "agxioma-legal-email"));
 
 // ── Configuration ─────────────────────────────────────────────────────────
 var providerName = builder.Configuration["Agent:Provider"] ?? "deepseek";
@@ -102,6 +111,15 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<LegalCodeIngestion
 
 // ── App ──────────────────────────────────────────────────────────────────
 var app = builder.Build();
+app.UseSerilogRequestLogging(opts =>
+{
+    opts.MessageTemplate = "HTTP {RequestMethod} {RequestPath} → {StatusCode} ({Elapsed:0.0}ms)";
+    opts.EnrichDiagnosticContext = (diag, ctx) =>
+    {
+        diag.Set("RequestHost", ctx.Request.Host.Value);
+        diag.Set("UserAgent", ctx.Request.Headers.UserAgent.ToString() ?? "");
+    };
+});
 app.UseCors();
 app.MapHub<PipelineHub>("/hub/pipeline");
 
