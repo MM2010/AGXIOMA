@@ -15,4 +15,5 @@ public enum RerankerType
     CrossEncoderOnnx = 5,
     MixedBreadOnnx = 6,
     LLMReranker = 7,
+    BgeApi = 8,
 }

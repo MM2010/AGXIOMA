@@ -36,7 +36,30 @@ public sealed class LocalFileToolkit(ToolkitConfig? cfg = null) : ToolkitBase(cf
     public override ToolkitCategory Category => ToolkitCategory.FileStorage;
     public override bool IsConfigured => true;
 
+    // ── path safety ────────────────────────────────────────────────────────────
+    private static bool HasPathTraversal(string path) =>
+        path.Replace('\\', '/').Split('/').Any(seg => seg == "..");
+
+    private static ToolkitResult? BlockedPath(string key, string path) =>
+        HasPathTraversal(path)
+            ? ToolkitResult.Fail($"Path traversal blocked: '{key}' contains '..' segments.")
+            : null;
+
     protected override Task<ToolkitResult> ExecuteCoreAsync(
+        string action, Dictionary<string, object?> p, CancellationToken ct)
+    {
+        foreach (var key in new[] { "path", "src", "dst" })
+        {
+            if (p.TryGetValue(key, out var val) && val is string s)
+            {
+                var blocked = BlockedPath(key, s);
+                if (blocked is not null) return Task.FromResult(blocked);
+            }
+        }
+        return DispatchAsync(action, p, ct);
+    }
+
+    private Task<ToolkitResult> DispatchAsync(
         string action, Dictionary<string, object?> p, CancellationToken ct) => action switch
     {
         "read"        => ReadAsync(p, ct),

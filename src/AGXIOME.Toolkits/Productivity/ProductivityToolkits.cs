@@ -38,6 +38,12 @@ public sealed class GoogleCalendarToolkit(ToolkitConfig? config=null):ToolkitBas
         var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);resp.EnsureSuccessStatusCode();
         return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
     }
+    internal static async Task<ToolkitResult> GcPatch(string path,object body,string token,CancellationToken ct){
+        var req=new HttpRequestMessage(HttpMethod.Patch,$"https://www.googleapis.com/{path}"){Content=JsonContent.Create(body)};
+        req.Headers.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",token);
+        var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);resp.EnsureSuccessStatusCode();
+        return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
+    }
 }
 
 // T-17 — Google Drive (OAuth2 access_token required)
@@ -73,10 +79,18 @@ public sealed class GoogleDocsToolkit(ToolkitConfig? config=null):ToolkitBase(co
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         var token=GetRequiredSetting("access_token");
         return a switch{
-            "get_doc"    =>await GoogleCalendarToolkit.GcGet($"docs/v1/documents/{GetRequiredParam<string>(p,"id")}",token,ct).ConfigureAwait(false),
-            "create_doc" =>await GoogleCalendarToolkit.GcPost("docs/v1/documents",new{title=GetParam<string>(p,"title")??"Untitled"},token,ct).ConfigureAwait(false),
+            "get_doc"      =>await GoogleCalendarToolkit.GcGet($"docs/v1/documents/{GetRequiredParam<string>(p,"id")}",token,ct).ConfigureAwait(false),
+            "create_doc"   =>await GoogleCalendarToolkit.GcPost("docs/v1/documents",new{title=GetParam<string>(p,"title")??"Untitled"},token,ct).ConfigureAwait(false),
+            "list_docs"    =>await GoogleCalendarToolkit.GcGet($"drive/v3/files?q=mimeType='application/vnd.google-apps.document'&pageSize={GetParam<int?>(p,"page_size")??10}&fields=files(id,name,modifiedTime)",token,ct).ConfigureAwait(false),
+            "append_text"  =>await AppendText(GetRequiredParam<string>(p,"id"),GetRequiredParam<string>(p,"text"),token,ct).ConfigureAwait(false),
+            "update_title" =>await GoogleCalendarToolkit.GcPatch($"drive/v3/files/{GetRequiredParam<string>(p,"id")}",new{name=GetRequiredParam<string>(p,"title")},token,ct).ConfigureAwait(false),
             _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
+    }
+    private static async Task<ToolkitResult> AppendText(string docId, string text, string token, CancellationToken ct) {
+        // Uses Docs batchUpdate to insert text at end
+        var body = new { requests = new[]{ new{ insertText = new{ text, location = new{ segmentId = "", index = -1 } } } } };
+        return await GoogleCalendarToolkit.GcPost($"docs/v1/documents/{docId}:batchUpdate", body, token, ct).ConfigureAwait(false);
     }
 }
 
@@ -322,6 +336,8 @@ public sealed class GoogleTasksToolkit(ToolkitConfig? config=null):ToolkitBase(c
             "list_tasklists"=>await GoogleCalendarToolkit.GcGet("tasks/v1/users/@me/lists",token,ct).ConfigureAwait(false),
             "list_tasks"    =>await GoogleCalendarToolkit.GcGet($"tasks/v1/lists/{Uri.EscapeDataString(listId)}/tasks",token,ct).ConfigureAwait(false),
             "get_task"      =>await GoogleCalendarToolkit.GcGet($"tasks/v1/lists/{Uri.EscapeDataString(listId)}/tasks/{GetRequiredParam<string>(p,"id")}",token,ct).ConfigureAwait(false),
+            "create_task"   =>await GoogleCalendarToolkit.GcPost($"tasks/v1/lists/{Uri.EscapeDataString(listId)}/tasks",new{title=GetRequiredParam<string>(p,"title"),notes=GetParam<string>(p,"notes"),due=GetParam<string>(p,"due")},token,ct).ConfigureAwait(false),
+            "complete_task" =>await GoogleCalendarToolkit.GcPatch($"tasks/v1/lists/{Uri.EscapeDataString(listId)}/tasks/{GetRequiredParam<string>(p,"id")}",new{status="completed"},token,ct).ConfigureAwait(false),
             _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }

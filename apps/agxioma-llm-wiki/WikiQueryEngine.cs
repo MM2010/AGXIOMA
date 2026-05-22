@@ -86,12 +86,34 @@ public sealed class WikiQueryEngine : IWikiQueryEngine
             .Take(topK)
             .ToList();
 
+        // Build fallback content from stored chunk text (used when wiki page file is missing,
+        // e.g. after a container restart where the wiki/ folder was not volume-mounted).
+        var chunksBySlug = hits
+            .GroupBy(h => h.PageSlug)
+            .ToDictionary(
+                g => g.Key,
+                g => string.Join("\n\n", g.OrderByDescending(x => x.Score)
+                                           .Select(x => x.TextContent)
+                                           .Where(t => !string.IsNullOrEmpty(t))));
+
         // Step 4: load wiki page content for top slugs
         var pageContents = new List<(string Slug, string Content, float Score)>();
         foreach (var hit in topSlugs)
         {
             var cached  = await _db.GetCachedPageContentAsync(hit.PageSlug);
             var content = cached ?? await _pageWriter.ReadWikiPageAsync(hit.PageSlug, ct);
+
+            // Fallback: wiki page file missing (container restart without volume mount)
+            if (content is null)
+            {
+                chunksBySlug.TryGetValue(hit.PageSlug, out var chunks);
+                if (!string.IsNullOrEmpty(chunks))
+                {
+                    content = chunks;
+                    _log.LogDebug("[Query] Wiki page {Slug} not on disk — using stored chunk text as fallback", hit.PageSlug);
+                }
+            }
+
             if (content is not null)
             {
                 pageContents.Add((hit.PageSlug, content, hit.Score));
@@ -169,6 +191,69 @@ public sealed class WikiQueryEngine : IWikiQueryEngine
             Sources:      sourceRefs,
             ContextFound: true,
             LatencyMs:    sw.Elapsed.TotalMilliseconds);
+    }
+
+    /// <summary>
+    /// Retrieve-only path: embed → vector search → load pages. No LLM call.
+    /// Used by multi-concept query strategies that merge results before synthesis.
+    /// </summary>
+    public async Task<IReadOnlyList<WikiPageChunk>> RetrieveAsync(
+        string question,
+        int topK = 5,
+        float minScore = 0.25f,
+        CancellationToken ct = default)
+    {
+        float[] queryVec;
+        try
+        {
+            queryVec = await _embedder.EmbedAsync(question, ct);
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning("[Retrieve] Embedding failed for '{Q}': {E}", question, ex.Message);
+            return [];
+        }
+
+        var hits = await _db.SearchEmbeddingsAsync(queryVec, topK * 2, minScore, ct);
+        if (hits.Count == 0) return [];
+
+        var bySlug = hits
+            .GroupBy(h => h.PageSlug)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Score).First());
+
+        var chunksBySlug = hits
+            .GroupBy(h => h.PageSlug)
+            .ToDictionary(
+                g => g.Key,
+                g => string.Join("\n\n", g.OrderByDescending(x => x.Score)
+                                           .Select(x => x.TextContent)
+                                           .Where(t => !string.IsNullOrEmpty(t))));
+
+        var topSlugs = bySlug.Values
+            .OrderByDescending(h => h.Score)
+            .Take(topK)
+            .ToList();
+
+        var results = new List<WikiPageChunk>();
+        foreach (var hit in topSlugs)
+        {
+            var cached  = await _db.GetCachedPageContentAsync(hit.PageSlug);
+            var content = cached ?? await _pageWriter.ReadWikiPageAsync(hit.PageSlug, ct);
+            if (content is null)
+            {
+                chunksBySlug.TryGetValue(hit.PageSlug, out var chunks);
+                if (!string.IsNullOrEmpty(chunks)) content = chunks;
+            }
+            if (content is null) continue;
+            if (cached is null) await _db.CachePageContentAsync(hit.PageSlug, content);
+
+            var page  = await _db.GetPageBySlugAsync(hit.PageSlug, ct);
+            var title = page?.Title ?? hit.PageSlug;
+            results.Add(new WikiPageChunk(hit.PageSlug, title, content, hit.Score));
+        }
+
+        _log.LogInformation("[Retrieve] '{Q}' → {N} pages", question, results.Count);
+        return results;
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

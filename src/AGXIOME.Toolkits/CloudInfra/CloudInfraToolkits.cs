@@ -79,8 +79,31 @@ public sealed class AwsDynamoDbToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg)
     public override string Id=>"aws_dynamodb";public override string Name=>"AWS DynamoDB";
     public override ToolkitCategory Category=>ToolkitCategory.CloudInfra;
     public override bool IsConfigured=>true;
-    protected override Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct)
-        =>Task.FromResult(ToolkitResult.Fail("DynamoDB: use aws CLI (table: list-tables, get-item, put-item, query) or add package AWSSDK.DynamoDBv2. Settings: access_key_id, secret_access_key, region."));
+    protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
+        var table=GetParam<string>(p,"table")??""; var key=GetParam<string>(p,"key")??"{\"id\":{\"S\":\"1\"}}";
+        var args=a switch{
+            "list_tables"  =>"dynamodb list-tables --output json",
+            "describe"     =>$"dynamodb describe-table --table-name {table} --output json",
+            "get_item"     =>$"dynamodb get-item --table-name {table} --key '{key}' --output json",
+            "put_item"     =>$"dynamodb put-item --table-name {table} --item '{GetParam<string>(p,"item")??key}' --output json",
+            "delete_item"  =>$"dynamodb delete-item --table-name {table} --key '{key}' --output json",
+            "scan"         =>$"dynamodb scan --table-name {table} --max-items {GetParam<int?>(p,"max_items")??25} --output json",
+            "query"        =>$"dynamodb query --table-name {table} --key-condition-expression '{GetParam<string>(p,"condition")??""}' --expression-attribute-values '{GetParam<string>(p,"values")??"{}"}'  --output json",
+            _              =>$"dynamodb {GetParam<string>(p,"args")??a}"
+        };
+        return await RunAwsCli(args,ct).ConfigureAwait(false);
+    }
+    private async Task<ToolkitResult> RunAwsCli(string args,CancellationToken ct){
+        var psi=new System.Diagnostics.ProcessStartInfo("aws",args){RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
+        if(!string.IsNullOrWhiteSpace(GetSetting("access_key_id")))psi.Environment["AWS_ACCESS_KEY_ID"]=GetSetting("access_key_id");
+        if(!string.IsNullOrWhiteSpace(GetSetting("secret_access_key")))psi.Environment["AWS_SECRET_ACCESS_KEY"]=GetSetting("secret_access_key");
+        if(!string.IsNullOrWhiteSpace(GetSetting("region")))psi.Environment["AWS_DEFAULT_REGION"]=GetSetting("region");
+        using var proc=System.Diagnostics.Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable(Id, "aws");
+        var out_=await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
+        var err=await proc.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
+        await proc.WaitForExitAsync(ct).ConfigureAwait(false);
+        return proc.ExitCode==0?ToolkitResult.Success(new{command=$"aws {args}",output=out_.Trim()}):ToolkitResult.Fail($"aws CLI failed: {err.Trim()}");
+    }
 }
 
 // T-93 — AWS EC2 (aws CLI)
@@ -89,8 +112,31 @@ public sealed class AwsEc2Toolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override string Id=>"aws_ec2";public override string Name=>"AWS EC2";
     public override ToolkitCategory Category=>ToolkitCategory.CloudInfra;
     public override bool IsConfigured=>true;
-    protected override Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct)
-        =>Task.FromResult(ToolkitResult.Fail("EC2: use aws CLI (ec2 describe-instances, start-instances, stop-instances, terminate-instances) or add package AWSSDK.EC2. Settings: access_key_id, secret_access_key, region."));
+    protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
+        var ids=GetParam<string>(p,"instance_ids")??""; var filter=GetParam<string>(p,"filter")??"";
+        var args=a switch{
+            "describe_instances" =>$"ec2 describe-instances{(string.IsNullOrWhiteSpace(ids)?"":$" --instance-ids {ids}")} --output json",
+            "start"              =>$"ec2 start-instances --instance-ids {ids} --output json",
+            "stop"               =>$"ec2 stop-instances --instance-ids {ids} --output json",
+            "terminate"          =>$"ec2 terminate-instances --instance-ids {ids} --output json",
+            "reboot"             =>$"ec2 reboot-instances --instance-ids {ids} --output json",
+            "list_key_pairs"     =>"ec2 describe-key-pairs --output json",
+            "list_security_groups"=>"ec2 describe-security-groups --output json",
+            _                    =>$"ec2 {GetParam<string>(p,"args")??a}"
+        };
+        return await RunAwsCli(args,ct).ConfigureAwait(false);
+    }
+    private async Task<ToolkitResult> RunAwsCli(string args,CancellationToken ct){
+        var psi=new System.Diagnostics.ProcessStartInfo("aws",args){RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
+        if(!string.IsNullOrWhiteSpace(GetSetting("access_key_id")))psi.Environment["AWS_ACCESS_KEY_ID"]=GetSetting("access_key_id");
+        if(!string.IsNullOrWhiteSpace(GetSetting("secret_access_key")))psi.Environment["AWS_SECRET_ACCESS_KEY"]=GetSetting("secret_access_key");
+        if(!string.IsNullOrWhiteSpace(GetSetting("region")))psi.Environment["AWS_DEFAULT_REGION"]=GetSetting("region");
+        using var proc=System.Diagnostics.Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable(Id, "aws");
+        var out_=await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
+        var err=await proc.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
+        await proc.WaitForExitAsync(ct).ConfigureAwait(false);
+        return proc.ExitCode==0?ToolkitResult.Success(new{command=$"aws {args}",output=out_.Trim()}):ToolkitResult.Fail($"aws CLI failed: {err.Trim()}");
+    }
 }
 
 // T-94 — Azure Blob Storage (az CLI or Azure.Storage.Blobs)
@@ -150,8 +196,25 @@ public sealed class GcpStorageToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override string Id=>"gcp_storage";public override string Name=>"GCP Storage";
     public override ToolkitCategory Category=>ToolkitCategory.CloudInfra;
     public override bool IsConfigured=>true;
-    protected override Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct)
-        =>Task.FromResult(ToolkitResult.Fail("GCP Storage: use gcp_cli toolkit (gcloud storage ls|cp|rm|cat) or add package Google.Cloud.Storage.V1. Settings: project_id, service_account_key_json."));
+    protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
+        var bucket=GetParam<string>(p,"bucket")??""; var blob=GetParam<string>(p,"blob")??""; var project=GetSetting("project_id")??"";
+        var args=a switch{
+            "list_buckets"  =>$"storage ls{(string.IsNullOrWhiteSpace(project)?"":$" --project {project}")}",
+            "list_objects"  =>$"storage ls gs://{bucket}/",
+            "upload"        =>$"storage cp {GetRequiredParam<string>(p,"local_path")} gs://{bucket}/{blob}",
+            "download"      =>$"storage cp gs://{bucket}/{blob} {GetParam<string>(p,"local_path")??"./"}",
+            "delete"        =>$"storage rm gs://{bucket}/{blob}",
+            "get_metadata"  =>$"storage stat gs://{bucket}/{blob}",
+            _               =>$"storage {GetParam<string>(p,"args")??a}"
+        };
+        var psi=new System.Diagnostics.ProcessStartInfo("gcloud",args){RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
+        if(!string.IsNullOrWhiteSpace(project))psi.Environment["GCLOUD_PROJECT"]=project;
+        using var proc=System.Diagnostics.Process.Start(psi)??throw AgxiomeToolkitException.DependencyUnavailable(Id, "gcloud");
+        var out_=await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
+        var err=await proc.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
+        await proc.WaitForExitAsync(ct).ConfigureAwait(false);
+        return proc.ExitCode==0?ToolkitResult.Success(new{command=$"gcloud {args}",output=out_.Trim()}):ToolkitResult.Fail($"gcloud failed: {err.Trim()}");
+    }
 }
 
 // T-97 — GCP Cloud Run (gcloud CLI)

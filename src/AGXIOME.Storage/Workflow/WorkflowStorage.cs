@@ -18,22 +18,32 @@ public static class WorkflowStorage
         ICommandStore store,
         CancellationToken ct = default)
     {
-        var json = WorkflowSerializer.Serialize(definition);
-        await store.SaveAsync(new WorkflowEntity(definition.Id, json), ct);
+        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(store);
+
+        var now   = DateTimeOffset.UtcNow;
+        var entry = new WorkflowDefinitionEntry
+        {
+            Id             = definition.Id,
+            Name           = definition.Name,
+            DefinitionJson = WorkflowSerializer.Serialize(definition),
+            SchemaVersion  = definition.SchemaVersion,
+            CreatedAt      = definition.CreatedAt,
+            UpdatedAt      = now,
+        };
+        await store.SaveAsync(entry, ct);
     }
 
     /// <summary>Load a workflow definition by ID.</summary>
     public static async Task<WorkflowDefinition?> LoadAsync(
         string workflowId,
-        IQueryStore<object> store,
+        IQueryStore<WorkflowDefinitionEntry> store,
         CancellationToken ct = default)
     {
-        var raw = await store.GetByIdAsync(workflowId, ct);
-        if (raw is WorkflowEntity entity)
-            return WorkflowSerializer.Deserialize(entity.Json);
-        return null;
-    }
+        ArgumentException.ThrowIfNullOrWhiteSpace(workflowId);
+        ArgumentNullException.ThrowIfNull(store);
 
-    /// <summary>Internal entity for storage round-trip.</summary>
-    private sealed record WorkflowEntity(string Id, string Json);
+        var entry = await store.GetByIdAsync(workflowId, ct);
+        return WorkflowSerializer.FromEntry(entry);
+    }
 }

@@ -162,9 +162,11 @@ public sealed class NuGetToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override bool IsConfigured=>true;
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         return a switch{
-            "search"=>await NuGetSearch(GetParam<string>(p,"query")??"",GetParam<int?>(p,"take")??20,ct).ConfigureAwait(false),
-            "get_versions"=>await NuGetVersions(GetParam<string>(p,"package")??"",ct).ConfigureAwait(false),
-            "get_info"=>await NuGetInfo(GetParam<string>(p,"package")??"",GetParam<string>(p,"version")??"",ct).ConfigureAwait(false),
+            "search"       =>await NuGetSearch(GetParam<string>(p,"query")??"",GetParam<int?>(p,"take")??20,ct).ConfigureAwait(false),
+            "get_versions" =>await NuGetVersions(GetParam<string>(p,"package")??"",ct).ConfigureAwait(false),
+            "get_info"     =>await NuGetInfo(GetParam<string>(p,"package")??"",GetParam<string>(p,"version")??"",ct).ConfigureAwait(false),
+            "check_exists" =>await CheckExists(GetParam<string>(p,"package")??"",ct).ConfigureAwait(false),
+            "latest_stable"=>await LatestStable(GetParam<string>(p,"package")??"",ct).ConfigureAwait(false),
             _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
@@ -189,6 +191,19 @@ public sealed class NuGetToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
         }
         var json=await Http.Client.GetFromJsonAsync<JsonElement>($"https://api.nuget.org/v3/registration5-semver1/{pkg.ToLowerInvariant()}/{version}.json",ct).ConfigureAwait(false);
         return ToolkitResult.Success(new{package=pkg,version,info=json});
+    }
+    private static async Task<ToolkitResult> CheckExists(string pkg,CancellationToken ct){
+        try{
+            var resp=await Http.Client.GetAsync($"https://api.nuget.org/v3-flatcontainer/{pkg.ToLowerInvariant()}/index.json",ct).ConfigureAwait(false);
+            return ToolkitResult.Success(new{package=pkg,exists=resp.IsSuccessStatusCode});
+        }catch{return ToolkitResult.Success(new{package=pkg,exists=false});}
+    }
+    private static async Task<ToolkitResult> LatestStable(string pkg,CancellationToken ct){
+        var idx=await Http.Client.GetFromJsonAsync<JsonElement>($"https://api.nuget.org/v3-flatcontainer/{pkg.ToLowerInvariant()}/index.json",ct).ConfigureAwait(false);
+        var versions=idx.TryGetProperty("versions",out var vs)?vs.EnumerateArray().Select(x=>x.GetString()??"").ToArray():[];
+        // stable = no prerelease suffix
+        var stable=versions.LastOrDefault(v=>!v.Contains('-'))??versions.LastOrDefault()??"";
+        return ToolkitResult.Success(new{package=pkg,latest_stable=stable,all_versions_count=versions.Length});
     }
 }
 

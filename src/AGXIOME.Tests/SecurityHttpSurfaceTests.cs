@@ -1326,6 +1326,8 @@ public sealed class LlmWikiHttpSecurityTests
     {
         public Task<WikiQueryResponse> QueryAsync(WikiQueryRequest request, CancellationToken ct = default) =>
             Task.FromResult(new WikiQueryResponse(request.Question, "stub", new List<WikiPageRef>(), true, 1));
+        public Task<IReadOnlyList<WikiPageChunk>> RetrieveAsync(string question, int topK = 5, float minScore = 0.25f, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<WikiPageChunk>>(new List<WikiPageChunk>());
     }
 
     private sealed class TestWikiLintEngine : IWikiLintEngine
@@ -1451,7 +1453,8 @@ public sealed class SupportHubHttpSecurityTests
     {
         using var factory = CreateSupportHubFactory(new Dictionary<string, string?>
         {
-            ["AGXIOME_BOOTSTRAP_KEY"] = "expected-key"
+            ["AGXIOME_BOOTSTRAP_KEY"] = "expected-key",
+            ["LLMProvider:DeepSeek:ApiKey"] = "test-fake-key"
         }, useDeterministicSwarms: true);
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", "expected-key");
@@ -1473,7 +1476,8 @@ public sealed class SupportHubHttpSecurityTests
     {
         using var factory = CreateSupportHubFactory(new Dictionary<string, string?>
         {
-            ["AGXIOME_BOOTSTRAP_KEY"] = "expected-key"
+            ["AGXIOME_BOOTSTRAP_KEY"] = "expected-key",
+            ["LLMProvider:DeepSeek:ApiKey"] = "test-fake-key"
         }, useDeterministicSwarms: true);
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", "expected-key");
@@ -1505,6 +1509,8 @@ public sealed class SupportHubHttpSecurityTests
                 services.RemoveAll<ForestSwarm>();
                 services.RemoveAll<HeavySwarm>();
                 services.AddSingleton(_ => CreateDeterministicSupportForestSwarm());
+                services.AddSingleton(_ => CreateDeterministicBackofficeRouterSwarm());
+                services.AddSingleton(_ => CreateDeterministicBackofficeContentSwarm());
                 services.AddSingleton(_ => CreateDeterministicSupportHeavySwarm());
             });
         });
@@ -1552,6 +1558,40 @@ public sealed class SupportHubHttpSecurityTests
 
         var synthesizer = CreateSupportFakeAgentForAnalysis();
         return new HeavySwarm(new HeavySwarmConfig(), questionAgent, workers, synthesizer);
+    }
+
+    private static ForestSwarm CreateDeterministicBackofficeRouterSwarm()
+    {
+        var routerAgent = CreateSupportFakeAgent("routed");
+        return new ForestSwarm(
+            new ForestSwarmConfig { MinMatchScore = 0 },
+            new[]
+            {
+                new ForestTree("orders", new[]
+                {
+                    new ForestAgentEntry("orders-router", "orders", ["order", "shipment"], routerAgent)
+                })
+            },
+            name: "backoffice-router",
+            description: "deterministic backoffice router"
+        );
+    }
+
+    private static ForestSwarm CreateDeterministicBackofficeContentSwarm()
+    {
+        var contentAgent = CreateSupportFakeAgent("{\"resolutionPlan\":\"plan\",\"reviewNotes\":\"notes\",\"customerReply\":\"reply\"}");
+        return new ForestSwarm(
+            new ForestSwarmConfig { MinMatchScore = 0 },
+            new[]
+            {
+                new ForestTree("composer", new[]
+                {
+                    new ForestAgentEntry("backoffice-composer", "composer", ["backoffice"], contentAgent)
+                })
+            },
+            name: "backoffice-content",
+            description: "deterministic backoffice content"
+        );
     }
 
     private static IAgxiomeAgent CreateSupportFakeAgent(string content)

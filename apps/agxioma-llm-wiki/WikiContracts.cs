@@ -27,9 +27,18 @@ public interface IWikiPageWriter
     Task<string?> ReadWikiPageAsync(string slug, CancellationToken ct = default);
 }
 
+/// <summary>Raw wiki page retrieved by vector search — no LLM synthesis.</summary>
+public record WikiPageChunk(string Slug, string Title, string Content, float Score);
+
 public interface IWikiQueryEngine
 {
     Task<WikiQueryResponse> QueryAsync(WikiQueryRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Retrieve-only: embed query → pgvector search → load pages. No LLM synthesis.
+    /// Returns deduplicated pages ordered by descending score.
+    /// </summary>
+    Task<IReadOnlyList<WikiPageChunk>> RetrieveAsync(string question, int topK = 5, float minScore = 0.25f, CancellationToken ct = default);
 }
 
 public interface IWikiLintEngine

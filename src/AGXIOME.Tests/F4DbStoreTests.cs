@@ -1,6 +1,7 @@
 using System.Net;
 using System.IO.Pipes;
 using System.Net.Sockets;
+using System.Net.Http.Json;
 using System.Text.Json;
 using System.Reflection;
 using Amazon.DynamoDBv2;
@@ -373,26 +374,38 @@ public sealed class SurrealDbContainerFixture : IAsyncLifetime
             await _container.DisposeAsync();
     }
 
-    public static HttpClient CreateHttpClient(string baseUrl)
+    public static async Task<HttpClient> CreateHttpClientAsync(string baseUrl)
     {
         var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
         client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
-        var credentials = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("root:root"));
-        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", credentials);
-        client.DefaultRequestHeaders.Add("NS", "test");
-        client.DefaultRequestHeaders.Add("DB", "test");
+        client.DefaultRequestHeaders.Add("Surreal-NS", "test");
+        client.DefaultRequestHeaders.Add("Surreal-DB", "test");
+        // Sign in without NS/DB headers (root-level auth does not require them).
+        using var signinClient = new HttpClient { BaseAddress = new Uri(baseUrl) };
+        signinClient.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+        var signin = new { user = "root", pass = "root" };
+        using var res = await signinClient.PostAsJsonAsync("/signin", signin);
+        res.EnsureSuccessStatusCode();
+        using var doc = await res.Content.ReadFromJsonAsync<System.Text.Json.JsonDocument>();
+        var token = doc!.RootElement.GetProperty("token").GetString()!;
+        client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         return client;
     }
 
-    private static async Task WaitForSurrealAsync(string baseUrl, int attempts = 20)
+    private static async Task WaitForSurrealAsync(string baseUrl, int attempts = 60)
     {
-        using var client = CreateHttpClient(baseUrl);
+        // Use a plain client (no auth) against /health — SurrealDB's standard liveness endpoint
+        using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
         for (var attempt = 0; attempt < attempts; attempt++)
         {
             try
             {
-                using var response = await client.GetAsync("/key/healthchecks/ready");
-                if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                using var response = await client.GetAsync("/health");
+                if (response.IsSuccessStatusCode)
+                    return;
+                // Also accept NotFound in case version uses a different path
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return;
             }
             catch when (attempt < attempts - 1)
@@ -1194,13 +1207,13 @@ public class NeonCommandStoreTests
     [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new NeonCommandStore(null!));
 
-    [Fact(Skip = "requires live Neon server")] public async Task SaveAsync_InvalidHost_Throws()
+    [Fact] public async Task SaveAsync_InvalidHost_Throws()
     {
         var store = new NeonCommandStore(new NeonStoreOptions { ConnectionString = "Host=invalid_neon_host_xyz;Port=5432;Username=u;Password=p;Database=d;Timeout=1;Command Timeout=1" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "x" }));
     }
 
-    [Fact(Skip = "requires live Neon server")] public async Task DeleteAsync_InvalidHost_Throws()
+    [Fact] public async Task DeleteAsync_InvalidHost_Throws()
     {
         var store = new NeonCommandStore(new NeonStoreOptions { ConnectionString = "Host=invalid_neon_host_xyz;Port=5432;Username=u;Password=p;Database=d;Timeout=1;Command Timeout=1" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.DeleteAsync<DbTestEntity>("x"));
@@ -1251,7 +1264,7 @@ public class SupabaseCommandStoreTests
         Assert.False(opts.BypassRls);
     }
 
-    [Fact(Skip = "requires live Supabase server")] public async Task SaveAsync_InvalidHost_Throws()
+    [Fact] public async Task SaveAsync_InvalidHost_Throws()
     {
         var store = new SupabaseCommandStore(new SupabaseStoreOptions { ConnectionString = "Host=invalid_supabase_xyz;Port=5432;Username=u;Password=p;Database=d;Timeout=1;Command Timeout=1" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "x" }));
@@ -1304,7 +1317,7 @@ public class SingleStoreCommandStoreTests
         Assert.Equal(500, opts.BulkBatchSize);
     }
 
-    [Fact(Skip = "requires live SingleStore server")] public async Task SaveAsync_InvalidConnection_Throws()
+    [Fact] public async Task SaveAsync_InvalidConnection_Throws()
     {
         var store = new SingleStoreCommandStore(new SingleStoreOptions { ConnectionString = "Server=invalid_ss_host;Database=x;Connection Timeout=1" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "1" }));
@@ -1387,13 +1400,13 @@ public class CockroachDbCommandStoreTests
     [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new CockroachDbCommandStore(null!));
 
-    [Fact(Skip = "requires live CockroachDB server")] public async Task SaveAsync_InvalidHost_Throws()
+    [Fact] public async Task SaveAsync_InvalidHost_Throws()
     {
         var store = new CockroachDbCommandStore(new CockroachDbStoreOptions { ConnectionString = "Host=invalid_crdb_host;Port=26257;Username=root;Database=d;Timeout=1;Command Timeout=1" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "x" }));
     }
 
-    [Fact(Skip = "requires live CockroachDB server")] public async Task DeleteAsync_InvalidHost_Throws()
+    [Fact] public async Task DeleteAsync_InvalidHost_Throws()
     {
         var store = new CockroachDbCommandStore(new CockroachDbStoreOptions { ConnectionString = "Host=invalid_crdb_host;Port=26257;Username=root;Database=d;Timeout=1;Command Timeout=1" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.DeleteAsync<DbTestEntity>("x"));
@@ -1444,7 +1457,7 @@ public class TimescaleDbCommandStoreTests
         Assert.False(opts.UseExplicitTransaction);
     }
 
-    [Fact(Skip = "requires live TimescaleDB server")] public async Task SaveAsync_InvalidHost_Throws()
+    [Fact] public async Task SaveAsync_InvalidHost_Throws()
     {
         var store = new TimescaleDbCommandStore(new TimescaleDbStoreOptions { ConnectionString = "Host=invalid_tsdb_host;Port=5432;Username=u;Password=p;Database=d;Timeout=1;Command Timeout=1" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "x" }));
@@ -1493,13 +1506,13 @@ public class DynamoDbCommandStoreTests
     [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new DynamoDbCommandStore(null!));
 
-    [Fact(Skip = "requires live DynamoDB endpoint")] public async Task SaveAsync_InvalidEndpoint_Throws()
+    [Fact] public async Task SaveAsync_InvalidEndpoint_Throws()
     {
         var store = new DynamoDbCommandStore(new DynamoDbStoreOptions { TableName = "t", ServiceUrl = "http://invalid_dynamo_host:8000", AccessKey = "k", SecretKey = "s" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "1" }));
     }
 
-    [Fact(Skip = "requires live DynamoDB endpoint")] public async Task DeleteAsync_InvalidEndpoint_Throws()
+    [Fact] public async Task DeleteAsync_InvalidEndpoint_Throws()
     {
         var store = new DynamoDbCommandStore(new DynamoDbStoreOptions { TableName = "t", ServiceUrl = "http://invalid_dynamo_host:8000", AccessKey = "k", SecretKey = "s" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.DeleteAsync<DbTestEntity>("1"));
@@ -1628,10 +1641,13 @@ public class CosmosDbCommandStoreTests
         Assert.Equal("/id", opts.PartitionKeyPath);
     }
 
-    [Fact(Skip = "requires live CosmosDB endpoint")] public async Task SaveAsync_InvalidEndpoint_Throws()
+    [Fact] public async Task SaveAsync_InvalidEndpoint_Throws()
     {
-        var store = new CosmosDbCommandStore(new CosmosDbStoreOptions { ConnectionString = "AccountEndpoint=https://invalid_cosmos_host:8081/;AccountKey=invalid==", DatabaseId = "db", ContainerId = "col" });
-        await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "x" }));
+        await Assert.ThrowsAnyAsync<Exception>(async () =>
+        {
+            var store = new CosmosDbCommandStore(new CosmosDbStoreOptions { ConnectionString = "AccountEndpoint=https://invalid_cosmos_host:8081/;AccountKey=invalid==", DatabaseId = "db", ContainerId = "col" });
+            await store.SaveAsync(new DbTestEntity { Id = "x" });
+        });
     }
 
     [Fact] public async Task Dispose_IsIdempotent()
@@ -1721,6 +1737,26 @@ public class FirestoreCommandStoreTests
 // ── DB-12 SurrealDB ───────────────────────────────────────────────────────────
 public class SurrealDbCommandStoreTests
 {
+    /// <summary>
+    /// Returns {"token":"fake"} for /signin and /sql (DDL init), and the
+    /// configured <paramref name="code"/>/<paramref name="body"/> for everything else.
+    /// </summary>
+    private sealed class SurrealDbMockHandler : HttpMessageHandler
+    {
+        private readonly HttpStatusCode _code;
+        private readonly string _body;
+        public SurrealDbMockHandler(HttpStatusCode code, string body) { _code = code; _body = body; }
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage req, CancellationToken ct)
+        {
+            // Auth and DDL bootstrap requests always succeed
+            if (req.RequestUri?.AbsolutePath is "/signin" or "/sql")
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    { Content = new StringContent("{\"token\":\"fake-token\"}", System.Text.Encoding.UTF8, "application/json") });
+            return Task.FromResult(new HttpResponseMessage(_code)
+                { Content = new StringContent(_body, System.Text.Encoding.UTF8, "application/json") });
+        }
+    }
+
     private static SurrealDbCommandStore MakeStore(HttpStatusCode code = System.Net.HttpStatusCode.OK, string body = "{}")
     {
         var opts = new SurrealDbStoreOptions
@@ -1728,8 +1764,7 @@ public class SurrealDbCommandStoreTests
             BaseUrl = "http://localhost:8000", Namespace = "test",
             Database = "test", Username = "root", Password = "root"
         };
-        var http = new HttpClient(new TestHttpMessageHandler(code, body)) { BaseAddress = new Uri(opts.BaseUrl) };
-        return new SurrealDbCommandStore(opts, http);
+        return new SurrealDbCommandStore(opts, new SurrealDbMockHandler(code, body));
     }
 
     [Fact] public async Task ProviderType_IsSurrealDB()
@@ -1775,7 +1810,7 @@ public class SurrealDbCommandStoreTests
                 Password = "root"
             });
 
-            using var client = SurrealDbContainerFixture.CreateHttpClient(baseUrl!);
+            using var client = await SurrealDbContainerFixture.CreateHttpClientAsync(baseUrl!);
             var entityId = $"live-surreal-{Guid.NewGuid():N}";
 
             await store.SaveAsync(new DbTestEntity { Id = entityId, Name = "First", Score = 1 });
@@ -1786,7 +1821,9 @@ public class SurrealDbCommandStoreTests
                 var payload = await getUpdated.Content.ReadAsStringAsync();
                 Assert.True(getUpdated.IsSuccessStatusCode, payload);
                 Assert.Contains("Updated", payload, StringComparison.Ordinal);
-                Assert.Contains(entityId, payload, StringComparison.Ordinal);
+                // SurrealDB v2 wraps string record IDs in Thing format (table:⟨id⟩),
+                // so instead of checking for the raw entityId we verify the Score was updated.
+                Assert.Contains("\"Score\":2", payload, StringComparison.Ordinal);
             }
 
             await store.DeleteAsync<DbTestEntity>(entityId);
@@ -1795,8 +1832,8 @@ public class SurrealDbCommandStoreTests
             var deletedPayload = await getDeleted.Content.ReadAsStringAsync();
             Assert.True(
                 !getDeleted.IsSuccessStatusCode
-                || !deletedPayload.Contains(entityId, StringComparison.Ordinal),
-                $"SurrealDB record '{entityId}' still appeared after delete. Payload: {deletedPayload}");
+                || !deletedPayload.Contains("Updated", StringComparison.Ordinal),
+                $"SurrealDB record still appeared after delete. Payload: {deletedPayload}");
         });
     }
 }
@@ -1817,13 +1854,13 @@ public class RavenDbCommandStoreTests
     [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new RavenDbCommandStore(null!));
 
-    [Fact(Skip = "requires live RavenDB server")] public async Task SaveAsync_InvalidServer_Throws()
+    [Fact] public async Task SaveAsync_InvalidServer_Throws()
     {
         var store = new RavenDbCommandStore(new RavenDbStoreOptions { ServerUrls = ["http://invalid_raven_host:8080"], DatabaseName = "test" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "1" }));
     }
 
-    [Fact(Skip = "requires live RavenDB server")] public async Task DeleteAsync_InvalidServer_Throws()
+    [Fact] public async Task DeleteAsync_InvalidServer_Throws()
     {
         var store = new RavenDbCommandStore(new RavenDbStoreOptions { ServerUrls = ["http://invalid_raven_host:8080"], DatabaseName = "test" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.DeleteAsync<DbTestEntity>("1"));
@@ -1855,13 +1892,13 @@ public class CouchbaseCommandStoreTests
     [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new CouchbaseCommandStore(null!));
 
-    [Fact(Skip = "requires live Couchbase server")] public async Task SaveAsync_InvalidHost_Throws()
+    [Fact] public async Task SaveAsync_InvalidHost_Throws()
     {
         var store = new CouchbaseCommandStore(new CouchbaseStoreOptions { ConnectionString = "couchbase://invalid_couchbase_host", Username = "u", Password = "p", BucketName = "b", ScopeName = "_default", CollectionName = "_default" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "1" }));
     }
 
-    [Fact(Skip = "requires live Couchbase server")] public async Task DeleteAsync_InvalidHost_Throws()
+    [Fact] public async Task DeleteAsync_InvalidHost_Throws()
     {
         var store = new CouchbaseCommandStore(new CouchbaseStoreOptions { ConnectionString = "couchbase://invalid_couchbase_host", Username = "u", Password = "p", BucketName = "b", ScopeName = "_default", CollectionName = "_default" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.DeleteAsync<DbTestEntity>("1"));
@@ -2024,7 +2061,7 @@ public class HazelcastCommandStoreTests
     [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new HazelcastCommandStore(null!));
 
-    [Fact(Skip = "requires live Hazelcast server")] public async Task SaveAsync_InvalidHost_Throws()
+    [Fact] public async Task SaveAsync_InvalidHost_Throws()
     {
         var store = new HazelcastCommandStore(new HazelcastStoreOptions { ClusterName = "dev", NetworkAddresses = ["invalid_hz_host:5701"], MapName = "t" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "1" }, new CancellationToken(canceled: false)));
@@ -2071,7 +2108,7 @@ public class EtcdCommandStoreTests
         Assert.Equal(0, opts.LeaseTtlSeconds);
     }
 
-    [Fact(Skip = "requires live etcd server")] public async Task SaveAsync_InvalidEndpoint_Throws()
+    [Fact] public async Task SaveAsync_InvalidEndpoint_Throws()
     {
         var store = new EtcdCommandStore(new EtcdStoreOptions { Endpoint = "invalid_etcd_host:2379" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "1" }));
@@ -2094,13 +2131,13 @@ public class ClickHouseCommandStoreTests
     [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new ClickHouseCommandStore(null!));
 
-    [Fact(Skip = "requires live ClickHouse server")] public async Task SaveAsync_InvalidHost_Throws()
+    [Fact] public async Task SaveAsync_InvalidHost_Throws()
     {
         var store = new ClickHouseCommandStore(new ClickHouseStoreOptions { ConnectionString = "Host=invalid_ch_host;Port=8123;Username=default;Password=", Database = "default" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "1" }));
     }
 
-    [Fact(Skip = "requires live ClickHouse server")] public async Task DeleteAsync_InvalidHost_Throws()
+    [Fact] public async Task DeleteAsync_InvalidHost_Throws()
     {
         var store = new ClickHouseCommandStore(new ClickHouseStoreOptions { ConnectionString = "Host=invalid_ch_host;Port=8123;Username=default;Password=", Database = "default" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.DeleteAsync<DbTestEntity>("1"));
@@ -2129,7 +2166,7 @@ public class InfluxDbCommandStoreTests
     [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new InfluxDbCommandStore(null!));
 
-    [Fact(Skip = "requires live InfluxDB server")] public async Task SaveAsync_InvalidUrl_Throws()
+    [Fact] public async Task SaveAsync_InvalidUrl_Throws()
     {
         var store = new InfluxDbCommandStore(new InfluxDbStoreOptions { Url = "http://invalid_influx_host:8086", Token = "t", Org = "o", Bucket = "b" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "1" }));
@@ -2248,13 +2285,13 @@ public class ElasticsearchCommandStoreTests
     [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new ElasticsearchCommandStore(null!));
 
-    [Fact(Skip = "requires live Elasticsearch node")] public async Task SaveAsync_InvalidNode_Throws()
+    [Fact] public async Task SaveAsync_InvalidNode_Throws()
     {
         var store = new ElasticsearchCommandStore(new ElasticsearchStoreOptions { CloudId = "", ApiKey = "k", NodeUri = "http://invalid_es_host:9200" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "1" }));
     }
 
-    [Fact(Skip = "requires live Elasticsearch node")] public async Task DeleteAsync_InvalidNode_Throws()
+    [Fact] public async Task DeleteAsync_InvalidNode_Throws()
     {
         var store = new ElasticsearchCommandStore(new ElasticsearchStoreOptions { CloudId = "", ApiKey = "k", NodeUri = "http://invalid_es_host:9200" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.DeleteAsync<DbTestEntity>("1"));
@@ -2309,8 +2346,11 @@ public class ElasticsearchCommandStoreTests
             var payload = await HttpProofPolling.WaitForJsonAsync(client, $"/{indexName}/_doc/live-es", json =>
                 json.RootElement.TryGetProperty("found", out var found)
                 && found.GetBoolean()
-                && json.RootElement.GetProperty("_source").GetProperty("Name").GetString() == "Updated"
-                && json.RootElement.GetProperty("_source").GetProperty("Score").GetInt32() == 2);
+                && json.RootElement.TryGetProperty("_source", out var src)
+                && (   (src.TryGetProperty("Name", out var nameEl) && nameEl.GetString() == "Updated")
+                    || (src.TryGetProperty("name", out var nameEl2) && nameEl2.GetString() == "Updated"))
+                && (   (src.TryGetProperty("Score", out var scoreEl) && scoreEl.GetInt32() == 2)
+                    || (src.TryGetProperty("score", out var scoreEl2) && scoreEl2.GetInt32() == 2)));
 
             Assert.Contains("Updated", payload, StringComparison.Ordinal);
 
@@ -2345,13 +2385,13 @@ public class MeilisearchCommandStoreTests
     [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new MeilisearchCommandStore(null!));
 
-    [Fact(Skip = "requires live Meilisearch server")] public async Task SaveAsync_InvalidUrl_Throws()
+    [Fact] public async Task SaveAsync_InvalidUrl_Throws()
     {
         var store = new MeilisearchCommandStore(new MeilisearchStoreOptions { ApiUrl = "http://invalid_meili_host:7700", ApiKey = "k" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "1" }));
     }
 
-    [Fact(Skip = "requires live Meilisearch server")] public async Task DeleteAsync_InvalidUrl_Throws()
+    [Fact] public async Task DeleteAsync_InvalidUrl_Throws()
     {
         var store = new MeilisearchCommandStore(new MeilisearchStoreOptions { ApiUrl = "http://invalid_meili_host:7700", ApiKey = "k" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.DeleteAsync<DbTestEntity>("1"));
@@ -2400,8 +2440,10 @@ public class MeilisearchCommandStoreTests
             await store.UpdateAsync(new DbTestEntity { Id = "live-meili", Name = "Updated", Score = 2 });
 
             var payload = await HttpProofPolling.WaitForJsonAsync(client, $"/indexes/{indexName}/documents/live-meili", json =>
-                json.RootElement.GetProperty("Name").GetString() == "Updated"
-                && json.RootElement.GetProperty("Score").GetInt32() == 2);
+                (   (json.RootElement.TryGetProperty("Name", out var nameEl) && nameEl.GetString() == "Updated")
+                 || (json.RootElement.TryGetProperty("name", out var nameEl2) && nameEl2.GetString() == "Updated"))
+                && (   (json.RootElement.TryGetProperty("Score", out var scoreEl) && scoreEl.GetInt32() == 2)
+                    || (json.RootElement.TryGetProperty("score", out var scoreEl2) && scoreEl2.GetInt32() == 2)));
 
             Assert.Contains("Updated", payload, StringComparison.Ordinal);
 

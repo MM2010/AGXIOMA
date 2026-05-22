@@ -231,6 +231,17 @@ public sealed class WikiDatabase : IWikiDatabase
         return result.ToList();
     }
 
+    public async Task<WikiLogEntry?> GetLastLogByTypeAsync(string opType, CancellationToken ct = default)
+    {
+        await using var conn = new NpgsqlConnection(_connStr);
+        await conn.OpenAsync(ct);
+        var result = await conn.QueryFirstOrDefaultAsync<WikiLogEntry>(
+            "SELECT id, op_type AS OpType, title AS Title, details AS Details, created_at AS CreatedAt " +
+            "FROM wiki_log WHERE op_type = @OpType ORDER BY created_at DESC LIMIT 1",
+            new { OpType = opType });
+        return result;
+    }
+
     public async Task<int> CountLogEntriesAsync(CancellationToken ct = default)
     {
         await using var conn = new NpgsqlConnection(_connStr);

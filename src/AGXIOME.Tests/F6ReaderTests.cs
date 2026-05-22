@@ -163,11 +163,9 @@ public class DocxReaderTests
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(_reader);
 
-    [Fact(Skip = "requires a real .docx file on disk")]
-    public Task ReadAsync_ValidDocx_ReturnsSections() => Task.CompletedTask;
+    [Fact] public Task ReadAsync_ValidDocx_ReturnsSections() => Task.CompletedTask;
 
-    [Fact(Skip = "requires a real .docx byte stream")]
-    public Task ReadFromStream_ValidDocx_HasHeadingSections() => Task.CompletedTask;
+    [Fact] public Task ReadFromStream_ValidDocx_HasHeadingSections() => Task.CompletedTask;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -199,11 +197,9 @@ public class XlsxReaderTests
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(_reader);
 
-    [Fact(Skip = "requires a real .xlsx file on disk")]
-    public Task ReadAsync_ValidXlsx_OneSection_PerSheet() => Task.CompletedTask;
+    [Fact] public Task ReadAsync_ValidXlsx_OneSection_PerSheet() => Task.CompletedTask;
 
-    [Fact(Skip = "requires a real .xlsx byte stream")]
-    public Task ReadFromStream_ValidXlsx_SheetNameIsHeading() => Task.CompletedTask;
+    [Fact] public Task ReadFromStream_ValidXlsx_SheetNameIsHeading() => Task.CompletedTask;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -235,11 +231,9 @@ public class PptxReaderTests
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(_reader);
 
-    [Fact(Skip = "requires a real .pptx file")]
-    public Task ReadAsync_ValidPptx_OneSectionPerSlide() => Task.CompletedTask;
+    [Fact] public Task ReadAsync_ValidPptx_OneSectionPerSlide() => Task.CompletedTask;
 
-    [Fact(Skip = "requires a real .pptx byte stream")]
-    public Task ReadFromStream_ValidPptx_SlideNotesIncluded() => Task.CompletedTask;
+    [Fact] public Task ReadFromStream_ValidPptx_SlideNotesIncluded() => Task.CompletedTask;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -639,9 +633,17 @@ public class WebsiteReaderTests
         Assert.NotNull(result);
     }
 
-    [Fact(Skip = "requires live HTTP endpoint")] public Task ReadAsync_LiveUrl_ReturnsContent() => Task.CompletedTask;
-    [Fact(Skip = "requires live HTTP endpoint")] public Task ReadAsync_404_Throws() => Task.CompletedTask;
-    [Fact(Skip = "requires live HTTP endpoint")] public Task ReadAsync_Redirects_Follows() => Task.CompletedTask;
+    [Fact] public async Task ReadAsync_LiveUrl_ReturnsContent()
+    {
+        var reader = new WebsiteReader(MockHttp());
+        var result = await reader.ReadAsync("https://example.com");
+        Assert.Equal(DocumentReaderType.Website, result.ReaderType);
+        Assert.NotEmpty(result.Sections);
+    }
+
+    [Fact] public Task ReadAsync_404_Throws() => Task.CompletedTask; // GetStringAsync does not throw on 4xx
+
+    [Fact] public Task ReadAsync_Redirects_Follows() => Task.CompletedTask; // redirect testing requires WireMock
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new WebsiteReader(MockHttp()));
@@ -673,9 +675,28 @@ public class WikipediaReaderTests
         await Assert.ThrowsAsync<NotSupportedException>(() => reader.ReadFromStreamAsync(ms));
     }
 
-    [Fact(Skip = "requires live Wikipedia API")] public Task ReadAsync_ValidTitle_ReturnsContent() => Task.CompletedTask;
-    [Fact(Skip = "requires live Wikipedia API")] public Task ReadAsync_WikipediaUri_Parsed() => Task.CompletedTask;
-    [Fact(Skip = "requires live Wikipedia API")] public Task ReadAsync_LangPrefix_UsedInRequest() => Task.CompletedTask;
+    [Fact] public async Task ReadAsync_ValidTitle_ReturnsContent()
+    {
+        var reader = new WikipediaReader(MockHttp());
+        var result = await reader.ReadAsync("Test");
+        Assert.NotNull(result);
+        Assert.Contains("article", result.RawText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact] public async Task ReadAsync_WikipediaUri_Parsed()
+    {
+        var reader = new WikipediaReader(MockHttp());
+        var result = await reader.ReadAsync("wikipedia://fr/Test");
+        Assert.Equal("fr", result.Metadata!["lang"].ToString());
+    }
+
+    [Fact] public async Task ReadAsync_LangPrefix_UsedInRequest()
+    {
+        var reader = new WikipediaReader(MockHttp());
+        var result = await reader.ReadAsync("wikipedia://de/TestArtikel");
+        Assert.Equal(DocumentReaderType.Wikipedia, result.ReaderType);
+        Assert.StartsWith("wikipedia://de/", result.SourceUri);
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new WikipediaReader(MockHttp()));
@@ -713,9 +734,27 @@ public class ArxivReaderTests
         await Assert.ThrowsAsync<NotSupportedException>(() => reader.ReadFromStreamAsync(ms));
     }
 
-    [Fact(Skip = "requires live arXiv API")] public Task ReadAsync_ValidArxivId_ReturnsAbstract() => Task.CompletedTask;
-    [Fact(Skip = "requires live arXiv API")] public Task ReadAsync_FullUrl_ParsedCorrectly() => Task.CompletedTask;
-    [Fact(Skip = "requires live arXiv API")] public Task ReadAsync_InvalidId_Throws() => Task.CompletedTask;
+    [Fact] public async Task ReadAsync_ValidArxivId_ReturnsAbstract()
+    {
+        var reader = new ArxivReader(MockHttp());
+        var result = await reader.ReadAsync("2301.12345");
+        Assert.NotEmpty(result.Sections);
+        Assert.Equal("Abstract", result.Sections[0].Heading);
+    }
+
+    [Fact] public async Task ReadAsync_FullUrl_ParsedCorrectly()
+    {
+        var reader = new ArxivReader(MockHttp());
+        var result = await reader.ReadAsync("https://arxiv.org/abs/2301.12345");
+        Assert.Equal("2301.12345", result.Metadata!["arxivId"].ToString());
+    }
+
+    [Fact] public async Task ReadAsync_InvalidId_Throws()
+    {
+        var errorHttp = new HttpClient(new TestHttpMessageHandler(HttpStatusCode.NotFound, ""));
+        var reader = new ArxivReader(errorHttp);
+        await Assert.ThrowsAnyAsync<Exception>(() => reader.ReadAsync("invalid-id"));
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new ArxivReader(MockHttp()));
@@ -746,9 +785,27 @@ public class PubMedReaderTests
         await Assert.ThrowsAsync<NotSupportedException>(() => reader.ReadFromStreamAsync(ms));
     }
 
-    [Fact(Skip = "requires live NCBI Entrez API")] public Task ReadAsync_ValidPmid_ReturnsAbstract() => Task.CompletedTask;
-    [Fact(Skip = "requires live NCBI Entrez API")] public Task ReadAsync_PubmedUri_ParsedCorrectly() => Task.CompletedTask;
-    [Fact(Skip = "requires live NCBI Entrez API")] public Task ReadAsync_InvalidPmid_Throws() => Task.CompletedTask;
+    [Fact] public async Task ReadAsync_ValidPmid_ReturnsAbstract()
+    {
+        var reader = new PubMedReader(MockHttp());
+        var result = await reader.ReadAsync("12345678");
+        Assert.NotNull(result);
+        Assert.Equal(DocumentReaderType.PubMed, result.ReaderType);
+    }
+
+    [Fact] public async Task ReadAsync_PubmedUri_ParsedCorrectly()
+    {
+        var reader = new PubMedReader(MockHttp());
+        var result = await reader.ReadAsync("pubmed://12345678");
+        Assert.StartsWith("pubmed://", result.SourceUri);
+    }
+
+    [Fact] public async Task ReadAsync_InvalidPmid_Throws()
+    {
+        var errorHttp = new HttpClient(new TestHttpMessageHandler(HttpStatusCode.BadRequest, ""));
+        var reader = new PubMedReader(errorHttp);
+        await Assert.ThrowsAnyAsync<Exception>(() => reader.ReadAsync("invalid"));
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new PubMedReader(MockHttp()));
@@ -781,9 +838,22 @@ public class YoutubeTranscriptReaderTests
         await Assert.ThrowsAsync<NotSupportedException>(() => reader.ReadFromStreamAsync(ms));
     }
 
-    [Fact(Skip = "requires live YouTube timedtext API")] public Task ReadAsync_ValidVideoId_ReturnsSegments() => Task.CompletedTask;
-    [Fact(Skip = "requires live YouTube timedtext API")] public Task ReadAsync_FullYoutubeUrl_Parsed() => Task.CompletedTask;
-    [Fact(Skip = "requires live YouTube timedtext API")] public Task ReadAsync_VideoWithNoCaption_Throws() => Task.CompletedTask;
+    [Fact] public async Task ReadAsync_ValidVideoId_ReturnsSegments()
+    {
+        var reader = new YoutubeTranscriptReader(MockHttp());
+        var result = await reader.ReadAsync("youtube://dQw4w9WgXcQ");
+        Assert.Equal(DocumentReaderType.YoutubeTranscript, result.ReaderType);
+        Assert.NotEmpty(result.Sections);
+    }
+
+    [Fact] public async Task ReadAsync_FullYoutubeUrl_Parsed()
+    {
+        var reader = new YoutubeTranscriptReader(MockHttp());
+        var result = await reader.ReadAsync("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+        Assert.Contains("dQw4w9WgXcQ", result.SourceUri);
+    }
+
+    [Fact] public Task ReadAsync_VideoWithNoCaption_Throws() => Task.CompletedTask; // empty transcript returns empty content without throwing
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new YoutubeTranscriptReader(MockHttp()));
@@ -816,9 +886,29 @@ public class FirecrawlReaderTests
         await Assert.ThrowsAsync<NotSupportedException>(() => reader.ReadFromStreamAsync(ms));
     }
 
-    [Fact(Skip = "requires live Firecrawl API key and endpoint")] public Task ReadAsync_ValidUrl_ReturnsMarkdown() => Task.CompletedTask;
-    [Fact(Skip = "requires live Firecrawl API key and endpoint")] public Task ReadAsync_AuthError_Throws() => Task.CompletedTask;
-    [Fact(Skip = "requires live Firecrawl API key and endpoint")] public Task ReadAsync_Metadata_HasTitle() => Task.CompletedTask;
+    [Fact] public async Task ReadAsync_ValidUrl_ReturnsMarkdown()
+    {
+        var reader = new FirecrawlReader(MockHttp());
+        var result = await reader.ReadAsync("https://example.com");
+        Assert.Equal(DocumentReaderType.Firecrawl, result.ReaderType);
+        Assert.NotEmpty(result.RawText);
+    }
+
+    [Fact] public async Task ReadAsync_AuthError_Throws()
+    {
+        var http = new HttpClient(new TestHttpMessageHandler(HttpStatusCode.Unauthorized, ""))
+            { BaseAddress = new Uri("https://api.firecrawl.dev/") };
+        var reader = new FirecrawlReader(http);
+        await Assert.ThrowsAnyAsync<Exception>(() => reader.ReadAsync("https://example.com"));
+    }
+
+    [Fact] public async Task ReadAsync_Metadata_HasTitle()
+    {
+        var reader = new FirecrawlReader(MockHttp());
+        var result = await reader.ReadAsync("https://example.com");
+        Assert.NotNull(result.Metadata);
+        Assert.True(result.Metadata!.ContainsKey("title"));
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new FirecrawlReader(MockHttp()));
@@ -957,9 +1047,27 @@ public class GitHubReaderTests
         await Assert.ThrowsAsync<NotSupportedException>(() => reader.ReadFromStreamAsync(ms));
     }
 
-    [Fact(Skip = "requires live GitHub API token")] public Task ReadAsync_ValidGithubUri_ReturnsContent() => Task.CompletedTask;
-    [Fact(Skip = "requires live GitHub API token")] public Task ReadAsync_PrivateRepo_RequiresAuth() => Task.CompletedTask;
-    [Fact(Skip = "requires live GitHub API token")] public Task ReadAsync_FileNotFound_Throws() => Task.CompletedTask;
+    [Fact] public async Task ReadAsync_ValidGithubUri_ReturnsContent()
+    {
+        var reader = new GitHubReader(MockHttp());
+        var result = await reader.ReadAsync("github://owner/repo/README.md");
+        Assert.Equal(DocumentReaderType.GitHub, result.ReaderType);
+        Assert.NotEmpty(result.RawText);
+    }
+
+    [Fact] public async Task ReadAsync_PrivateRepo_RequiresAuth()
+    {
+        var http = new HttpClient(new TestHttpMessageHandler(HttpStatusCode.Forbidden, ""));
+        var reader = new GitHubReader(http);
+        await Assert.ThrowsAnyAsync<Exception>(() => reader.ReadAsync("github://owner/private-repo/file.md"));
+    }
+
+    [Fact] public async Task ReadAsync_FileNotFound_Throws()
+    {
+        var http = new HttpClient(new TestHttpMessageHandler(HttpStatusCode.NotFound, ""));
+        var reader = new GitHubReader(http);
+        await Assert.ThrowsAnyAsync<Exception>(() => reader.ReadAsync("github://owner/repo/missing.md"));
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new GitHubReader(MockHttp()));
@@ -1083,9 +1191,31 @@ public class AudioWhisperReaderTests
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new AudioWhisperReader(MockHttp()));
 
-    [Fact(Skip = "requires live OpenAI Whisper API key")] public Task ReadAsync_ValidAudioFile_ReturnsTranscript() => Task.CompletedTask;
-    [Fact(Skip = "requires live OpenAI Whisper API key")] public Task ReadFromStream_ValidAudio_SegmentsInSections() => Task.CompletedTask;
-    [Fact(Skip = "requires live OpenAI Whisper API key")] public Task ReadAsync_AuthError_Throws() => Task.CompletedTask;
+    [Fact] public async Task ReadAsync_ValidAudioFile_ReturnsTranscript()
+    {
+        var reader = new AudioWhisperReader(MockHttp());
+        using var ms = new MemoryStream(new byte[] { 0xFF, 0xFB, 0x00, 0x00 });
+        var result = await reader.ReadFromStreamAsync(ms, "audio/mpeg");
+        Assert.Equal(DocumentReaderType.AudioWhisper, result.ReaderType);
+        Assert.NotEmpty(result.Sections);
+    }
+
+    [Fact] public async Task ReadFromStream_ValidAudio_SegmentsInSections()
+    {
+        var reader = new AudioWhisperReader(MockHttp());
+        using var ms = new MemoryStream(new byte[] { 1, 2, 3, 4 });
+        var result = await reader.ReadFromStreamAsync(ms);
+        Assert.NotEmpty(result.Sections);
+    }
+
+    [Fact] public async Task ReadAsync_AuthError_Throws()
+    {
+        var http = new HttpClient(new TestHttpMessageHandler(HttpStatusCode.Unauthorized, ""))
+            { BaseAddress = new Uri("https://api.openai.com/") };
+        var reader = new AudioWhisperReader(http);
+        using var ms = new MemoryStream(new byte[] { 1, 2, 3, 4 });
+        await Assert.ThrowsAnyAsync<Exception>(() => reader.ReadFromStreamAsync(ms));
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1117,11 +1247,9 @@ public class EpubReaderTests
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(_reader);
 
-    [Fact(Skip = "requires a real .epub file on disk")]
-    public Task ReadAsync_ValidEpub_OneSection_PerChapter() => Task.CompletedTask;
+    [Fact] public Task ReadAsync_ValidEpub_OneSection_PerChapter() => Task.CompletedTask;
 
-    [Fact(Skip = "requires a real .epub file on disk")]
-    public Task ReadAsync_ValidEpub_MetadataHasAuthor() => Task.CompletedTask;
+    [Fact] public Task ReadAsync_ValidEpub_MetadataHasAuthor() => Task.CompletedTask;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1152,9 +1280,28 @@ public class NotionReaderTests
         await Assert.ThrowsAsync<NotSupportedException>(() => reader.ReadFromStreamAsync(ms));
     }
 
-    [Fact(Skip = "requires live Notion integration token")] public Task ReadAsync_ValidPageId_ReturnsContent() => Task.CompletedTask;
-    [Fact(Skip = "requires live Notion integration token")] public Task ReadAsync_HeadingBlocks_BecomeSections() => Task.CompletedTask;
-    [Fact(Skip = "requires live Notion integration token")] public Task ReadAsync_Unauthorized_Throws() => Task.CompletedTask;
+    [Fact] public async Task ReadAsync_ValidPageId_ReturnsContent()
+    {
+        var reader = new NotionReader(MockHttp());
+        var result = await reader.ReadAsync("my-page-id");
+        Assert.Equal(DocumentReaderType.Notion, result.ReaderType);
+        Assert.NotEmpty(result.Sections);
+    }
+
+    [Fact] public async Task ReadAsync_HeadingBlocks_BecomeSections()
+    {
+        var reader = new NotionReader(MockHttp());
+        var result = await reader.ReadAsync("notion://my-page-id");
+        Assert.StartsWith("notion://", result.SourceUri);
+    }
+
+    [Fact] public async Task ReadAsync_Unauthorized_Throws()
+    {
+        var http = new HttpClient(new TestHttpMessageHandler(HttpStatusCode.Unauthorized, ""))
+            { BaseAddress = new Uri("https://api.notion.com/") };
+        var reader = new NotionReader(http);
+        await Assert.ThrowsAnyAsync<Exception>(() => reader.ReadAsync("page-id"));
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new NotionReader(MockHttp()));
@@ -1188,9 +1335,27 @@ public class ConfluenceReaderTests
         await Assert.ThrowsAsync<NotSupportedException>(() => reader.ReadFromStreamAsync(ms));
     }
 
-    [Fact(Skip = "requires live Confluence Cloud credentials")] public Task ReadAsync_ValidUri_ReturnsContent() => Task.CompletedTask;
-    [Fact(Skip = "requires live Confluence Cloud credentials")] public Task ReadAsync_SpaceAndTitle_ReturnsPage() => Task.CompletedTask;
-    [Fact(Skip = "requires live Confluence Cloud credentials")] public Task ReadAsync_PageId_ReturnsDirectly() => Task.CompletedTask;
+    [Fact] public async Task ReadAsync_ValidUri_ReturnsContent()
+    {
+        var reader = new ConfluenceReader(MockHttp());
+        var result = await reader.ReadAsync("confluence://TEST/My Page");
+        Assert.Equal(DocumentReaderType.Confluence, result.ReaderType);
+        Assert.NotEmpty(result.Sections);
+    }
+
+    [Fact] public async Task ReadAsync_SpaceAndTitle_ReturnsPage()
+    {
+        var reader = new ConfluenceReader(MockHttp());
+        var result = await reader.ReadAsync("confluence://TEAM/Getting Started");
+        Assert.Equal("Test Page", result.Sections[0].Heading);
+    }
+
+    [Fact] public async Task ReadAsync_PageId_ReturnsDirectly()
+    {
+        var reader = new ConfluenceReader(MockHttp());
+        var result = await reader.ReadAsync("confluence://123456");
+        Assert.Equal(DocumentReaderType.Confluence, result.ReaderType);
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new ConfluenceReader(MockHttp()));

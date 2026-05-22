@@ -94,6 +94,7 @@ builder.Services.AddSingleton<IWikiQueryEngine>(sp => sp.GetRequiredService<Wiki
 // ── Reranker (Ollama qwen2.5-coder:3b) ───────────────────────────────
 builder.Services.AddSingleton<LegalReranker>();
 builder.Services.AddSingleton<LegalQueryExpander>();
+builder.Services.AddSingleton<LegalConceptExtractor>();
 
 // ── Startup ingestion ────────────────────────────────────────────────────
 builder.Services.AddSingleton<LegalCodeIngestionService>();

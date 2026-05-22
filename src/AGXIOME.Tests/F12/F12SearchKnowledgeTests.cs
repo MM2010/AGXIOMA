@@ -190,14 +190,15 @@ public sealed class ArxivToolkitTests
     [Fact] public async Task Category_IsCorrect() => Assert.Equal(ToolkitCategory.SearchKnowledge, new ArxivToolkit().Category);
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
+        // ArxivToolkit.IsConfigured => true; makes a real HTTP call to arxiv.org
         var r = await new ArxivToolkit().ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "llm", ["max_results"] = 5 }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.True(r.Status is ToolkitResultStatus.Ok or ToolkitResultStatus.Error);
     }
     [Fact] public async Task Execute_WithConfig_ReturnsOk()
     {
         var cfg = new ToolkitConfig("arxiv", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new ArxivToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "llm", ["max_results"] = 5 }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.True(r.Status is ToolkitResultStatus.Ok or ToolkitResultStatus.Error);
     }
 }
 
@@ -216,5 +217,119 @@ public sealed class PubMedToolkitTests
         var cfg = new ToolkitConfig("pubmed", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new PubMedToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "cancer", ["retmax"] = 5 }, default);
         Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+}
+
+public sealed class DuckDuckGoToolkitTests
+{
+    [Fact] public void Id_IsCorrect() => Assert.Equal("duckduckgo", new DuckDuckGoToolkit().Id);
+    [Fact] public void Name_IsCorrect() => Assert.Equal("DuckDuckGo", new DuckDuckGoToolkit().Name);
+    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.SearchKnowledge, new DuckDuckGoToolkit().Category);
+    [Fact] public void IsConfigured_IsAlwaysTrue() => Assert.True(new DuckDuckGoToolkit().IsConfigured);
+    [Fact] public async Task Execute_Search_ReturnsOkOrError()
+    {
+        var r = await new DuckDuckGoToolkit().ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "dotnet" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Ok or ToolkitResultStatus.Error);
+    }
+    [Fact] public async Task Execute_Related_ReturnsOkOrError()
+    {
+        var r = await new DuckDuckGoToolkit().ExecuteAsync("related", new Dictionary<string, object?> { ["query"] = "dotnet" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Ok or ToolkitResultStatus.Error);
+    }
+}
+
+public sealed class YouComToolkitTests
+{
+    [Fact] public void Id_IsCorrect() => Assert.Equal("youcom", new YouComToolkit().Id);
+    [Fact] public void Name_IsCorrect() => Assert.Equal("You.com", new YouComToolkit().Name);
+    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.SearchKnowledge, new YouComToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
+    {
+        var r = await new YouComToolkit().ExecuteAsync("search", [], default);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+    [Fact] public async Task Execute_WithConfig_ReturnsUnauthorizedOrError()
+    {
+        var cfg = new ToolkitConfig("youcom", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new YouComToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "dotnet" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+    [Fact] public async Task Execute_NewsAction_ReturnsUnauthorizedOrError()
+    {
+        var cfg = new ToolkitConfig("youcom", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new YouComToolkit(cfg).ExecuteAsync("news", new Dictionary<string, object?> { ["query"] = "dotnet" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+}
+
+public sealed class KagiToolkitTests
+{
+    [Fact] public void Id_IsCorrect() => Assert.Equal("kagi", new KagiToolkit().Id);
+    [Fact] public void Name_IsCorrect() => Assert.Equal("Kagi", new KagiToolkit().Name);
+    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.SearchKnowledge, new KagiToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
+    {
+        var r = await new KagiToolkit().ExecuteAsync("search", [], default);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+    [Fact] public async Task Execute_WithConfig_ReturnsUnauthorizedOrError()
+    {
+        var cfg = new ToolkitConfig("kagi", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new KagiToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "dotnet" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+    [Fact] public async Task Execute_FastGpt_ReturnsUnauthorizedOrError()
+    {
+        var cfg = new ToolkitConfig("kagi", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new KagiToolkit(cfg).ExecuteAsync("fastgpt", new Dictionary<string, object?> { ["query"] = "dotnet" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+}
+
+public sealed class PerplexityToolkitTests
+{
+    [Fact] public void Id_IsCorrect() => Assert.Equal("perplexity", new PerplexityToolkit().Id);
+    [Fact] public void Name_IsCorrect() => Assert.Equal("Perplexity", new PerplexityToolkit().Name);
+    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.SearchKnowledge, new PerplexityToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
+    {
+        var r = await new PerplexityToolkit().ExecuteAsync("search", [], default);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+    [Fact] public async Task Execute_WithConfig_ReturnsUnauthorizedOrError()
+    {
+        var cfg = new ToolkitConfig("perplexity", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new PerplexityToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "dotnet" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+    [Fact] public async Task Execute_DeepSearch_ReturnsUnauthorizedOrError()
+    {
+        var cfg = new ToolkitConfig("perplexity", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new PerplexityToolkit(cfg).ExecuteAsync("deep_search", new Dictionary<string, object?> { ["query"] = "dotnet" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+}
+
+public sealed class GNewsToolkitTests
+{
+    [Fact] public void Id_IsCorrect() => Assert.Equal("gnews", new GNewsToolkit().Id);
+    [Fact] public void Name_IsCorrect() => Assert.Equal("GNews", new GNewsToolkit().Name);
+    [Fact] public void Category_IsCorrect() => Assert.Equal(ToolkitCategory.SearchKnowledge, new GNewsToolkit().Category);
+    [Fact] public async Task NotConfigured_ReturnsSkipped()
+    {
+        var r = await new GNewsToolkit().ExecuteAsync("search", [], default);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+    [Fact] public async Task Execute_WithConfig_ReturnsUnauthorizedOrError()
+    {
+        var cfg = new ToolkitConfig("gnews", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new GNewsToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "dotnet" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+    [Fact] public async Task Execute_TopHeadlines_ReturnsUnauthorizedOrError()
+    {
+        var cfg = new ToolkitConfig("gnews", new Dictionary<string, string> { ["api_key"] = "test" });
+        var r = await new GNewsToolkit(cfg).ExecuteAsync("top_headlines", new Dictionary<string, object?> { ["category"] = "technology" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
     }
 }

@@ -55,6 +55,48 @@ public sealed class GoogleDocsToolkitTests
         var r = await new GoogleDocsToolkit(cfg).ExecuteAsync("read_document", new Dictionary<string, object?> { ["document_id"] = "1" }, default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
+
+    // ── Security / boundary tests ──────────────────────────────────────────
+    [Fact] public async Task ListDocs_NotConfigured_ReturnsSkipped()
+    {
+        var r = await new GoogleDocsToolkit().ExecuteAsync("list_docs", [], default);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+
+    [Fact] public async Task AppendText_NotConfigured_ReturnsSkipped()
+    {
+        var r = await new GoogleDocsToolkit().ExecuteAsync("append_text", [], default);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+
+    [Fact] public async Task UpdateTitle_NotConfigured_ReturnsSkipped()
+    {
+        var r = await new GoogleDocsToolkit().ExecuteAsync("update_title", [], default);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+
+    [Fact] public async Task AppendText_FakeToken_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("google_docs", new Dictionary<string, string> { ["access_token"] = "ya29.fake" });
+        var r = await new GoogleDocsToolkit(cfg).ExecuteAsync("append_text",
+            new Dictionary<string, object?> { ["document_id"] = "doc_id_123", ["text"] = "<script>alert(1)</script>" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+
+    [Fact] public async Task AppendText_MissingDocId_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("google_docs", new Dictionary<string, string> { ["access_token"] = "ya29.fake" });
+        var r = await new GoogleDocsToolkit(cfg).ExecuteAsync("append_text",
+            new Dictionary<string, object?> { ["text"] = "some text" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+
+    [Fact] public async Task UnknownAction_WithToken_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("google_docs", new Dictionary<string, string> { ["access_token"] = "ya29.fake" });
+        var r = await new GoogleDocsToolkit(cfg).ExecuteAsync("__malicious__; rm -rf /", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
 }
 
 public sealed class GoogleSheetsToolkitTests
@@ -234,6 +276,49 @@ public sealed class GoogleTasksToolkitTests
         var cfg = new ToolkitConfig("google_tasks", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new GoogleTasksToolkit(cfg).ExecuteAsync("list_tasks", new Dictionary<string, object?> { ["tasklist_id"] = "@default" }, default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+
+    // ── Security / boundary tests ──────────────────────────────────────────
+    [Fact] public async Task CreateTask_NotConfigured_ReturnsSkipped()
+    {
+        var r = await new GoogleTasksToolkit().ExecuteAsync("create_task", [], default);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+
+    [Fact] public async Task CompleteTask_NotConfigured_ReturnsSkipped()
+    {
+        var r = await new GoogleTasksToolkit().ExecuteAsync("complete_task", [], default);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+
+    [Fact] public async Task CreateTask_FakeToken_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("google_tasks", new Dictionary<string, string> { ["access_token"] = "ya29.fake" });
+        var r = await new GoogleTasksToolkit(cfg).ExecuteAsync("create_task",
+            new Dictionary<string, object?> { ["title"] = "Test task", ["tasklist_id"] = "@default" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+
+    [Fact] public async Task CreateTask_MissingTitle_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("google_tasks", new Dictionary<string, string> { ["access_token"] = "ya29.fake" });
+        // create_task uses GetRequiredParam("title") → MissingParameter → Error
+        var r = await new GoogleTasksToolkit(cfg).ExecuteAsync("create_task", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+
+    [Fact] public async Task CompleteTask_MissingId_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("google_tasks", new Dictionary<string, string> { ["access_token"] = "ya29.fake" });
+        var r = await new GoogleTasksToolkit(cfg).ExecuteAsync("complete_task", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+
+    [Fact] public async Task UnknownAction_WithToken_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("google_tasks", new Dictionary<string, string> { ["access_token"] = "ya29.fake" });
+        var r = await new GoogleTasksToolkit(cfg).ExecuteAsync("__inject__", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 

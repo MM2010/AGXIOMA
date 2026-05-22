@@ -168,13 +168,21 @@ public sealed class ExcelToolkit(ToolkitConfig? config=null):ToolkitBase(config)
     public override bool IsConfigured=>true;
     protected override Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         var file=GetParam<string>(p,"file")??"";
-        if(!File.Exists(file))return Task.FromResult(ToolkitResult.Fail($"File not found: {file}"));
+        if(!IsSafePath(file))return Task.FromResult(ToolkitResult.Fail("Invalid file path: path traversal not allowed"));
+        if(a!="write"&&!File.Exists(file))return Task.FromResult(ToolkitResult.Fail($"File not found: {file}"));
         return a switch{
-            "read"=>ReadExcel(file,GetParam<string>(p,"sheet"),GetParam<int?>(p,"max_rows")??1000),
-            "list_sheets"=>ListSheets(file),
+            "read"        =>ReadExcel(file,GetParam<string>(p,"sheet"),GetParam<int?>(p,"max_rows")??1000),
+            "list_sheets" =>ListSheets(file),
+            "write"       =>WriteExcel(file,GetParam<string>(p,"sheet")??"Sheet1",GetParam<string>(p,"json")??"" ),
+            "get_cell"    =>GetCell(file,GetParam<string>(p,"sheet"),GetRequiredParam<string>(p,"cell")),
+            "update_cell" =>UpdateCell(file,GetParam<string>(p,"sheet"),GetRequiredParam<string>(p,"cell"),GetParam<string>(p,"value")??"" ),
             _=>Task.FromException<ToolkitResult>(AgxiomeToolkitException.UnknownAction(Id, a))
         };
     }
+    private static bool IsSafePath(string path)=>
+        !string.IsNullOrWhiteSpace(path)&&
+        !path.Contains('\0')&&
+        !path.Split(new[]{'/','\\'},StringSplitOptions.RemoveEmptyEntries).Contains("..");
     private Task<ToolkitResult> ReadExcel(string file,string? sheetName,int maxRows){
         using var wb=new ClosedXML.Excel.XLWorkbook(file);
         var ws=sheetName!=null?wb.Worksheet(sheetName):wb.Worksheets.First();
@@ -189,6 +197,34 @@ public sealed class ExcelToolkit(ToolkitConfig? config=null):ToolkitBase(config)
     private Task<ToolkitResult> ListSheets(string file){
         using var wb=new ClosedXML.Excel.XLWorkbook(file);
         return Task.FromResult(ToolkitResult.Success(new{file,sheets=wb.Worksheets.Select(w=>w.Name).ToArray()}));
+    }
+    private Task<ToolkitResult> WriteExcel(string file,string sheetName,string json){
+        try{
+            var docs=System.Text.Json.JsonDocument.Parse(string.IsNullOrWhiteSpace(json)?"[]": json);
+            using var wb=File.Exists(file)?new ClosedXML.Excel.XLWorkbook(file):new ClosedXML.Excel.XLWorkbook();
+            var ws=wb.Worksheets.FirstOrDefault(x=>x.Name==sheetName)??wb.Worksheets.Add(sheetName);
+            int row=1;
+            foreach(var item in docs.RootElement.EnumerateArray()){
+                int col=1;
+                foreach(var prop in item.EnumerateObject()){if(row==1&&ws.Cell(1,col).IsEmpty())ws.Cell(1,col).Value=prop.Name;ws.Cell(row+1,col).Value=prop.Value.GetRawText().Trim('"');col++;}
+                row++;
+            }
+            wb.SaveAs(file);
+            return Task.FromResult(ToolkitResult.Success(new{file,sheet=sheetName,rowsWritten=row-1}));
+        }catch(Exception ex){return Task.FromResult(ToolkitResult.Fail($"Write failed: {ex.Message}"));}
+    }
+    private Task<ToolkitResult> GetCell(string file,string? sheetName,string cell){
+        using var wb=new ClosedXML.Excel.XLWorkbook(file);
+        var ws=sheetName!=null?wb.Worksheet(sheetName):wb.Worksheets.First();
+        var c=ws.Cell(cell);
+        return Task.FromResult(ToolkitResult.Success(new{file,sheet=ws.Name,cell,value=c.GetString(),type=c.DataType.ToString()}));
+    }
+    private Task<ToolkitResult> UpdateCell(string file,string? sheetName,string cell,string value){
+        using var wb=new ClosedXML.Excel.XLWorkbook(file);
+        var ws=sheetName!=null?wb.Worksheet(sheetName):wb.Worksheets.First();
+        ws.Cell(cell).Value=value;
+        wb.Save();
+        return Task.FromResult(ToolkitResult.Success(new{file,sheet=ws.Name,cell,value,updated=true}));
     }
 }
 

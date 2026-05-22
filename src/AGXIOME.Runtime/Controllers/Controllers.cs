@@ -5,6 +5,7 @@
 using Microsoft.AspNetCore.Mvc;
 using AGXIOME.Core.Execution;
 using AGXIOME.Core.Tools;
+using AGXIOME.Runtime.Repositories;
 using AGXIOME.Security.Audit;
 using AGXIOME.Security.Sanitization;
 using AGXIOME.Security.ApiKey;
@@ -114,22 +115,24 @@ public static class ApiErrors
 // ═══════════════════════════════════════════════════════════════
 
 [ApiController, Route("api/agents")]
-public sealed class AgentController(AuditLogger audit, IInputSanitizer sanitizer) : ControllerBase
+public sealed class AgentController(AuditLogger audit, IInputSanitizer sanitizer, IAgentRepository agents) : ControllerBase
 {
-    private readonly AuditLogger _audit = audit;          // injected for future audit usage
+    private readonly AuditLogger _audit = audit;
     private readonly IInputSanitizer _sanitizer = sanitizer;
-    // In-memory stub storage — production uses IAgentRepository
-    private static readonly Dictionary<string, AgentDto> _agents = [];
+    private readonly IAgentRepository _agents = agents;
 
     [HttpGet]
-    public IActionResult List() => Ok(_agents.Values.ToList());
+    public async Task<IActionResult> List(CancellationToken ct) => Ok(await _agents.ListAsync(ct));
 
     [HttpGet("{id}")]
-    public IActionResult Get(string id) =>
-        _agents.TryGetValue(id, out var a) ? Ok(a) : ApiErrors.NotFound($"Agent '{id}' was not found.");
+    public async Task<IActionResult> Get(string id, CancellationToken ct)
+    {
+        var a = await _agents.GetByIdAsync(id, ct);
+        return a is not null ? Ok(a) : ApiErrors.NotFound($"Agent '{id}' was not found.");
+    }
 
     [HttpPost]
-    public IActionResult Create([FromBody] CreateAgentRequest req)
+    public async Task<IActionResult> Create([FromBody] CreateAgentRequest req, CancellationToken ct)
     {
         var check = _sanitizer.Sanitize(req.Name, SanitizationRules.AgentNameR);
         if (!check.IsValid) return ApiErrors.InvalidArguments(
@@ -138,32 +141,36 @@ public sealed class AgentController(AuditLogger audit, IInputSanitizer sanitizer
 
         var id    = Guid.NewGuid().ToString("N")[..12];
         var agent = new AgentDto(id, check.SanitizedValue, req.Description, req.Model, DateTimeOffset.UtcNow);
-        _agents[id] = agent;
+        await _agents.SaveAsync(agent, ct);
         return Created($"/api/agents/{id}", agent);
     }
 
     [HttpPut("{id}")]
-    public IActionResult Update(string id, [FromBody] CreateAgentRequest req)
+    public async Task<IActionResult> Update(string id, [FromBody] CreateAgentRequest req, CancellationToken ct)
     {
-        if (!_agents.TryGetValue(id, out var existing)) return NotFound();
-        _agents[id] = existing with { Name = req.Name, Description = req.Description, Model = req.Model };
-        return Ok(_agents[id]);
+        var existing = await _agents.GetByIdAsync(id, ct);
+        if (existing is null) return NotFound();
+        var updated = existing with { Name = req.Name, Description = req.Description, Model = req.Model };
+        await _agents.UpdateAsync(id, updated, ct);
+        return Ok(updated);
     }
 
     [HttpDelete("{id}")]
-    public IActionResult Delete(string id)
+    public async Task<IActionResult> Delete(string id, CancellationToken ct)
     {
-        if (!_agents.Remove(id)) return NotFound();
+        if (!await _agents.DeleteAsync(id, ct)) return NotFound();
         return NoContent();
     }
 
     [HttpPost("{id}/clone")]
-    public IActionResult Clone(string id)
+    public async Task<IActionResult> Clone(string id, CancellationToken ct)
     {
-        if (!_agents.TryGetValue(id, out var src)) return NotFound();
-        var newId = Guid.NewGuid().ToString("N")[..12];
-        _agents[newId] = src with { Id = newId, Name = $"{src.Name}-copy", CreatedAt = DateTimeOffset.UtcNow };
-        return Created($"/api/agents/{newId}", _agents[newId]);
+        var src = await _agents.GetByIdAsync(id, ct);
+        if (src is null) return NotFound();
+        var newId  = Guid.NewGuid().ToString("N")[..12];
+        var cloned = src with { Id = newId, Name = $"{src.Name}-copy", CreatedAt = DateTimeOffset.UtcNow };
+        await _agents.SaveAsync(cloned, ct);
+        return Created($"/api/agents/{newId}", cloned);
     }
 }
 
@@ -172,48 +179,54 @@ public sealed class AgentController(AuditLogger audit, IInputSanitizer sanitizer
 // ═══════════════════════════════════════════════════════════════
 
 [ApiController, Route("api/runs")]
-public sealed class RunController(IAgentRunPipeline? pipeline = null) : ControllerBase
+public sealed class RunController(IRunRepository runs, IAgentRunPipeline? pipeline = null) : ControllerBase
 {
+    private readonly IRunRepository _runs = runs;
     private readonly IAgentRunPipeline? _pipeline = pipeline;
-    private static readonly Dictionary<string, RunDto> _runs = [];
 
     [HttpPost]
     public async Task<IActionResult> Start([FromBody] StartRunRequest req, CancellationToken ct)
     {
         var runId = Guid.NewGuid().ToString("N")[..12];
         var run   = new RunDto(runId, req.AgentId, "running", DateTimeOffset.UtcNow, null, null);
-        _runs[runId] = run;
+        await _runs.SaveAsync(run, ct);
 
         if (_pipeline is not null)
         {
             var response = await _pipeline.RunAsync(new AgentRequest(req.Input), runId: runId, ct: ct);
             var status   = response.Status == AgentStatus.Completed ? "completed" : "error";
-            _runs[runId] = run with { Status = status, EndedAt = DateTimeOffset.UtcNow };
+            var completed = run with { Status = status, EndedAt = DateTimeOffset.UtcNow };
+            await _runs.UpdateAsync(runId, completed, ct);
             return Ok(new { runId, status, content = response.Content });
         }
 
-        // Stub mode — no pipeline registered
         return Accepted(run);
     }
 
     [HttpPost("async")]
-    public IActionResult StartAsync([FromBody] StartRunRequest req)
+    public async Task<IActionResult> StartAsync([FromBody] StartRunRequest req, CancellationToken ct)
     {
         if (_pipeline is null)
             return Accepted(new { status = "queued", message = "No pipeline registered — stub mode" });
 
         var jobId = _pipeline.RunBackground(new AgentRequest(req.Input));
-        _runs[jobId] = new RunDto(jobId, req.AgentId, "queued", DateTimeOffset.UtcNow, null, null);
+        await _runs.SaveAsync(new RunDto(jobId, req.AgentId, "queued", DateTimeOffset.UtcNow, null, null), ct);
         return Accepted(new { runId = jobId, status = "queued" });
     }
 
     [HttpGet("{runId}")]
-    public IActionResult Status(string runId) =>
-        _runs.TryGetValue(runId, out var r) ? Ok(r) : NotFound();
+    public async Task<IActionResult> Status(string runId, CancellationToken ct)
+    {
+        var r = await _runs.GetByIdAsync(runId, ct);
+        return r is not null ? Ok(r) : NotFound();
+    }
 
     [HttpGet("{runId}/result")]
-    public IActionResult Result(string runId) =>
-        _runs.TryGetValue(runId, out var r) ? Ok(r) : NotFound();
+    public async Task<IActionResult> Result(string runId, CancellationToken ct)
+    {
+        var r = await _runs.GetByIdAsync(runId, ct);
+        return r is not null ? Ok(r) : NotFound();
+    }
 
     [HttpGet("{runId}/stream")]
     public async Task Stream(string runId, [FromQuery] string input = "hello", CancellationToken ct = default)
@@ -238,34 +251,40 @@ public sealed class RunController(IAgentRunPipeline? pipeline = null) : Controll
     }
 
     [HttpDelete("{runId}")]
-    public IActionResult Cancel(string runId)
+    public async Task<IActionResult> Cancel(string runId, CancellationToken ct)
     {
-        if (!_runs.TryGetValue(runId, out var r)) return NotFound();
+        var r = await _runs.GetByIdAsync(runId, ct);
+        if (r is null) return NotFound();
         _pipeline?.CancelRun(runId);
-        _runs[runId] = r with { Status = "cancelled", EndedAt = DateTimeOffset.UtcNow };
-        return Ok(_runs[runId]);
+        var cancelled = r with { Status = "cancelled", EndedAt = DateTimeOffset.UtcNow };
+        await _runs.UpdateAsync(runId, cancelled, ct);
+        return Ok(cancelled);
     }
 
     [HttpPost("{runId}/resume")]
-    public IActionResult Resume(string runId)
+    public async Task<IActionResult> Resume(string runId, CancellationToken ct)
     {
-        if (!_runs.TryGetValue(runId, out var r)) return NotFound();
+        var r = await _runs.GetByIdAsync(runId, ct);
+        if (r is null) return NotFound();
         if (r.Status != "paused") return ApiErrors.Conflict($"Run '{runId}' cannot resume because status is '{r.Status}'.");
-        _runs[runId] = r with { Status = "running" };
-        return Ok(_runs[runId]);
+        var resumed = r with { Status = "running" };
+        await _runs.UpdateAsync(runId, resumed, ct);
+        return Ok(resumed);
     }
 
     [HttpPost("{runId}/pause")]
-    public IActionResult Pause(string runId)
+    public async Task<IActionResult> Pause(string runId, CancellationToken ct)
     {
-        if (!_runs.TryGetValue(runId, out var r)) return NotFound();
-        _runs[runId] = r with { Status = "paused" };
-        return Ok(_runs[runId]);
+        var r = await _runs.GetByIdAsync(runId, ct);
+        if (r is null) return NotFound();
+        var paused = r with { Status = "paused" };
+        await _runs.UpdateAsync(runId, paused, ct);
+        return Ok(paused);
     }
 
     [HttpGet]
-    public IActionResult List([FromQuery] string? agentId) =>
-        Ok(_runs.Values.Where(r => agentId == null || r.AgentId == agentId).ToList());
+    public async Task<IActionResult> List([FromQuery] string? agentId, CancellationToken ct) =>
+        Ok(await _runs.ListAsync(agentId, ct));
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -273,40 +292,42 @@ public sealed class RunController(IAgentRunPipeline? pipeline = null) : Controll
 // ═══════════════════════════════════════════════════════════════
 
 [ApiController, Route("api/sessions")]
-public sealed class SessionController : ControllerBase
+public sealed class SessionController(ISessionRepository sessions) : ControllerBase
 {
-    private static readonly Dictionary<string, SessionDto> _sessions = [];
+    private readonly ISessionRepository _sessions = sessions;
 
     [HttpGet]
-    public IActionResult List([FromQuery] string? agentId) =>
-        Ok(_sessions.Values.Where(s => agentId == null || s.AgentId == agentId).ToList());
+    public async Task<IActionResult> List([FromQuery] string? agentId, CancellationToken ct) =>
+        Ok(await _sessions.ListAsync(agentId, ct));
 
     [HttpGet("{id}")]
-    public IActionResult Get(string id) =>
-        _sessions.TryGetValue(id, out var s) ? Ok(s) : NotFound();
+    public async Task<IActionResult> Get(string id, CancellationToken ct)
+    {
+        var s = await _sessions.GetByIdAsync(id, ct);
+        return s is not null ? Ok(s) : NotFound();
+    }
 
     [HttpPost]
-    public IActionResult Create([FromBody] SessionDto req)
+    public async Task<IActionResult> Create([FromBody] SessionDto req, CancellationToken ct)
     {
         var id = Guid.NewGuid().ToString("N")[..12];
         var s  = req with { SessionId = id, CreatedAt = DateTimeOffset.UtcNow };
-        _sessions[id] = s;
+        await _sessions.SaveAsync(s, ct);
         return Created($"/api/sessions/{id}", s);
     }
 
     [HttpDelete("{id}")]
-    public IActionResult Delete(string id)
+    public async Task<IActionResult> Delete(string id, CancellationToken ct)
     {
-        if (!_sessions.Remove(id)) return NotFound();
+        if (!await _sessions.DeleteAsync(id, ct)) return NotFound();
         return NoContent();
     }
 
     [HttpPatch("{id}/close")]
-    public IActionResult Close(string id)
+    public async Task<IActionResult> Close(string id, CancellationToken ct)
     {
-        if (!_sessions.TryGetValue(id, out var s)) return NotFound();
-        _sessions[id] = s with { IsActive = false };
-        return Ok(_sessions[id]);
+        var s = await _sessions.CloseAsync(id, ct);
+        return s is not null ? Ok(s) : NotFound();
     }
 }
 
@@ -315,44 +336,58 @@ public sealed class SessionController : ControllerBase
 // ═══════════════════════════════════════════════════════════════
 
 [ApiController, Route("api/teams")]
-public sealed class TeamController : ControllerBase
+public sealed class TeamController(ITeamRepository teams) : ControllerBase
 {
-    private static readonly Dictionary<string, TeamDto> _teams = [];
+    private readonly ITeamRepository _teams = teams;
 
-    [HttpGet]                    public IActionResult List()                      => Ok(_teams.Values);
-    [HttpGet("{id}")]            public IActionResult Get(string id)              => _teams.TryGetValue(id, out var t) ? Ok(t) : NotFound();
-    [HttpDelete("{id}")]         public IActionResult Delete(string id)           { _teams.Remove(id); return NoContent(); }
+    [HttpGet]
+    public async Task<IActionResult> List(CancellationToken ct) => Ok(await _teams.ListAsync(ct));
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> Get(string id, CancellationToken ct)
+    {
+        var t = await _teams.GetByIdAsync(id, ct);
+        return t is not null ? Ok(t) : NotFound();
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(string id, CancellationToken ct)
+    {
+        await _teams.DeleteAsync(id, ct);
+        return NoContent();
+    }
 
     [HttpPost]
-    public IActionResult Create([FromBody] CreateTeamRequest req)
+    public async Task<IActionResult> Create([FromBody] CreateTeamRequest req, CancellationToken ct)
     {
         var id   = Guid.NewGuid().ToString("N")[..12];
         var team = new TeamDto(id, req.Name, req.AgentIds);
-        _teams[id] = team;
+        await _teams.SaveAsync(team, ct);
         return Created($"/api/teams/{id}", team);
     }
 
     [HttpPut("{id}")]
-    public IActionResult Update(string id, [FromBody] CreateTeamRequest req)
+    public async Task<IActionResult> Update(string id, [FromBody] CreateTeamRequest req, CancellationToken ct)
     {
-        if (!_teams.ContainsKey(id)) return NotFound();
-        _teams[id] = new TeamDto(id, req.Name, req.AgentIds);
-        return Ok(_teams[id]);
+        if (!await _teams.ExistsAsync(id, ct)) return NotFound();
+        var updated = new TeamDto(id, req.Name, req.AgentIds);
+        await _teams.UpdateAsync(id, updated, ct);
+        return Ok(updated);
     }
 
     [HttpPost("{id}/coordinate")]
-    public IActionResult Coordinate(string id, [FromBody] string task)
+    public async Task<IActionResult> Coordinate(string id, [FromBody] string task, CancellationToken ct)
     {
-        if (!_teams.ContainsKey(id)) return NotFound();
-        // Production: route to TeamCoordinator service
+        if (!await _teams.ExistsAsync(id, ct)) return NotFound();
         return Accepted(new { teamId = id, task, status = "coordinating" });
     }
 
     [HttpPost("{id}/broadcast")]
-    public IActionResult Broadcast(string id, [FromBody] string message)
+    public async Task<IActionResult> Broadcast(string id, [FromBody] string message, CancellationToken ct)
     {
-        if (!_teams.ContainsKey(id)) return NotFound();
-        return Ok(new { teamId = id, delivered = _teams[id].AgentIds.Count });
+        var t = await _teams.GetByIdAsync(id, ct);
+        if (t is null) return NotFound();
+        return Ok(new { teamId = id, delivered = t.AgentIds.Count });
     }
 }
 
@@ -361,35 +396,50 @@ public sealed class TeamController : ControllerBase
 // ═══════════════════════════════════════════════════════════════
 
 [ApiController, Route("api/workflows")]
-public sealed class WorkflowController : ControllerBase
+public sealed class WorkflowController(IWorkflowRepository workflows) : ControllerBase
 {
-    private static readonly Dictionary<string, WorkflowDto> _wf = [];
-    private static readonly List<object> _history = [];
+    private readonly IWorkflowRepository _workflows = workflows;
 
-    [HttpGet]           public IActionResult List()              => Ok(_wf.Values);
-    [HttpGet("{id}")]   public IActionResult Get(string id)      => _wf.TryGetValue(id, out var w) ? Ok(w) : NotFound();
-    [HttpDelete("{id}")] public IActionResult Delete(string id)  { _wf.Remove(id); return NoContent(); }
+    [HttpGet]
+    public async Task<IActionResult> List(CancellationToken ct) => Ok(await _workflows.ListAsync(ct));
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> Get(string id, CancellationToken ct)
+    {
+        var w = await _workflows.GetByIdAsync(id, ct);
+        return w is not null ? Ok(w) : NotFound();
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(string id, CancellationToken ct)
+    {
+        await _workflows.DeleteAsync(id, ct);
+        return NoContent();
+    }
 
     [HttpPost]
-    public IActionResult Create([FromBody] CreateWorkflowRequest req)
+    public async Task<IActionResult> Create([FromBody] CreateWorkflowRequest req, CancellationToken ct)
     {
         var id = Guid.NewGuid().ToString("N")[..12];
-        _wf[id] = new WorkflowDto(id, req.Name, req.StepIds, "idle");
-        return Created($"/api/workflows/{id}", _wf[id]);
+        var wf = new WorkflowDto(id, req.Name, req.StepIds, "idle");
+        await _workflows.SaveAsync(wf, ct);
+        return Created($"/api/workflows/{id}", wf);
     }
 
     [HttpPost("{id}/execute")]
-    public IActionResult Execute(string id)
+    public async Task<IActionResult> Execute(string id, CancellationToken ct)
     {
-        if (!_wf.TryGetValue(id, out var w)) return NotFound();
-        _wf[id] = w with { Status = "running" };
-        _history.Add(new { workflowId = id, startedAt = DateTimeOffset.UtcNow });
-        return Accepted(_wf[id]);
+        var w = await _workflows.GetByIdAsync(id, ct);
+        if (w is null) return NotFound();
+        var running = w with { Status = "running" };
+        await _workflows.UpdateAsync(id, running, ct);
+        await _workflows.RecordHistoryAsync(id, new { workflowId = id, startedAt = DateTimeOffset.UtcNow }, ct);
+        return Accepted(running);
     }
 
     [HttpGet("{id}/history")]
-    public IActionResult History(string id) =>
-        Ok(_history.Where(h => h.ToString()!.Contains(id)).ToList());
+    public async Task<IActionResult> History(string id, CancellationToken ct) =>
+        Ok(await _workflows.GetHistoryAsync(id, ct));
 }
 
 // ═══════════════════════════════════════════════════════════════

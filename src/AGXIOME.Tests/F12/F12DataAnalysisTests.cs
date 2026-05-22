@@ -164,6 +164,86 @@ public sealed class ExcelToolkitTests
         var r = await new ExcelToolkit(cfg).ExecuteAsync("read", new Dictionary<string, object?> { ["file"] = "data.xlsx", ["sheet"] = "Sheet1" }, default);
         Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
+
+    // ── Security / boundary tests ──────────────────────────────────────────
+    [Fact] public async Task Read_PathTraversal_ReturnsFail()
+    {
+        var r = await new ExcelToolkit().ExecuteAsync("read",
+            new Dictionary<string, object?> { ["file"] = "../../etc/passwd", ["sheet"] = "Sheet1" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+        Assert.Contains("Invalid file path", r.Error ?? "");
+    }
+
+    [Fact] public async Task Write_PathTraversal_ReturnsFail()
+    {
+        var r = await new ExcelToolkit().ExecuteAsync("write",
+            new Dictionary<string, object?> { ["file"] = "../../windows/system32/evil.xlsx", ["sheet"] = "S", ["json"] = "[]" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+        Assert.Contains("Invalid file path", r.Error ?? "");
+    }
+
+    [Fact] public async Task GetCell_PathTraversal_ReturnsFail()
+    {
+        var r = await new ExcelToolkit().ExecuteAsync("get_cell",
+            new Dictionary<string, object?> { ["file"] = "../../../secrets.xlsx", ["sheet"] = "S", ["cell"] = "A1" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+        Assert.Contains("Invalid file path", r.Error ?? "");
+    }
+
+    [Fact] public async Task Write_NullByteInPath_ReturnsFail()
+    {
+        var r = await new ExcelToolkit().ExecuteAsync("write",
+            new Dictionary<string, object?> { ["file"] = "safe\0evil.xlsx", ["sheet"] = "S", ["json"] = "[]" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+
+    [Fact] public async Task GetCell_NonExistentFile_ReturnsFail()
+    {
+        var r = await new ExcelToolkit().ExecuteAsync("get_cell",
+            new Dictionary<string, object?> { ["file"] = "no_such_file_xyz.xlsx", ["sheet"] = "S", ["cell"] = "A1" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+
+    [Fact] public async Task UpdateCell_NonExistentFile_ReturnsFail()
+    {
+        var r = await new ExcelToolkit().ExecuteAsync("update_cell",
+            new Dictionary<string, object?> { ["file"] = "no_such_file_xyz.xlsx", ["sheet"] = "S", ["cell"] = "A1", ["value"] = "x" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+
+    [Fact] public async Task Write_MalformedJson_ReturnsError()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".xlsx");
+        try
+        {
+            var r = await new ExcelToolkit().ExecuteAsync("write",
+                new Dictionary<string, object?> { ["file"] = tempFile, ["sheet"] = "S", ["json"] = "{not valid json!" }, default);
+            Assert.Equal(ToolkitResultStatus.Error, r.Status);
+        }
+        finally { if (File.Exists(tempFile)) File.Delete(tempFile); }
+    }
+
+    [Fact] public async Task Write_ThenReadCell_RoundTrip()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".xlsx");
+        try
+        {
+            var wr = await new ExcelToolkit().ExecuteAsync("write",
+                new Dictionary<string, object?> { ["file"] = tempFile, ["sheet"] = "TestSheet", ["json"] = "[{\"Name\":\"Alice\",\"Score\":\"99\"}]" }, default);
+            Assert.Equal(ToolkitResultStatus.Ok, wr.Status);
+
+            var cr = await new ExcelToolkit().ExecuteAsync("get_cell",
+                new Dictionary<string, object?> { ["file"] = tempFile, ["sheet"] = "TestSheet", ["cell"] = "A1" }, default);
+            Assert.Equal(ToolkitResultStatus.Ok, cr.Status);
+        }
+        finally { if (File.Exists(tempFile)) File.Delete(tempFile); }
+    }
+
+    [Fact] public async Task UnknownAction_ReturnsError()
+    {
+        var r = await new ExcelToolkit().ExecuteAsync("__nonexistent__", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
 }
 
 public sealed class CsvToolkitTests

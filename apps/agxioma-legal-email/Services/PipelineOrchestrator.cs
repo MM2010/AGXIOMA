@@ -30,6 +30,7 @@ public sealed class PipelineOrchestrator
     private readonly IAgxiomeAgent? _llm;
     private readonly IHubContext<PipelineHub, IPipelineHubClient> _hub;
     private readonly LegalQueryExpander? _expander;
+    private readonly LegalConceptExtractor? _conceptExtractor;
 
     public PipelineOrchestrator(
         ILogger<PipelineOrchestrator> log,
@@ -38,7 +39,8 @@ public sealed class PipelineOrchestrator
         IWikiQueryEngine? wiki = null,
         IAgxiomeAgent? llm = null,
         IHubContext<PipelineHub, IPipelineHubClient>? hub = null,
-        LegalQueryExpander? expander = null)
+        LegalQueryExpander? expander = null,
+        LegalConceptExtractor? conceptExtractor = null)
     {
         _log = log;
         _legalRouter = forests?.FirstOrDefault(s => string.Equals(s.Name, "legal-router", StringComparison.OrdinalIgnoreCase));
@@ -47,6 +49,7 @@ public sealed class PipelineOrchestrator
         _llm = llm;
         _hub = hub!;
         _expander = expander;
+        _conceptExtractor = conceptExtractor;
     }
 
     public string StartPipelineAsync(IngestEmailRequest req)
@@ -83,10 +86,11 @@ public sealed class PipelineOrchestrator
         {
             try
             {
-                var result = await _legalRouter.RunAsync($"{req.Subject}\n{req.Body}", ct);
-                assignedTree = result.SelectedTree;
-                assignedAgent = result.SelectedAgent;
-                matchedKeywords = result.MatchedKeywords.ToArray();
+                // FindBestMatch = pure keyword scoring, no LLM call (~0ms vs ~40s for RunAsync)
+                var (bestTree, bestAgent, matched) = _legalRouter.FindBestMatch($"{req.Subject}\n{req.Body}");
+                assignedTree = bestTree.TreeName;
+                assignedAgent = bestAgent.AgentId;
+                matchedKeywords = matched.ToArray();
                 _log.LogInformation("[{Id}] ForestSwarm → {Tree}/{Agent} [{Kw}]", emailId,
                     assignedTree, assignedAgent, string.Join(",", matchedKeywords));
             }
@@ -101,60 +105,72 @@ public sealed class PipelineOrchestrator
             sw.Elapsed, DateTime.UtcNow));
         await Notify(emailId, timeline);
 
-        // ── Phase 3: Query Explosion via HeavySwarm ───────────────────────
-        sw.Restart();
-        string researchSynthesis = "";
-        string fullResearch = ""; // Full synthesis for downstream phases
-        if (_legalResearcher != null)
-        {
-            try
-            {
-                var r = await _legalResearcher.RunAsync(
-                    $"[Richiesta] Oggetto: {req.Subject}\nDescrizione: {req.Body}\nArea: {assignedTree}", ct);
-                fullResearch = r.Synthesis;
-                researchSynthesis = r.Synthesis.Length > 300 ? r.Synthesis[..300] + "…" : r.Synthesis;
-                _log.LogInformation("[{Id}] HeavySwarm: {P} phases, {F} findings", emailId,
-                    r.PhaseTiming.Count, r.ResearchFindings.Count);
-            }
-            catch (Exception ex) { _log.LogWarning(ex, "[{Id}] HeavySwarm failed", emailId); }
-        }
+        // ── Phase 3: Query Explosion — HeavySwarm skipped (5 LLM calls ≈ 115s)
+        // RAG (phase 4) + LLM analysis (phase 5) forniscono contesto normativo equivalente.
+        string fullResearch = "";
 
         _emailStates[emailId] = PipelineState.QueryExploded;
-        sw.Stop();
         timeline.Add(new(nameof(PipelineState.QueryExploded), PipelineState.QueryExploded,
-            $"💥 Ricerca completata con {(!string.IsNullOrEmpty(researchSynthesis) ? "sintesi generata" : "analisi testuale")}",
-            sw.Elapsed, DateTime.UtcNow));
+            "💥 Categorizzazione completata — analisi normativa delegata a RAG+LLM",
+            TimeSpan.Zero, DateTime.UtcNow));
         await Notify(emailId, timeline);
 
-        // ── Phase 4: RAG Retrieval via WikiQueryEngine ────────────────────
+        // ── Phase 4: Multi-concept RAG Retrieval ───────────────────────
+        // LLM estrae N concetti legali da Subject+Body → retrieve parallelo per ognuno
+        // → merge/dedup by slug (best score wins) → contesto unificato per Phase 5.
+        // Nessuna LLM synthesis qui: Phase 5 riceve raw pages e fa analisi completa.
         sw.Restart();
         string ragContext = "";
         if (_wiki != null)
         {
             try
             {
-                var query = $"{req.Subject} {req.Body}";
-                // Arricchisci la query RAG con la synthesis HeavySwarm
-                var ragQuery = !string.IsNullOrEmpty(fullResearch)
-                    ? $"{query}\n\nContesto ricerca preliminare:\n{fullResearch}"
-                    : query;
-                var expanded = _expander != null
-                    ? await _expander.ExpandAsync(ragQuery, ct)
-                    : ragQuery;
-                _log.LogInformation("[{Id}] RAG query (con HeavySwarm): {E}", emailId, expanded);
-                var ragResult = await _wiki.QueryAsync(new WikiQueryRequest(Question: expanded), ct);
-                if (ragResult.ContextFound)
+                // 1. Estrai concetti legali (Ollama fast model, ~3-5s)
+                string[] concepts;
+                if (_conceptExtractor != null)
+                    concepts = await _conceptExtractor.ExtractAsync(req.Subject, req.Body, ct);
+                else
+                    concepts = [req.Subject];  // fallback se servizio non registrato
+
+                _log.LogInformation("[{Id}] RAG multi-concept ({N}): {C}",
+                    emailId, concepts.Length, string.Join(" | ", concepts));
+
+                // 2. Retrieve parallelo per ogni concetto (embed + pgvector, no LLM)
+                var retrieveTasks = concepts
+                    .Select(c => _wiki.RetrieveAsync(c, topK: 5, minScore: 0.25f, ct))
+                    .ToList();
+                var allResults = await Task.WhenAll(retrieveTasks);
+
+                // 3. Merge + dedup by slug (best cosine score per slug)
+                var deduped = allResults
+                    .SelectMany(r => r)
+                    .GroupBy(c => c.Slug)
+                    .Select(g => g.OrderByDescending(c => c.Score).First())
+                    .OrderByDescending(c => c.Score)
+                    .Take(10)
+                    .ToList();
+
+                if (deduped.Count > 0)
                 {
-                    ragContext = ragResult.Answer;
-                    _log.LogInformation("[{Id}] RAG: {N} sources, {L} chars answer", emailId,
-                        ragResult.Sources.Count, ragResult.Answer.Length);
+                    // 4. Build unified context block (raw pages — Phase 5 LLM synthesizes)
+                    var sb = new System.Text.StringBuilder();
+                    foreach (var p in deduped)
+                    {
+                        sb.AppendLine($"### [{p.Slug}] {p.Title} (score: {p.Score:F3})");
+                        var trimmed = p.Content.Length > 2500 ? p.Content[..2500] + "\n… [truncated]" : p.Content;
+                        sb.AppendLine(trimmed);
+                        sb.AppendLine();
+                    }
+                    ragContext = sb.ToString();
+                    _log.LogInformation("[{Id}] RAG: {N} unique pages from {C} concepts, {L} chars context",
+                        emailId, deduped.Count, concepts.Length, ragContext.Length);
                 }
                 else
                 {
-                    _log.LogInformation("[{Id}] RAG: no context found (ingestion may be pending)", emailId);
+                    _log.LogInformation("[{Id}] RAG: no context found across {N} concepts", emailId, concepts.Length);
                 }
             }
-            catch (Exception ex) { _log.LogWarning(ex, "[{Id}] RAG query failed", emailId); }
+            catch (Exception ex) { _log.LogWarning(ex, "[{Id}] RAG multi-concept failed", emailId); }
         }
 
         _emailStates[emailId] = PipelineState.RagCompleted;

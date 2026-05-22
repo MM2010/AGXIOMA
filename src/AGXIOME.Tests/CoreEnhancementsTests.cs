@@ -272,9 +272,10 @@ public class RemoteAgentTests
     [Fact]
     public async Task RunAsync_SuccessResponse_ReturnsContent()
     {
-        var expected = new AgentResponse("Hello from remote", AgentStatus.Completed);
+        // Body must match RemoteRunResponse shape (Status is a string, not an int)
+        var body = new { RunId = "r1", Status = "completed", Content = "Hello from remote" };
         var opts = new RemoteAgentOptions { BaseUrl = "http://localhost:5250" };
-        var agent = new RemoteAgent(MakeHttpClient(HttpStatusCode.OK, expected), opts);
+        var agent = new RemoteAgent(MakeHttpClient(HttpStatusCode.OK, body), opts);
         var result = await agent.RunAsync(new AgentRequest("hi"));
         Assert.Equal("Hello from remote", result.Content);
     }

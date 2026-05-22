@@ -101,6 +101,8 @@ public sealed record MeilisearchStoreOptions
     public required string ApiKey { get; init; }
     /// <summary>Index prefix. Actual index = "{Prefix}-{entitytype}".</summary>
     public string IndexPrefix { get; init; } = "agxioma";
+    /// <summary>Timeout in ms for WaitForTaskAsync (default 30 s to handle slow container startup).</summary>
+    public double TaskTimeoutMs { get; init; } = 30_000;
 }
 
 public sealed class MeilisearchCommandStore : ICommandStore
@@ -119,9 +121,10 @@ public sealed class MeilisearchCommandStore : ICommandStore
     public async Task SaveAsync<T>(T entity, CancellationToken ct = default) where T : class
     {
         var idx  = _meili.Index(IndexName<T>());
-        var task = await idx.AddDocumentsAsync(new[] { entity }, primaryKey: "Id", cancellationToken: ct);
-        // Fire-and-forget the task completion; caller can check status via taskUid if needed.
-        _ = task;
+        var task = await idx.AddDocumentsAsync(new[] { entity }, primaryKey: "id", cancellationToken: ct);
+        var completed = await _meili.WaitForTaskAsync(task.TaskUid, timeoutMs: _opts.TaskTimeoutMs, cancellationToken: ct);
+        if (completed.Status == Meilisearch.TaskInfoStatus.Failed)
+            throw new InvalidOperationException($"Meilisearch indexation failed: {string.Join(", ", completed.Error?.Select(kv => $"{kv.Key}={kv.Value}") ?? [])}"); 
     }
 
     public async Task UpdateAsync<T>(T entity, CancellationToken ct = default) where T : class

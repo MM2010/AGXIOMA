@@ -17,6 +17,7 @@ using AGXIOME.Security.Audit;
 using AGXIOME.Security.RateLimit;
 using AGXIOME.Security.Sanitization;
 using AGXIOME.Security.Keys;
+using AGXIOME.Runtime.Repositories;
 using NSubstitute;
 
 namespace AGXIOME.Tests;
@@ -641,5 +642,350 @@ public sealed class RT20_TokenRotationJobTests
         var old = svc.GetCurrentKey();
         var next = svc.ForceRotate();
         Assert.NotEqual(old.Kid, next.Kid);
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// RT-A8 — Repository DI Registration Tests
+// Verifies that every IXxxRepository is registered in the DI container.
+// ════════════════════════════════════════════════════════════
+public sealed class RTA8_RepositoryDiTests : IClassFixture<WebApplicationFactory<Program>>
+{
+    private readonly IServiceProvider _sp;
+    public RTA8_RepositoryDiTests(WebApplicationFactory<Program> factory)
+        => _sp = factory.Services;
+
+    [Fact] public void IAgentRepository_IsRegistered()
+        => Assert.NotNull(_sp.GetService<AGXIOME.Runtime.Repositories.IAgentRepository>());
+
+    [Fact] public void IRunRepository_IsRegistered()
+        => Assert.NotNull(_sp.GetService<AGXIOME.Runtime.Repositories.IRunRepository>());
+
+    [Fact] public void ISessionRepository_IsRegistered()
+        => Assert.NotNull(_sp.GetService<AGXIOME.Runtime.Repositories.ISessionRepository>());
+
+    [Fact] public void ITeamRepository_IsRegistered()
+        => Assert.NotNull(_sp.GetService<AGXIOME.Runtime.Repositories.ITeamRepository>());
+
+    [Fact] public void IWorkflowRepository_IsRegistered()
+        => Assert.NotNull(_sp.GetService<AGXIOME.Runtime.Repositories.IWorkflowRepository>());
+
+    [Fact] public void IAgentRepository_IsSingleton()
+    {
+        var a = _sp.GetRequiredService<AGXIOME.Runtime.Repositories.IAgentRepository>();
+        var b = _sp.GetRequiredService<AGXIOME.Runtime.Repositories.IAgentRepository>();
+        Assert.Same(a, b);
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// RT-A8 — InMemoryAgentRepository Unit Tests
+// ════════════════════════════════════════════════════════════
+public sealed class RTA8_AgentRepositoryTests
+{
+    private static AGXIOME.Runtime.Repositories.InMemoryAgentRepository Make() => new();
+    private static AgentDto Agent(string id = "a1") =>
+        new(id, $"agent-{id}", "desc", "gpt-4o", DateTimeOffset.UtcNow);
+
+    [Fact] public async Task Save_ThenGetById_ReturnsAgent()
+    {
+        var repo = Make();
+        var a = Agent();
+        await repo.SaveAsync(a);
+        var found = await repo.GetByIdAsync("a1");
+        Assert.Equal("a1", found!.Id);
+    }
+
+    [Fact] public async Task GetById_Missing_ReturnsNull()
+    {
+        var repo = Make();
+        Assert.Null(await repo.GetByIdAsync("nope"));
+    }
+
+    [Fact] public async Task List_ReturnsAllSaved()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Agent("x1"));
+        await repo.SaveAsync(Agent("x2"));
+        var list = await repo.ListAsync();
+        Assert.Equal(2, list.Count);
+    }
+
+    [Fact] public async Task Update_ModifiesExisting()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Agent("u1"));
+        var updated = Agent("u1") with { Name = "renamed" };
+        await repo.UpdateAsync("u1", updated);
+        var got = await repo.GetByIdAsync("u1");
+        Assert.Equal("renamed", got!.Name);
+    }
+
+    [Fact] public async Task Update_Missing_ReturnsNull()
+    {
+        var repo = Make();
+        var result = await repo.UpdateAsync("ghost", Agent("ghost"));
+        Assert.Null(result);
+    }
+
+    [Fact] public async Task Delete_ExistingId_ReturnsTrue()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Agent("d1"));
+        Assert.True(await repo.DeleteAsync("d1"));
+    }
+
+    [Fact] public async Task Delete_MissingId_ReturnsFalse()
+    {
+        var repo = Make();
+        Assert.False(await repo.DeleteAsync("missing"));
+    }
+
+    [Fact] public async Task Exists_AfterSave_ReturnsTrue()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Agent("e1"));
+        Assert.True(await repo.ExistsAsync("e1"));
+    }
+
+    [Fact] public async Task Exists_BeforeSave_ReturnsFalse()
+    {
+        var repo = Make();
+        Assert.False(await repo.ExistsAsync("e99"));
+    }
+
+    [Fact] public async Task Save_Twice_SameId_Overwrites()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Agent("dup") with { Name = "first" });
+        await repo.SaveAsync(Agent("dup") with { Name = "second" });
+        var list = await repo.ListAsync();
+        Assert.Single(list);
+        Assert.Equal("second", list[0].Name);
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// RT-A8 — InMemoryRunRepository Unit Tests
+// ════════════════════════════════════════════════════════════
+public sealed class RTA8_RunRepositoryTests
+{
+    private static AGXIOME.Runtime.Repositories.InMemoryRunRepository Make() => new();
+    private static RunDto Run(string runId = "r1", string agentId = "ag1") =>
+        new(runId, agentId, "running", DateTimeOffset.UtcNow, null, null);
+
+    [Fact] public async Task Save_ThenGet_ReturnsRun()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Run());
+        Assert.NotNull(await repo.GetByIdAsync("r1"));
+    }
+
+    [Fact] public async Task GetById_Missing_ReturnsNull()
+    {
+        Assert.Null(await Make().GetByIdAsync("nope"));
+    }
+
+    [Fact] public async Task List_NoFilter_ReturnsAll()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Run("r1", "ag1"));
+        await repo.SaveAsync(Run("r2", "ag2"));
+        Assert.Equal(2, (await repo.ListAsync()).Count);
+    }
+
+    [Fact] public async Task List_WithAgentIdFilter_ReturnsSubset()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Run("r1", "ag1"));
+        await repo.SaveAsync(Run("r2", "ag1"));
+        await repo.SaveAsync(Run("r3", "ag2"));
+        Assert.Equal(2, (await repo.ListAsync("ag1")).Count);
+    }
+
+    [Fact] public async Task Update_ChangesStatus()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Run("r1"));
+        var upd = Run("r1") with { Status = "completed", EndedAt = DateTimeOffset.UtcNow };
+        await repo.UpdateAsync("r1", upd);
+        var got = await repo.GetByIdAsync("r1");
+        Assert.Equal("completed", got!.Status);
+    }
+
+    [Fact] public async Task Delete_ExistingRun_ReturnsTrue()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Run());
+        Assert.True(await repo.DeleteAsync("r1"));
+    }
+
+    [Fact] public async Task Delete_Missing_ReturnsFalse()
+    {
+        Assert.False(await Make().DeleteAsync("ghost"));
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// RT-A8 — InMemorySessionRepository Unit Tests
+// ════════════════════════════════════════════════════════════
+public sealed class RTA8_SessionRepositoryTests
+{
+    private static AGXIOME.Runtime.Repositories.InMemorySessionRepository Make() => new();
+    private static SessionDto Session(string id = "s1") =>
+        new(id, "agent-1", DateTimeOffset.UtcNow, true);
+
+    [Fact] public async Task Save_ThenGet_ReturnsSession()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Session());
+        Assert.NotNull(await repo.GetByIdAsync("s1"));
+    }
+
+    [Fact] public async Task List_FilterByAgent_ReturnsSubset()
+    {
+        var repo = Make();
+        await repo.SaveAsync(new SessionDto("s1", "ag1", DateTimeOffset.UtcNow, true));
+        await repo.SaveAsync(new SessionDto("s2", "ag1", DateTimeOffset.UtcNow, true));
+        await repo.SaveAsync(new SessionDto("s3", "ag2", DateTimeOffset.UtcNow, true));
+        Assert.Equal(2, (await repo.ListAsync("ag1")).Count);
+    }
+
+    [Fact] public async Task Close_SetsIsActiveFalse()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Session());
+        var closed = await repo.CloseAsync("s1");
+        Assert.NotNull(closed);
+        Assert.False(closed!.IsActive);
+    }
+
+    [Fact] public async Task Close_Missing_ReturnsNull()
+    {
+        Assert.Null(await Make().CloseAsync("nope"));
+    }
+
+    [Fact] public async Task Delete_ExistingSession_ReturnsTrue()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Session());
+        Assert.True(await repo.DeleteAsync("s1"));
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// RT-A8 — InMemoryTeamRepository Unit Tests
+// ════════════════════════════════════════════════════════════
+public sealed class RTA8_TeamRepositoryTests
+{
+    private static AGXIOME.Runtime.Repositories.InMemoryTeamRepository Make() => new();
+    private static TeamDto Team(string id = "t1") =>
+        new(id, $"team-{id}", ["a1", "a2"]);
+
+    [Fact] public async Task Save_ThenGet_ReturnsTeam()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Team());
+        var found = await repo.GetByIdAsync("t1");
+        Assert.Equal("t1", found!.TeamId);
+    }
+
+    [Fact] public async Task List_ReturnsAllTeams()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Team("t1"));
+        await repo.SaveAsync(Team("t2"));
+        Assert.Equal(2, (await repo.ListAsync()).Count);
+    }
+
+    [Fact] public async Task Update_ChangesName()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Team("t1"));
+        await repo.UpdateAsync("t1", new TeamDto("t1", "renamed", []));
+        var got = await repo.GetByIdAsync("t1");
+        Assert.Equal("renamed", got!.Name);
+    }
+
+    [Fact] public async Task Delete_Returns_True()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Team("t1"));
+        Assert.True(await repo.DeleteAsync("t1"));
+    }
+
+    [Fact] public async Task Exists_ReturnsFalse_BeforeSave()
+    {
+        Assert.False(await Make().ExistsAsync("t99"));
+    }
+
+    [Fact] public async Task Exists_ReturnsTrue_AfterSave()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Team());
+        Assert.True(await repo.ExistsAsync("t1"));
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// RT-A8 — InMemoryWorkflowRepository Unit Tests
+// ════════════════════════════════════════════════════════════
+public sealed class RTA8_WorkflowRepositoryTests
+{
+    private static AGXIOME.Runtime.Repositories.InMemoryWorkflowRepository Make() => new();
+    private static WorkflowDto Wf(string id = "wf1") =>
+        new(id, $"workflow-{id}", ["step1", "step2"], "idle");
+
+    [Fact] public async Task Save_ThenGet_ReturnsWorkflow()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Wf());
+        Assert.NotNull(await repo.GetByIdAsync("wf1"));
+    }
+
+    [Fact] public async Task List_ReturnsAll()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Wf("wf1"));
+        await repo.SaveAsync(Wf("wf2"));
+        Assert.Equal(2, (await repo.ListAsync()).Count);
+    }
+
+    [Fact] public async Task Update_ChangesStatus()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Wf());
+        await repo.UpdateAsync("wf1", Wf("wf1") with { Status = "running" });
+        var got = await repo.GetByIdAsync("wf1");
+        Assert.Equal("running", got!.Status);
+    }
+
+    [Fact] public async Task Delete_ExistingWorkflow_ReturnsTrue()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Wf());
+        Assert.True(await repo.DeleteAsync("wf1"));
+    }
+
+    [Fact] public async Task RecordHistory_ThenGetHistory_ReturnsEntries()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Wf());
+        await repo.RecordHistoryAsync("wf1", new { step = 1 });
+        await repo.RecordHistoryAsync("wf1", new { step = 2 });
+        var history = await repo.GetHistoryAsync("wf1");
+        Assert.Equal(2, history.Count);
+    }
+
+    [Fact] public async Task GetHistory_NewWorkflow_ReturnsEmpty()
+    {
+        var repo = Make();
+        await repo.SaveAsync(Wf());
+        Assert.Empty(await repo.GetHistoryAsync("wf1"));
+    }
+
+    [Fact] public async Task GetHistory_UnknownId_ReturnsEmpty()
+    {
+        Assert.Empty(await Make().GetHistoryAsync("ghost"));
     }
 }

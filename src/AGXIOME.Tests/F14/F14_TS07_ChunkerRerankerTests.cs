@@ -161,28 +161,28 @@ public sealed class TS07_MarkdownChunkerExtendedTests
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// TS-07-E  FixedSizeChunker extended (4 tests)
+// TS-07-E  TokenChunker extended (4 tests)
 // ═════════════════════════════════════════════════════════════════════════════
 
 public sealed class TS07_TokenChunkerExtendedTests
 {
-    [Fact] public async Task ChunkerType_IsFixed()
-        => Assert.Equal(ChunkerType.Fixed, new FixedSizeChunker().ChunkerType);
+    [Fact] public async Task ChunkerType_IsToken()
+        => Assert.Equal(ChunkerType.Token, new TokenChunker().ChunkerType);
 
     [Fact] public async Task EmptyInput_ReturnsOneChunk()
-        => Assert.Single(new FixedSizeChunker().Chunk(string.Empty));
+        => Assert.Single(new TokenChunker().Chunk(string.Empty));
 
     [Fact] public async Task LongText_SplitsIntoMultipleChunks()
     {
         var text   = string.Join(" ", Enumerable.Range(0, 200).Select(i => $"tok{i}"));
-        var chunks = new FixedSizeChunker().Chunk(text, maxTokens: 20, overlap: 0);
+        var chunks = new TokenChunker().Chunk(text, maxTokens: 20, overlap: 0);
         Assert.True(chunks.Count >= 5);
     }
 
     [Fact] public async Task AllChunks_NonEmpty()
     {
         var text   = string.Join(" ", Enumerable.Range(0, 50).Select(i => $"word{i}"));
-        var chunks = new FixedSizeChunker().Chunk(text, maxTokens: 10, overlap: 0);
+        var chunks = new TokenChunker().Chunk(text, maxTokens: 10, overlap: 0);
         Assert.All(chunks, c => Assert.False(string.IsNullOrWhiteSpace(c.Content)));
     }
 }

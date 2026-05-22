@@ -20,8 +20,8 @@ public sealed class BackofficeRuntimeService
         PropertyNameCaseInsensitive = true
     };
 
-    private readonly ForestSwarm _router;
-    private readonly ForestSwarm _contentSwarm;
+    private readonly ForestSwarm? _router;
+    private readonly ForestSwarm? _contentSwarm;
     private readonly SqliteCommandStore _projectionStore;
     private readonly ICommandStore _canonicalStore;
     private readonly RedisSessionStore? _hotStore;
@@ -43,8 +43,9 @@ public sealed class BackofficeRuntimeService
         IWebHostEnvironment environment,
         ILogger<BackofficeRuntimeService> log)
     {
-        _router = swarms.First(s => string.Equals(s.Name, "backoffice-router", StringComparison.OrdinalIgnoreCase));
-        _contentSwarm = swarms.First(s => string.Equals(s.Name, "backoffice-content", StringComparison.OrdinalIgnoreCase));
+        var swarmList = swarms.ToList();
+        _router = swarmList.FirstOrDefault(s => string.Equals(s.Name, "backoffice-router", StringComparison.OrdinalIgnoreCase));
+        _contentSwarm = swarmList.FirstOrDefault(s => string.Equals(s.Name, "backoffice-content", StringComparison.OrdinalIgnoreCase));
         _log = log;
 
         var appDataPath = Path.Combine(environment.ContentRootPath, "App_Data");
@@ -454,7 +455,7 @@ public sealed class BackofficeRuntimeService
         {
             var request = GetRequest(ctx);
             var timeline = GetTimeline(ctx);
-            var (tree, _, matched) = _router.FindBestMatch($"{request.Subject} {request.Message}");
+            var (tree, _, matched) = _router!.FindBestMatch($"{request.Subject} {request.Message}");
 
             ctx.SharedState!["area"] = tree.TreeName;
             ctx.SharedState["matchedKeywordsJson"] = Serialize(matched);
@@ -1018,7 +1019,7 @@ public sealed class BackofficeRuntimeService
 
         try
         {
-            var result = await _contentSwarm.RunAsync(prompt);
+            var result = await _contentSwarm!.RunAsync(prompt);
             var generated = DeserializeGeneratedContent(result.Output);
             if (generated is not null && IsGeneratedContentAcceptable(generated, needsConfirmation))
                 return generated;

@@ -69,7 +69,7 @@ public sealed class LegalCodeIngestionService : IHostedService
 
     private static async Task<string?> LastStateAsync(WikiDatabase db, CancellationToken ct)
     {
-        try { foreach (var l in await db.GetLogAsync(10, ct)) if (l.OpType == "ingestion") return l.Title; } catch { }
+        try { return (await db.GetLastLogByTypeAsync("ingestion", ct))?.Title; } catch { }
         return null;
     }
 

@@ -169,17 +169,21 @@ app.MapGet("/health", (IConfiguration cfg) => Results.Ok(new
     .AllowAnonymousAgxiome();
 
 // POST /support — route customer message to the best-matching agent
-app.MapPost("/support", async (SupportRequest req, IEnumerable<ForestSwarm> swarms) =>
+app.MapPost("/support", async (SupportRequest req, IEnumerable<ForestSwarm> swarms, IConfiguration cfg) =>
 {
     if (string.IsNullOrWhiteSpace(req.Message))
         return Results.BadRequest(new { error = "message is required." });
 
-    if (!llmConfigured)
+    var runtimeProviderName = cfg["Agent:Provider"] ?? providerName;
+    var (runtimeProvider, _, _) = AgxiomeProviderResolver.Resolve(runtimeProviderName, cfg);
+    var runtimeApiKey = AgxiomeProviderResolver.ResolveApiKey(runtimeProvider, cfg);
+    var runtimeLlmConfigured = !RequiresApiKey(runtimeProvider) || !string.IsNullOrWhiteSpace(runtimeApiKey);
+    if (!runtimeLlmConfigured)
     {
         return Results.Json(new
         {
             error = "provider_configuration_missing",
-            provider = providerName,
+            provider = runtimeProviderName,
             message = "The configured LLM provider is missing its API key. Set the provider API key before testing the Support Hub demo."
         }, statusCode: StatusCodes.Status503ServiceUnavailable);
     }
@@ -208,22 +212,25 @@ app.MapPost("/support", async (SupportRequest req, IEnumerable<ForestSwarm> swar
         durationMs      = result.Duration.TotalMilliseconds
     });
 })
-    .AllowAnonymousAgxiome()
     .RequireAgxiomePermission(AgxiomePermission.WorkflowExecute)
     .WithAgxiomeRateLimit(20, TimeSpan.FromMinutes(1));
 
 // POST /analyze — deep multi-phase research on any support topic
-app.MapPost("/analyze", async (AnalysisRequest req, HeavySwarm analyst) =>
+app.MapPost("/analyze", async (AnalysisRequest req, HeavySwarm analyst, IConfiguration cfg) =>
 {
     if (string.IsNullOrWhiteSpace(req.Topic))
         return Results.BadRequest(new { error = "topic is required." });
 
-    if (!llmConfigured)
+    var runtimeProviderNameA = cfg["Agent:Provider"] ?? providerName;
+    var (runtimeProviderA, _, _) = AgxiomeProviderResolver.Resolve(runtimeProviderNameA, cfg);
+    var runtimeApiKeyA = AgxiomeProviderResolver.ResolveApiKey(runtimeProviderA, cfg);
+    var runtimeLlmConfiguredA = !RequiresApiKey(runtimeProviderA) || !string.IsNullOrWhiteSpace(runtimeApiKeyA);
+    if (!runtimeLlmConfiguredA)
     {
         return Results.Json(new
         {
             error = "provider_configuration_missing",
-            provider = providerName,
+            provider = runtimeProviderNameA,
             message = "The configured LLM provider is missing its API key. Set the provider API key before testing the analysis demo."
         }, statusCode: StatusCodes.Status503ServiceUnavailable);
     }
@@ -255,7 +262,6 @@ app.MapPost("/analyze", async (AnalysisRequest req, HeavySwarm analyst) =>
         phases    = result.PhaseTiming.Select(kv => new { phase = kv.Key, durationS = kv.Value.TotalSeconds })
     });
 })
-    .AllowAnonymousAgxiome()
     .RequireAgxiomePermission(AgxiomePermission.WorkflowExecute)
     .WithAgxiomeRateLimit(10, TimeSpan.FromMinutes(1));
 

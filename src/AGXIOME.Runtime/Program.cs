@@ -5,6 +5,7 @@
 using AGXIOME.Runtime;
 using AGXIOME.Runtime.Controllers;
 using AGXIOME.Runtime.Hubs;
+using AGXIOME.Runtime.Repositories;
 using AGXIOME.Runtime.Workers;
 using AGXIOME.Core.DependencyInjection;
 using AGXIOME.Core.Execution;
@@ -21,6 +22,13 @@ var builder = WebApplication.CreateBuilder(args);
 // ── Core Services ────────────────────────────────────────────────────────────
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// ── Runtime Repositories (in-memory default; swap via DI for persistent storage) ──
+builder.Services.AddSingleton<IAgentRepository, InMemoryAgentRepository>();
+builder.Services.AddSingleton<IRunRepository, InMemoryRunRepository>();
+builder.Services.AddSingleton<ISessionRepository, InMemorySessionRepository>();
+builder.Services.AddSingleton<ITeamRepository, InMemoryTeamRepository>();
+builder.Services.AddSingleton<IWorkflowRepository, InMemoryWorkflowRepository>();
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>

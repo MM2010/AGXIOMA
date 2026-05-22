@@ -111,6 +111,57 @@ public sealed class NuGetToolkitTests
         var r = await new NuGetToolkit(cfg).ExecuteAsync("search", new Dictionary<string, object?> { ["query"] = "Newtonsoft" }, default);
         Assert.Equal(ToolkitResultStatus.Ok, r.Status);
     }
+
+    // ── Security / boundary tests ──────────────────────────────────────────
+    [Fact] public async Task CheckExists_KnownPackage_ReturnsOkTrue()
+    {
+        var r = await new NuGetToolkit().ExecuteAsync("check_exists",
+            new Dictionary<string, object?> { ["package"] = "Newtonsoft.Json" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Contains("true", r.Data?.ToString() ?? "", StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact] public async Task CheckExists_UnknownPackage_ReturnsOkFalse()
+    {
+        var r = await new NuGetToolkit().ExecuteAsync("check_exists",
+            new Dictionary<string, object?> { ["package"] = "ThisPackageDefinitelyDoesNotExist_xyzABC999" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Contains("false", r.Data?.ToString() ?? "", StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact] public async Task CheckExists_PathTraversalName_ReturnsOk()
+    {
+        // URL-safe: path traversal in package name hits nuget API, 404 → exists=false
+        var r = await new NuGetToolkit().ExecuteAsync("check_exists",
+            new Dictionary<string, object?> { ["package"] = "../../evil" }, default);
+        // Should not crash: returns ok or error (depending on URL parsing)
+        Assert.True(r.Status is ToolkitResultStatus.Ok or ToolkitResultStatus.Error);
+        // Must NOT return exists=true for a non-existent/invalid package
+        if (r.Status == ToolkitResultStatus.Ok)
+            Assert.DoesNotContain("\"exists\":true", r.Data?.ToString() ?? "", StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact] public async Task LatestStable_KnownPackage_ReturnsVersion()
+    {
+        var r = await new NuGetToolkit().ExecuteAsync("latest_stable",
+            new Dictionary<string, object?> { ["package"] = "Newtonsoft.Json" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.NotNull(r.Data?.ToString());
+    }
+
+    [Fact] public async Task Search_InjectionQuery_DoesNotCrash()
+    {
+        var r = await new NuGetToolkit().ExecuteAsync("search",
+            new Dictionary<string, object?> { ["query"] = "'; DROP TABLE packages--<script>" }, default);
+        // nuget.org API safely encodes the query, returns Ok or Error (network)
+        Assert.True(r.Status is ToolkitResultStatus.Ok or ToolkitResultStatus.Error);
+    }
+
+    [Fact] public async Task UnknownAction_ReturnsError()
+    {
+        var r = await new NuGetToolkit().ExecuteAsync("__nonexistent_action__", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
 }
 
 public sealed class DockerToolkitTests

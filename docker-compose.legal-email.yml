@@ -32,6 +32,8 @@ services:
     container_name: agxioma-legal-backend
     ports:
       - "5013:8080"
+    volumes:
+      - legal-wiki-data:/app/wiki
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
@@ -58,3 +60,4 @@ services:
 volumes:
   legal-postgres-data:
   legal-redis-data:
+  legal-wiki-data:

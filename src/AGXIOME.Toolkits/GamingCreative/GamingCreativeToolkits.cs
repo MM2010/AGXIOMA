@@ -130,8 +130,7 @@ public sealed class UnsplashToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             "search"    =>await UnGet($"search/photos?query={Uri.EscapeDataString(GetRequiredParam<string>(p,"query"))}&per_page={GetParam<int?>(p,"per_page")??10}&page={GetParam<int?>(p,"page")??1}",key,ct).ConfigureAwait(false),
             "random"    =>await UnGet($"photos/random?count={GetParam<int?>(p,"count")??1}{(GetParam<string>(p,"query")!=null?$"&query={Uri.EscapeDataString(GetParam<string>(p,"query")!)}":"")}",key,ct).ConfigureAwait(false),
             "get_photo" =>await UnGet($"photos/{GetRequiredParam<string>(p,"id")}",key,ct).ConfigureAwait(false),
-            "list"      =>await UnGet($"photos?per_page={GetParam<int?>(p,"per_page")??10}&order_by={GetParam<string>(p,"order_by")??"popular"}",key,ct).ConfigureAwait(false),
-            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
+            "list"      =>await UnGet($"photos?per_page={GetParam<int?>(p,"per_page")??10}&order_by={GetParam<string>(p,"order_by")??"popular"}",key,ct).ConfigureAwait(false),            "collections"=>await UnGet($"collections/featured?per_page={GetParam<int?>(p,"per_page")??10}",key,ct).ConfigureAwait(false),            _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
     private static async Task<ToolkitResult> UnGet(string path,string key,CancellationToken ct){
@@ -155,6 +154,7 @@ public sealed class PexelsToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             "curated"       =>await PxGet($"v1/curated?per_page={GetParam<int?>(p,"per_page")??15}",key,ct).ConfigureAwait(false),
             "get_photo"     =>await PxGet($"v1/photos/{GetRequiredParam<string>(p,"id")}",key,ct).ConfigureAwait(false),
             "video_search"  =>await PxGet($"videos/search?query={Uri.EscapeDataString(GetRequiredParam<string>(p,"query"))}&per_page={GetParam<int?>(p,"per_page")??10}",key,ct).ConfigureAwait(false),
+            "popular_videos"=>await PxGet($"videos/popular?per_page={GetParam<int?>(p,"per_page")??10}",key,ct).ConfigureAwait(false),
             _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
@@ -180,6 +180,7 @@ public sealed class GiphyToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             "trending" =>await GpGet($"trending?limit={limit}&api_key={key}",ct).ConfigureAwait(false),
             "random"   =>await GpGet($"random?api_key={key}&tag={Uri.EscapeDataString(GetParam<string>(p,"tag")??"funny")}",ct).ConfigureAwait(false),
             "get"      =>await GpGet($"{GetRequiredParam<string>(p,"id")}?api_key={key}",ct).ConfigureAwait(false),
+            "sticker_search"=>await GpGet($"../stickers/search?q={Uri.EscapeDataString(GetRequiredParam<string>(p,"query"))}&limit={limit}&api_key={key}",ct).ConfigureAwait(false),
             _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
@@ -194,13 +195,47 @@ public sealed class OpenAiImageGenToolkit(ToolkitConfig? cfg=null):ToolkitBase(c
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         var key=GetRequiredSetting("api_key");
+        return a switch{
+            "generate" or "create" => await Generate(key,p,ct).ConfigureAwait(false),
+            "variation"            => await Variation(key,p,ct).ConfigureAwait(false),
+            "edit"                 => await Edit(key,p,ct).ConfigureAwait(false),
+            "list_models"          => ToolkitResult.Success(new{models=new[]{"dall-e-3","dall-e-2"}}),
+            "list_sizes"           => ToolkitResult.Success(new{dall_e_3=new[]{"1024x1024","1792x1024","1024x1792"},dall_e_2=new[]{"256x256","512x512","1024x1024"}}),
+            _                      => throw AgxiomeToolkitException.UnknownAction(Id, a)
+        };
+    }
+    private async Task<ToolkitResult> Generate(string key,Dictionary<string,object?> p,CancellationToken ct){
         var prompt=GetParam<string>(p,"prompt")??"A beautiful landscape";
         var model=GetParam<string>(p,"model")??GetSetting("model")??"dall-e-3";
-        var size=GetParam<string>(p,"size")??"1024x1024";
-        var quality=GetParam<string>(p,"quality")??"standard";
-        var n=GetParam<int?>(p,"n")??1;
+        var size=GetParam<string>(p,"size")??"1024x1024"; var quality=GetParam<string>(p,"quality")??"standard"; var n=GetParam<int?>(p,"n")??1;
         var payload=new{model,prompt,size,quality,n};
         var req=new HttpRequestMessage(System.Net.Http.HttpMethod.Post,"https://api.openai.com/v1/images/generations"){Content=System.Net.Http.Json.JsonContent.Create(payload)};
+        req.Headers.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",key);
+        var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);resp.EnsureSuccessStatusCode();
+        return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
+    }
+    private async Task<ToolkitResult> Variation(string key,Dictionary<string,object?> p,CancellationToken ct){
+        var imagePath=GetRequiredParam<string>(p,"image_path");
+        var n=GetParam<int?>(p,"n")??1; var size=GetParam<string>(p,"size")??"1024x1024";
+        using var form=new System.Net.Http.MultipartFormDataContent();
+        form.Add(new System.Net.Http.ByteArrayContent(File.ReadAllBytes(imagePath)),"image",Path.GetFileName(imagePath));
+        form.Add(new System.Net.Http.StringContent(n.ToString()),"n");
+        form.Add(new System.Net.Http.StringContent(size),"size");
+        var req=new HttpRequestMessage(System.Net.Http.HttpMethod.Post,"https://api.openai.com/v1/images/variations"){Content=form};
+        req.Headers.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",key);
+        var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);resp.EnsureSuccessStatusCode();
+        return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
+    }
+    private async Task<ToolkitResult> Edit(string key,Dictionary<string,object?> p,CancellationToken ct){
+        var imagePath=GetRequiredParam<string>(p,"image_path"); var prompt=GetRequiredParam<string>(p,"prompt");
+        var n=GetParam<int?>(p,"n")??1; var size=GetParam<string>(p,"size")??"1024x1024";
+        using var form=new System.Net.Http.MultipartFormDataContent();
+        form.Add(new System.Net.Http.ByteArrayContent(File.ReadAllBytes(imagePath)),"image",Path.GetFileName(imagePath));
+        if(GetParam<string>(p,"mask_path") is string mask)form.Add(new System.Net.Http.ByteArrayContent(File.ReadAllBytes(mask)),"mask",Path.GetFileName(mask));
+        form.Add(new System.Net.Http.StringContent(prompt),"prompt");
+        form.Add(new System.Net.Http.StringContent(n.ToString()),"n");
+        form.Add(new System.Net.Http.StringContent(size),"size");
+        var req=new HttpRequestMessage(System.Net.Http.HttpMethod.Post,"https://api.openai.com/v1/images/edits"){Content=form};
         req.Headers.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",key);
         var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);resp.EnsureSuccessStatusCode();
         return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));

@@ -102,14 +102,34 @@ public sealed class ServiceNowToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
         var pass=GetRequiredSetting("password");
         var creds=Convert.ToBase64String(Encoding.UTF8.GetBytes($"{user}:{pass}"));
         var table=GetParam<string>(p,"table")??"incident";
+        if(!IsValidTableName(table))return ToolkitResult.Fail($"Invalid table name: '{table}'");
         return a switch{
-            "list"   =>await SnGet($"{inst}/api/now/table/{table}?sysparm_limit={GetParam<int?>(p,"limit")??10}",creds,ct).ConfigureAwait(false),
-            "get"    =>await SnGet($"{inst}/api/now/table/{table}/{GetRequiredParam<string>(p,"sys_id")}",creds,ct).ConfigureAwait(false),
+            "list"    =>await SnGet($"{inst}/api/now/table/{table}?sysparm_limit={GetParam<int?>(p,"limit")??10}",creds,ct).ConfigureAwait(false),
+            "get"     =>await SnGet($"{inst}/api/now/table/{table}/{GetRequiredParam<string>(p,"sys_id")}",creds,ct).ConfigureAwait(false),
+            "create"  =>await SnPost($"{inst}/api/now/table/{table}",GetParam<object?>(p,"data")??new{short_description=GetParam<string>(p,"description")??"New Record"},creds,ct).ConfigureAwait(false),
+            "update"  =>await SnPatch($"{inst}/api/now/table/{table}/{GetRequiredParam<string>(p,"sys_id")}",GetParam<object?>(p,"data")??new{},creds,ct).ConfigureAwait(false),
+            "search"  =>await SnGet($"{inst}/api/now/table/{table}?sysparm_query={Uri.EscapeDataString(GetRequiredParam<string>(p,"query"))}&sysparm_limit={GetParam<int?>(p,"limit")??10}",creds,ct).ConfigureAwait(false),
             _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
+    private static bool IsValidTableName(string n)=>
+        !string.IsNullOrWhiteSpace(n)&&n.All(c=>char.IsLetterOrDigit(c)||c=='_');
     private static async Task<ToolkitResult> SnGet(string url,string creds,CancellationToken ct){
         var req=new HttpRequestMessage(HttpMethod.Get,url);
+        req.Headers.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Basic",creds);
+        req.Headers.Add("Accept","application/json");
+        var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);resp.EnsureSuccessStatusCode();
+        return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
+    }
+    private static async Task<ToolkitResult> SnPost(string url,object body,string creds,CancellationToken ct){
+        var req=new HttpRequestMessage(HttpMethod.Post,url){Content=JsonContent.Create(body)};
+        req.Headers.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Basic",creds);
+        req.Headers.Add("Accept","application/json");
+        var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);resp.EnsureSuccessStatusCode();
+        return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
+    }
+    private static async Task<ToolkitResult> SnPatch(string url,object body,string creds,CancellationToken ct){
+        var req=new HttpRequestMessage(HttpMethod.Patch,url){Content=JsonContent.Create(body)};
         req.Headers.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Basic",creds);
         req.Headers.Add("Accept","application/json");
         var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);resp.EnsureSuccessStatusCode();

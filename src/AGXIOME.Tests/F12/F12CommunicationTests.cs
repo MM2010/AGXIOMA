@@ -19,6 +19,37 @@ public sealed class SlackToolkitTests
         var r = await new SlackToolkit(cfg).ExecuteAsync("send_message", new Dictionary<string, object?> { ["channel"] = "#g", ["message"] = "hi" }, default);
         Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
     }
+
+    // ── Security / boundary tests ──────────────────────────────────────────
+    [Fact] public async Task UnknownAction_WithToken_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("slack", new Dictionary<string, string> { ["token"] = "xoxb-fake" });
+        var r = await new SlackToolkit(cfg).ExecuteAsync("'; DROP TABLE--", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+
+    [Fact] public async Task CreateChannel_FakeToken_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("slack", new Dictionary<string, string> { ["token"] = "xoxb-fake" });
+        var r = await new SlackToolkit(cfg).ExecuteAsync("create_channel", new Dictionary<string, object?> { ["name"] = "test-ch" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+
+    [Fact] public async Task SendMessage_PathTraversalInChannel_DoesNotCrash()
+    {
+        var cfg = new ToolkitConfig("slack", new Dictionary<string, string> { ["token"] = "xoxb-fake" });
+        var r = await new SlackToolkit(cfg).ExecuteAsync("send_message",
+            new Dictionary<string, object?> { ["channel"] = "../../etc/passwd", ["message"] = "<script>alert(1)</script>" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+
+    [Fact] public async Task AddReaction_FakeToken_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("slack", new Dictionary<string, string> { ["token"] = "xoxb-fake" });
+        var r = await new SlackToolkit(cfg).ExecuteAsync("add_reaction",
+            new Dictionary<string, object?> { ["channel"] = "C123", ["timestamp"] = "1.0", ["reaction"] = "thumbsup" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
 }
 
 public sealed class DiscordToolkitTests
@@ -91,6 +122,66 @@ public sealed class EmailSmtpToolkitTests
         var r = await new EmailSmtpToolkit(cfg).ExecuteAsync("send_email", new Dictionary<string, object?> { ["to"] = "a@b.com", ["subject"] = "s", ["body"] = "b" }, default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
+
+    // ── Security / boundary tests ──────────────────────────────────────────
+    private static ToolkitConfig SmtpCfg() => new("email_smtp", new Dictionary<string, string>
+        { ["host"] = "smtp.fake.local", ["username"] = "u@fake.local", ["password"] = "fake-pwd-xyz" });
+
+    [Fact] public async Task ValidateAddress_ValidEmail_ReturnsOk()
+    {
+        var r = await new EmailSmtpToolkit(SmtpCfg()).ExecuteAsync("validate_address",
+            new Dictionary<string, object?> { ["address"] = "valid@example.com" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Contains("True", r.Data?.ToString() ?? "", StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact] public async Task ValidateAddress_HeaderInjection_ReturnsOk_MarkedInvalid()
+    {
+        var r = await new EmailSmtpToolkit(SmtpCfg()).ExecuteAsync("validate_address",
+            new Dictionary<string, object?> { ["address"] = "admin\r\nBcc: evil@attacker.com" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Contains("False", r.Data?.ToString() ?? "", StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact] public async Task ValidateAddress_NullByteInAddress_ReturnsOk_MarkedInvalid()
+    {
+        var r = await new EmailSmtpToolkit(SmtpCfg()).ExecuteAsync("validate_address",
+            new Dictionary<string, object?> { ["address"] = "user\0@evil.com" }, default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Contains("False", r.Data?.ToString() ?? "", StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact] public async Task ValidateAddress_MissingParam_ReturnsError()
+    {
+        var r = await new EmailSmtpToolkit(SmtpCfg()).ExecuteAsync("validate_address", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+
+    [Fact] public async Task Info_WithFullConfig_ReturnsOk()
+    {
+        var r = await new EmailSmtpToolkit(SmtpCfg()).ExecuteAsync("info", [], default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+
+    [Fact] public async Task Info_DoesNotExposePassword()
+    {
+        const string secret = "fake-pwd-xyz";
+        var r = await new EmailSmtpToolkit(SmtpCfg()).ExecuteAsync("info", [], default);
+        Assert.DoesNotContain(secret, r.Data?.ToString() ?? "");
+    }
+
+    [Fact] public async Task TestConnection_FakeHost_ReturnsOk()
+    {
+        // TestConnection only validates SmtpClient construction (does not actually connect)
+        var r = await new EmailSmtpToolkit(SmtpCfg()).ExecuteAsync("test_connection", [], default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+
+    [Fact] public async Task UnknownAction_WithConfig_ReturnsError()
+    {
+        var r = await new EmailSmtpToolkit(SmtpCfg()).ExecuteAsync("__inject__; exec xp_cmdshell", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
 }
 
 public sealed class GmailToolkitTests
@@ -126,6 +217,29 @@ public sealed class TeamsToolkitTests
         var cfg = new ToolkitConfig("teams", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new TeamsToolkit(cfg).ExecuteAsync("send_message", new Dictionary<string, object?> { ["channel"] = "general", ["text"] = "hi" }, default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+
+    // ── Security / boundary tests ──────────────────────────────────────────
+    [Fact] public async Task Info_WithWebhook_ReturnsOk()
+    {
+        var cfg = new ToolkitConfig("teams", new Dictionary<string, string> { ["webhook_url"] = "https://hooks.office.fake/webhook/123" });
+        var r = await new TeamsToolkit(cfg).ExecuteAsync("info", [], default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+
+    [Fact] public async Task SendCard_FakeWebhook_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("teams", new Dictionary<string, string> { ["webhook_url"] = "https://hooks.office.fake/webhook/123" });
+        var r = await new TeamsToolkit(cfg).ExecuteAsync("send_card",
+            new Dictionary<string, object?> { ["title"] = "<script>alert(1)</script>", ["body"] = "test" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+
+    [Fact] public async Task UnknownAction_WithWebhook_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("teams", new Dictionary<string, string> { ["webhook_url"] = "https://hooks.office.fake/webhook/123" });
+        var r = await new TeamsToolkit(cfg).ExecuteAsync("__nonexistent_action__", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -163,6 +277,29 @@ public sealed class GoogleChatToolkitTests
         var r = await new GoogleChatToolkit(cfg).ExecuteAsync("send_message", new Dictionary<string, object?> { ["space"] = "s", ["text"] = "hi" }, default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
+
+    // ── Security / boundary tests ──────────────────────────────────────────
+    [Fact] public async Task Info_WithWebhook_ReturnsOk()
+    {
+        var cfg = new ToolkitConfig("google_chat", new Dictionary<string, string> { ["webhook_url"] = "https://chat.googleapis.com/v1/spaces/fake/messages" });
+        var r = await new GoogleChatToolkit(cfg).ExecuteAsync("info", [], default);
+        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+    }
+
+    [Fact] public async Task SendCard_FakeWebhook_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("google_chat", new Dictionary<string, string> { ["webhook_url"] = "https://chat.googleapis.com/v1/spaces/fake/messages" });
+        var r = await new GoogleChatToolkit(cfg).ExecuteAsync("send_card",
+            new Dictionary<string, object?> { ["title"] = "T", ["subtitle"] = "S", ["body"] = "<img src=x onerror=alert(1)>" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+
+    [Fact] public async Task UnknownAction_WithWebhook_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("google_chat", new Dictionary<string, string> { ["webhook_url"] = "https://chat.googleapis.com/v1/spaces/fake/messages" });
+        var r = await new GoogleChatToolkit(cfg).ExecuteAsync("sql_injection_action'; --", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
 }
 
 public sealed class TwilioToolkitTests
@@ -181,6 +318,35 @@ public sealed class TwilioToolkitTests
         var r = await new TwilioToolkit(cfg).ExecuteAsync("send_sms", new Dictionary<string, object?> { ["to"] = "+1", ["body"] = "hi" }, default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
+
+    // ── Security / boundary tests ──────────────────────────────────────────
+    private static ToolkitConfig TwilioCfg() => new("twilio", new Dictionary<string, string>
+        { ["account_sid"] = "ACfake0000000000000000000000000000", ["auth_token"] = "fake_auth_token_xyz" });
+
+    [Fact] public async Task MakeCall_NotConfigured_ReturnsSkipped()
+    {
+        var r = await new TwilioToolkit().ExecuteAsync("make_call", [], default);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+
+    [Fact] public async Task MakeCall_FakeCredentials_ReturnsError()
+    {
+        var r = await new TwilioToolkit(TwilioCfg()).ExecuteAsync("make_call",
+            new Dictionary<string, object?> { ["to"] = "+15550001234", ["from"] = "+15559999999", ["url"] = "https://example.com/twiml" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+
+    [Fact] public async Task ListCalls_FakeCredentials_ReturnsError()
+    {
+        var r = await new TwilioToolkit(TwilioCfg()).ExecuteAsync("list_calls", [], default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+
+    [Fact] public async Task UnknownAction_WithConfig_ReturnsError()
+    {
+        var r = await new TwilioToolkit(TwilioCfg()).ExecuteAsync("' OR 1=1 --", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
 }
 
 public sealed class SendGridToolkitTests
@@ -197,6 +363,35 @@ public sealed class SendGridToolkitTests
     {
         var cfg = new ToolkitConfig("sendgrid", new Dictionary<string, string> { ["api_key"] = "test" });
         var r = await new SendGridToolkit(cfg).ExecuteAsync("send_email", new Dictionary<string, object?> { ["to"] = "a@b.com", ["subject"] = "s", ["body"] = "b" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+
+    // ── Security / boundary tests ──────────────────────────────────────────
+    [Fact] public async Task GetGlobalStats_FakeKey_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("sendgrid", new Dictionary<string, string> { ["api_key"] = "SG.fake_key" });
+        var r = await new SendGridToolkit(cfg).ExecuteAsync("get_global_stats", [], default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+
+    [Fact] public async Task ListSuppressions_FakeKey_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("sendgrid", new Dictionary<string, string> { ["api_key"] = "SG.fake_key" });
+        var r = await new SendGridToolkit(cfg).ExecuteAsync("list_suppressions", [], default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+
+    [Fact] public async Task ListTemplates_FakeKey_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("sendgrid", new Dictionary<string, string> { ["api_key"] = "SG.fake_key" });
+        var r = await new SendGridToolkit(cfg).ExecuteAsync("list_templates", [], default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+
+    [Fact] public async Task UnknownAction_WithKey_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("sendgrid", new Dictionary<string, string> { ["api_key"] = "SG.fake_key" });
+        var r = await new SendGridToolkit(cfg).ExecuteAsync("<script>alert(1)</script>", [], default);
         Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }

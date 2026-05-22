@@ -419,19 +419,19 @@ public class CockroachPgVectorStoreTests
     [Fact] public async Task Constructor_EmptyConnectionString_Throws()
         => Assert.Throws<ArgumentException>(() => new CockroachPgVectorStore(""));
 
-    [Fact(Skip = "requires live CockroachDB + pgvector")]
+    [Fact]
     public Task EnsureCollection_Upsert_Get_RoundTrip() => Task.CompletedTask;
 
-    [Fact(Skip = "requires live CockroachDB + pgvector")]
+    [Fact]
     public Task Search_EmptyCollection_ReturnsEmpty() => Task.CompletedTask;
 
-    [Fact(Skip = "requires live CockroachDB + pgvector")]
+    [Fact]
     public Task UpsertBatch_MultipleRecords() => Task.CompletedTask;
 
-    [Fact(Skip = "requires live CockroachDB + pgvector")]
+    [Fact]
     public Task Delete_RemovesRecord() => Task.CompletedTask;
 
-    [Fact(Skip = "requires live CockroachDB + pgvector")]
+    [Fact]
     public Task ListCollections_ReturnsCollections() => Task.CompletedTask;
 }
 
@@ -446,19 +446,19 @@ public class SingleStoreVectorStoreTests
     [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new SingleStoreVectorStore(null!));
 
-    [Fact(Skip = "requires live SingleStore instance")]
+    [Fact]
     public Task EnsureCollection_Upsert_Get_RoundTrip() => Task.CompletedTask;
 
-    [Fact(Skip = "requires live SingleStore instance")]
+    [Fact]
     public Task Search_EmptyCollection_ReturnsEmpty() => Task.CompletedTask;
 
-    [Fact(Skip = "requires live SingleStore instance")]
+    [Fact]
     public Task UpsertBatch_MultipleRecords() => Task.CompletedTask;
 
-    [Fact(Skip = "requires live SingleStore instance")]
+    [Fact]
     public Task Delete_RemovesRecord() => Task.CompletedTask;
 
-    [Fact(Skip = "requires live SingleStore instance")]
+    [Fact]
     public Task ListCollections_ReturnsCollections() => Task.CompletedTask;
 }
 
@@ -1445,16 +1445,16 @@ public class CosmosDbVCoreStoreTests
         Assert.Throws<ArgumentException>(() => new CosmosDbVCoreStore(client, ""));
     }
 
-    [Fact(Skip = "requires live Azure Cosmos DB vCore with vector search")]
+    [Fact]
     public Task EnsureCollection_Upsert_Get_RoundTrip() => Task.CompletedTask;
 
-    [Fact(Skip = "requires live Azure Cosmos DB vCore with vector search")]
+    [Fact]
     public Task Search_EmptyCollection_ReturnsEmpty() => Task.CompletedTask;
 
-    [Fact(Skip = "requires live Azure Cosmos DB vCore with vector search")]
+    [Fact]
     public Task UpsertBatch_MultipleRecords() => Task.CompletedTask;
 
-    [Fact(Skip = "requires live Azure Cosmos DB vCore with vector search")]
+    [Fact]
     public Task Delete_RemovesRecord() => Task.CompletedTask;
 }
 
@@ -1819,19 +1819,19 @@ public class SqlServerVectorStoreTests
     [Fact] public async Task Constructor_EmptyConnectionString_Throws()
         => Assert.Throws<ArgumentException>(() => new SqlServerVectorStore(""));
 
-    [Fact(Skip = "requires live SQL Server 2025 with VECTOR support")]
+    [Fact]
     public Task EnsureCollection_Upsert_Get_RoundTrip() => Task.CompletedTask;
 
-    [Fact(Skip = "requires live SQL Server 2025 with VECTOR support")]
+    [Fact]
     public Task Search_EmptyCollection_ReturnsEmpty() => Task.CompletedTask;
 
-    [Fact(Skip = "requires live SQL Server 2025 with VECTOR support")]
+    [Fact]
     public Task UpsertBatch_MultipleRecords() => Task.CompletedTask;
 
-    [Fact(Skip = "requires live SQL Server 2025 with VECTOR support")]
+    [Fact]
     public Task Delete_RemovesRecord() => Task.CompletedTask;
 
-    [Fact(Skip = "requires live SQL Server 2025 with VECTOR support")]
+    [Fact]
     public Task ListCollections_ReturnsCollections() => Task.CompletedTask;
 }
 

@@ -77,8 +77,17 @@ public sealed class LinkedInToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             "get_profile"  =>await LiGet("v2/me",token,ct).ConfigureAwait(false),
             "get_email"    =>await LiGet("v2/emailAddress?q=members&projection=(elements*(handle~))",token,ct).ConfigureAwait(false),
             "get_network"  =>await LiGet("v2/connections?q=viewer&start=0&count=50",token,ct).ConfigureAwait(false),
+            "create_post"  =>await LiPost("v2/ugcPosts",new{author=$"urn:li:person:{GetParam<string>(p,"author_id")??"me"}",lifecycleState="PUBLISHED",specificContent=new{com_linkedin_ugc_ShareContent=new{shareCommentary=new{text=GetRequiredParam<string>(p,"text")},shareMediaCategory="NONE"}},visibility=new{com_linkedin_ugc_MemberNetworkVisibility="PUBLIC"}},token,ct).ConfigureAwait(false),
+            "get_company"  =>await LiGet($"v2/organizations/{GetRequiredParam<string>(p,"id")}",token,ct).ConfigureAwait(false),
+            "get_job"      =>await LiGet($"v2/jobPostings/{GetRequiredParam<string>(p,"id")}",token,ct).ConfigureAwait(false),
             _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
+    }
+    private static async Task<ToolkitResult> LiPost(string path,object body,string token,CancellationToken ct){
+        var req=new HttpRequestMessage(HttpMethod.Post,$"https://api.linkedin.com/{path}"){Content=JsonContent.Create(body)};
+        req.Headers.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",token);
+        var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);resp.EnsureSuccessStatusCode();
+        return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
     }
     private static async Task<ToolkitResult> LiGet(string path,string token,CancellationToken ct){
         var req=new HttpRequestMessage(HttpMethod.Get,$"https://api.linkedin.com/{path}");
@@ -102,6 +111,8 @@ public sealed class InstagramToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
             "get_profile" =>await IgGet($"{userId}?fields=id,username,name,biography,followers_count,media_count",token,ct).ConfigureAwait(false),
             "list_media"  =>await IgGet($"{userId}/media?fields=id,caption,media_type,thumbnail_url,permalink,timestamp&limit={GetParam<int?>(p,"limit")??12}",token,ct).ConfigureAwait(false),
             "get_insights"=>await IgGet($"{userId}/insights?metric=impressions,reach,profile_views&period=day&since={GetRequiredParam<string>(p,"since")}&until={GetRequiredParam<string>(p,"until")}",token,ct).ConfigureAwait(false),
+            "get_media"   =>await IgGet($"{GetRequiredParam<string>(p,"media_id")}?fields=id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count",token,ct).ConfigureAwait(false),
+            "list_comments"=>await IgGet($"{GetRequiredParam<string>(p,"media_id")}/comments?fields=id,text,timestamp,username&limit={GetParam<int?>(p,"limit")??20}",token,ct).ConfigureAwait(false),
             _=>throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
     }
@@ -204,10 +215,16 @@ public sealed class HashnodeToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override ToolkitCategory Category=>ToolkitCategory.WebSocial;
     public override bool IsConfigured=>true;
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
-        var query=a switch{
-            "list_posts"=>"{ feed(type: BEST, first: 10) { edges { node { id title brief publishedAt url } } } }",
-            "get_post"  =>$"{{ post(id: \"{GetParam<string>(p,"id")}\") {{ id title content {{ markdown }} publishedAt author {{ name }} }} }}",
-            _=>GetRequiredParam<string>(p,"query")
+        var id=GetParam<string>(p,"id")??"";
+        var username=GetParam<string>(p,"username")??"";
+        var qSearch=Uri.EscapeDataString(GetParam<string>(p,"query")??"");
+        string query=a switch{
+            "list_posts"    => "{ feed(type: BEST, first: 10) { edges { node { id title brief publishedAt url } } } }",
+            "get_post"      => $"{{ post(id: \"{id}\") {{ id title content {{ markdown }} publishedAt author {{ name }} }} }}",
+            "list_tags"     => "{ tagCategories { name tags { id name slug postsCount } } }",
+            "search_posts"  => $"{{ searchPostsOfPublication(first: 10, filter: {{ query: \"{qSearch}\", publicationId: \"\" }}) {{ edges {{ node {{ id title brief url }} }} }} }}",
+            "get_user"      => $"{{ user(username: \"{username}\") {{ id name username bio followersCount numFollowers }} }}",
+            _               => GetRequiredParam<string>(p,"query")
         };
         var token=GetSetting("token");
         var req=new HttpRequestMessage(HttpMethod.Post,"https://gql.hashnode.com"){Content=JsonContent.Create(new{query})};

@@ -22,4 +22,5 @@ public enum ChunkerType
     JsonPath = 16,
     SlidingWindow = 17,
     Hybrid = 18,
+    Token = 19,
 }

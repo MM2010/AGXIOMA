@@ -15,7 +15,7 @@ WORKDIR /app
 EXPOSE 8080
 COPY --from=build /app/publish .
 COPY data/ /app/data/
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 \
+    CMD bash -c 'exec 3<>/dev/tcp/localhost/8080 && printf "GET /health HTTP/1.0\r\nHost: localhost\r\n\r\n" >&3 && head -1 <&3 | grep -q "200"'
 ENV ASPNETCORE_URLS=http://+:8080
 ENTRYPOINT ["dotnet", "AgxiomaLegalEmail.dll"]

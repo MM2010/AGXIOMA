@@ -153,7 +153,16 @@ public class RedisSessionManagerTests
 
     // ── Test 7: live Redis (skipped without server) ───────────────────────────
 
-    [Fact(Skip = "requires live Redis server on localhost:6379")]
+    private sealed class RequiresLocalRedisFactAttribute : FactAttribute
+    {
+        public RequiresLocalRedisFactAttribute()
+        {
+            if (!ConditionalTestEnvironment.IsTcpEndpointReachable("localhost", 6379))
+                Skip = "requires live Redis server on localhost:6379";
+        }
+    }
+
+    [RequiresLocalRedisFact]
     public async Task CreateAndGet_RoundTrip_LiveRedis()
     {
         using var mgr = new RedisSessionManager(

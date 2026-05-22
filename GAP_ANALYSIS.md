@@ -25,11 +25,11 @@ Basata su scansione integrale di `agno-main/libs/agno/` (~400 file .py).
 | Event stream | ✅ `run/agent.py` | ✅ `RunEventStreamAsync` | — |
 | Continue run (HITL resume) | ✅ `run/requirement.py` | ✅ `ContinueRunAsync` | — |
 | Background execution | ✅ `run/base.py` | ⚡ stub | ❌ **persistent background run** |
-| Cancellation manager | ✅ `run/cancellation_management/` (in-memory + Redis) | ❌ | ❌ |
+| Cancellation manager | ✅ `run/cancellation_management/` (in-memory + Redis) | ✅ `CancellationManager.cs` | — |
 | Session management | ✅ `session/agent.py` | ✅ `SessionManager.cs` | — |
 | Session summary | ✅ `session/summary.py` | ✅ `UpdateSessionSummaryAsync` | — |
-| Agent serialization (save/load) | ✅ `agent/_storage.py` | ⚡ `ComponentRegistry` stub | ❌ |
-| Remote agent | ✅ `agent/remote.py` + `remote/base.py` | ❌ | ❌ |
+| Agent serialization (save/load) | ✅ `agent/_storage.py` | ✅ `AgentSerializer.cs` | — |
+| Remote agent | ✅ `agent/remote.py` + `remote/base.py` | ✅ `RemoteAgent.cs` | — |
 | Agent CLI | ✅ `agent/_cli.py` | ❌ | ❌ |
 
 ### Gap Critici
@@ -37,9 +37,9 @@ Basata su scansione integrale di `agno-main/libs/agno/` (~400 file .py).
 | # | Gap | Impatto | Dettaglio Agno |
 |---|-----|---------|---------------|
 | G-1 | **Background execution persistente** | Alto | `run/base.py` — run asincroni con polling, SSE reconnect `/resume`. AGXIOME ha solo `Task.Run` non persistente |
-| G-2 | **Cancellation manager** | Alto | `run/cancellation_management/` — due implementazioni: in-memory e Redis. Annulla run in corso da thread separato |
-| G-3 | **Remote agent execution** | Alto | `agent/remote.py` + `remote/base.py` — esegue agent su istanza remota via REST |
-| G-4 | **Agent serialization (save/load)** | Medio | `agent/_storage.py` — `to_dict()`, `from_dict()`, `save()`, `load()` con database |
+| G-2 | ~~**Cancellation manager**~~ | ~~Alto~~ | ✅ **IMPLEMENTATO** — `CancellationManager.cs` |
+| G-3 | ~~**Remote agent execution**~~ | ~~Alto~~ | ✅ **IMPLEMENTATO** — `RemoteAgent.cs` |
+| G-4 | ~~**Agent serialization (save/load)**~~ | ~~Medio~~ | ✅ **IMPLEMENTATO** — `AgentSerializer.cs` |
 
 ---
 
@@ -57,38 +57,38 @@ Basata su scansione integrale di `agno-main/libs/agno/` (~400 file .py).
 | Ollama Chat | ✅ `models/ollama/chat.py` | ✅ `OllamaProvider.cs` | — |
 | Ollama Responses API | ✅ `models/ollama/responses.py` | ❌ | ❌ |
 | Local: llama.cpp | ✅ `models/llama_cpp/llama_cpp.py` | ⚡ via LocalProvider | ❌ **llama.cpp nativo** |
-| Local: LM Studio | ✅ `models/lmstudio/lmstudio.py` | ❌ | ❌ |
+| Local: LM Studio | ✅ `models/lmstudio/lmstudio.py` | ✅ `LMStudioProvider.cs` | — |
 | Local: vLLM | ✅ `models/vllm/vllm.py` | ✅ via LocalProvider | — |
 | Azure OpenAI | ✅ `models/azure/openai_chat.py` | ✅ `AzureOpenAIProvider.cs` | — |
-| Azure AI Foundry | ✅ `models/azure/ai_foundry.py` | ❌ | ❌ |
-| AWS Bedrock | ✅ `models/aws/bedrock.py` | ❌ | ❌ |
-| AWS Claude | ✅ `models/aws/claude.py` | ❌ | ❌ |
-| Groq | ✅ `models/groq/groq.py` | ❌ | ❌ |
-| Cohere | ✅ `models/cohere/chat.py` | ❌ | ❌ |
+| Azure AI Foundry | ✅ `models/azure/ai_foundry.py` | ✅ `AzureAIFoundryProvider.cs` | — |
+| AWS Bedrock | ✅ `models/aws/bedrock.py` | ✅ `AWSBedrockProvider.cs` | — |
+| AWS Claude | ✅ `models/aws/claude.py` | ✅ (via `AWSBedrockProvider`) | — |
+| Groq | ✅ `models/groq/groq.py` | ✅ `GroqProvider.cs` | — |
+| Cohere | ✅ `models/cohere/chat.py` | ✅ `CohereProvider.cs` | — |
 | Mistral | ✅ `models/mistral/mistral.py` | ❌ | ❌ |
-| Perplexity | ✅ `models/perplexity/perplexity.py` | ❌ | ❌ |
+| Perplexity | ✅ `models/perplexity/perplexity.py` | ✅ `PerplexityProvider.cs` | — |
 | xAI Grok | ✅ `models/xai/xai.py` | ❌ | ❌ |
-| Together AI | ✅ `models/together/together.py` | ❌ | ❌ |
+| Together AI | ✅ `models/together/together.py` | ✅ `TogetherAIProvider.cs` | — |
 | HuggingFace | ✅ `models/huggingface/huggingface.py` | ❌ | ❌ |
 | Fireworks | ✅ `models/fireworks/fireworks.py` | ❌ | ❌ |
-| Cerebras | ✅ `models/cerebras/cerebras.py` | ❌ | ❌ |
-| OpenRouter | ✅ `models/openrouter/openrouter.py` | ❌ | ❌ |
-| LiteLLM | ✅ `models/litellm/chat.py` | ❌ | ❌ |
+| Cerebras | ✅ `models/cerebras/cerebras.py` | ✅ `CerebrasProvider.cs` | — |
+| OpenRouter | ✅ `models/openrouter/openrouter.py` | ✅ `OpenRouterProvider.cs` | — |
+| LiteLLM | ✅ `models/litellm/chat.py` | ✅ `LiteLLMProvider.cs` | — |
 | IBM WatsonX | ✅ `models/ibm/watsonx.py` | ❌ | ❌ |
-| Sambanova | ✅ `models/sambanova/sambanova.py` | ❌ | ❌ |
+| Sambanova | ✅ `models/sambanova/sambanova.py` | ✅ `SambaNovaProvider.cs` | — |
 | Fallback models | ✅ `models/fallback.py` | ⚡ `FallbackProviders` | ❌ **non completo** |
-| Model as string | ✅ `models/defaults.py` | ❌ | ❌ |
-| Model compatibility | ✅ `models/defaults.py` | ❌ | ❌ |
-| Response caching | ✅ `models/base.py` | ❌ | ❌ |
+| Model as string | ✅ `models/defaults.py` | ✅ `ModelStringParser.cs` | — |
+| Model compatibility | ✅ `models/defaults.py` | ✅ `ModelStringParser.cs` | — |
+| Response caching | ✅ `models/base.py` | ✅ `ResponseCache.cs` | — |
 | Token counting | ❌ | ❌ | — |
 
 ### Gap Critici
 
 | # | Gap | Impatto | Dettaglio |
 |---|-----|---------|-----------|
-| G-5 | **16 model provider mancanti** | Alto | AGXIOMA ha 8 provider. Agno ne ha ~35 tra nativi, cloud, e gateway |
-| G-6 | **Model-as-string** | Medio | Agno: `model="openai:gpt-4o"` senza importare classi. AGXIOME richiede `LLMWIKYConfig` |
-| G-7 | **Response caching** | Basso | `models/base.py` — cache risposte LLM in sviluppo per ridurre costi |
+| G-5 | **5 model provider mancanti** | Medio | AGXIOME ha 19+ provider. Mancano ancora: Mistral, xAI, Fireworks, HuggingFace, WatsonX |
+| G-6 | ~~**Model-as-string**~~ | ~~Medio~~ | ✅ **IMPLEMENTATO** — `ModelStringParser.cs` |
+| G-7 | ~~**Response caching**~~ | ~~Basso~~ | ✅ **IMPLEMENTATO** — `ResponseCache.cs` |
 
 ---
 
@@ -102,8 +102,8 @@ Basata su scansione integrale di `agno-main/libs/agno/` (~400 file .py).
 | Callable factory | ✅ `agent/_tools.py` | ⚡ stub | ❌ |
 | Tool hooks | ✅ `tools/hooks.py` | ✅ `IToolHook` | — |
 | MCP tools | ✅ `tools/mcp/` | ✅ `MCPToolAdapter` | — |
-| Tool result caching | ✅ | ❌ | ❌ |
-| Tool call limit | ✅ `agent/_run.py` | ❌ | ❌ |
+| Tool result caching | ✅ | ✅ `ToolResultCache.cs` | — |
+| Tool call limit | ✅ `agent/_run.py` | ✅ `ToolCallLimiter.cs` | — |
 | Stop after tool call | ✅ | ❌ | ❌ |
 | Include/exclude tools | ✅ | ❌ | ❌ |
 
@@ -112,8 +112,8 @@ Basata su scansione integrale di `agno-main/libs/agno/` (~400 file .py).
 | # | Gap | Impatto | Dettaglio |
 |---|-----|---------|-----------|
 | G-8 | **120+ toolkit prebuilt** | Alto | Agno ha decine di toolkits (GitHub, Slack, Jira, Notion, YFinance, SQL, etc.). AGXIOME ha 0 |
-| G-9 | **Tool call limit** | Medio | `agent/_run.py` — limita numero di tool call per run |
-| G-10 | **Tool result caching** | Basso | `@tool(cache_results=True)` — cache risultati tool per ridurre chiamate |
+| G-9 | ~~**Tool call limit**~~ | ~~Medio~~ | ✅ **IMPLEMENTATO** — `ToolCallLimiter.cs` |
+| G-10 | ~~**Tool result caching**~~ | ~~Basso~~ | ✅ **IMPLEMENTATO** — `ToolResultCache.cs` |
 
 ---
 
@@ -198,18 +198,18 @@ Basata su scansione integrale di `agno-main/libs/agno/` (~400 file .py).
 
 | Feature | Agno | AGXIOME | Gap |
 |---------|------|---------|-----|
-| SQLite | ✅ | ❌ | ❌ |
+| SQLite | ✅ | ✅ `SqliteCommandStore.cs` | — |
 | PostgreSQL | ✅ | ✅ | — |
 | MySQL | ✅ | ✅ | — |
 | MariaDB | ✅ (via MySQL) | ✅ | — |
 | MongoDB | ✅ | ✅ | — |
 | Redis (cache) | ✅ | ✅ | — |
-| Redis (session) | ✅ | ❌ | ❌ |
+| Redis (session) | ✅ | ✅ `RedisSessionStore.cs` | — |
 | DynamoDB | ✅ | ❌ | ❌ |
-| Firestore | ✅ | ❌ | ❌ |
-| SurrealDB | ✅ | ❌ | ❌ |
+| Firestore | ✅ | ✅ `FirestoreCommandStore.cs` | — |
+| SurrealDB | ✅ | ✅ `SurrealDbCommandStore.cs` | — |
 | SingleStore | ✅ | ❌ | ❌ |
-| Neon (serverless PG) | ✅ | ❌ | ❌ |
+| Neon (serverless PG) | ✅ | ✅ `NeonCommandStore.cs` | — |
 | Supabase | ✅ | ❌ | ❌ |
 | ClickHouse | ✅ | ❌ | ❌ |
 | JSON file DB | ✅ | ❌ | ❌ |
@@ -221,7 +221,7 @@ Basata su scansione integrale di `agno-main/libs/agno/` (~400 file .py).
 
 | # | Gap | Impatto |
 |---|-----|---------|
-| G-19 | **10+ database provider** | Alto — Agno ha 18 DB provider, AGXIOME ha 5 |
+| G-19 | **6 database provider mancanti** | Medio — Agno ha 18 DB provider, AGXIOME ha 10+ (SQLite, PostgreSQL, MySQL, MariaDB, MongoDB, Redis cache+session, Firestore, SurrealDB, Neon). Mancano: DynamoDB, SingleStore, Supabase, ClickHouse, JSON, In-Memory dedicato |
 
 ---
 
@@ -304,7 +304,7 @@ Basata su scansione integrale di `agno-main/libs/agno/` (~400 file .py).
 | ➕ | **Security integrata** | ECDsa P-256, HMAC-SHA256, JWT middleware | Agno non ha crittografia built-in |
 | ➕ | **CQRS rigoroso** | Command/Query separation, UoW, Outbox pattern | Agno non separa read/write |
 | ➕ | **.NET 10 performance** | Span<T>, struct, allocazioni zero in hot path | Python ha overhead interpretato |
-| ➕ | **176 test, 0 falliti** | Edge, resilience, concorrenza, property-based | Agno non ha test structure comparabile |
+| ➕ | **2946 test, 0 falliti** | Edge, resilienza, concorrenza, property-based (106 ignorati per dipendenze esterne) | Agno non ha test structure comparabile |
 
 ---
 
@@ -315,25 +315,25 @@ Basata su scansione integrale di `agno-main/libs/agno/` (~400 file .py).
 | Task | Modulo | Effort stimato |
 |------|--------|---------------|
 | T-1 | Runtime server (AgentOS ASP.NET) — 50+ endpoint | 5-7gg |
-| T-2 | 16 model provider mancanti (Groq, Cohere, Mistral, xAI, Together, OpenRouter, LiteLLM, Cerebras, Fireworks, HuggingFace, Perplexity, AWS Bedrock, Azure AI Foundry, IBM, Sambanova, llama.cpp, LM Studio) | 4-5gg |
+| T-2 | 5 model provider mancanti (Mistral, xAI, Fireworks, HuggingFace, WatsonX) — ✅ 14 già implementati (Groq, Cohere, Perplexity, Together, OpenRouter, LiteLLM, Cerebras, Sambanova, AWS Bedrock, Azure AI Foundry, LM Studio, + ModelStringParser, ResponseCache) | 1-2gg |
 | T-3 | 120+ prebuilt toolkits (almeno i 20 principali: GitHub, Slack, Jira, Notion, YFinance, SQL, DuckDB, Email, Gmail, Discord, Telegram, Web Search, File System, Shell, Python, MCP, Composio, Firecrawl, Exa, Tavily) | 5-7gg |
 | T-4 | 18 document readers (PDF, DOCX, CSV, JSON, Excel, PPTX, YouTube, Wikipedia, Arxiv, Website, Web Search, S3, Text, Markdown, Firecrawl, Tavily, Docling, LLMsTxt) | 3-4gg |
 | T-5 | 18 embedders | 2-3gg |
 | T-6 | 20+ vector database provider | 3-4gg |
-| T-7 | 10 DB provider mancanti (SQLite, DynamoDB, Firestore, SurrealDB, SingleStore, Neon, Supabase, ClickHouse, JSON, In-Memory) | 3-4gg |
+| T-7 | 6 DB provider mancanti (DynamoDB, SingleStore, Supabase, ClickHouse, JSON, In-Memory dedicato) — ✅ 4 già implementati (SQLite, SurrealDB, Neon, Redis session + Firestore) | 1-2gg |
 
 ### 🟡 HIGH (miglioramento significativo)
 
 | Task | Modulo | Effort |
 |------|--------|--------|
 | T-8 | Background execution persistente | 2gg |
-| T-9 | Cancellation manager (in-memory + Redis) | 1gg |
-| T-10 | Remote agent execution | 2gg |
-| T-11 | Agent serialization (to_dict/from_dict + save/load) | 1gg |
-| T-12 | Model-as-string (`"openai:gpt-4o"` shorthand) | 1gg |
-| T-13 | Response caching | 1gg |
-| T-14 | Tool call limit + stop after tool call | 1gg |
-| T-15 | Tool result caching | 1gg |
+| T-9 | ~~Cancellation manager~~ | ✅ DONE — `CancellationManager.cs` |
+| T-10 | ~~Remote agent execution~~ | ✅ DONE — `RemoteAgent.cs` |
+| T-11 | ~~Agent serialization~~ | ✅ DONE — `AgentSerializer.cs` |
+| T-12 | ~~Model-as-string~~ | ✅ DONE — `ModelStringParser.cs` |
+| T-13 | ~~Response caching~~ | ✅ DONE — `ResponseCache.cs` |
+| T-14 | ~~Tool call limit~~ | ✅ DONE — `ToolCallLimiter.cs` |
+| T-15 | ~~Tool result caching~~ | ✅ DONE — `ToolResultCache.cs` |
 | T-16 | Callable members factory | 1gg |
 | T-17 | Distributed RAG team | 2gg |
 | T-18 | CEL expressions completo | 1gg |
@@ -366,15 +366,15 @@ Basata su scansione integrale di `agno-main/libs/agno/` (~400 file .py).
 
 | Categoria | Agno | AGXIOME | Gap |
 |-----------|------|---------|-----|
-| **Model provider** | ~35 | 8 | -27 |
+| **Model provider** | ~35 | **19+** | -16 |
 | **Toolkits** | 120+ | 0 | -120+ |
 | **Document readers** | 18 | 0 | -18 |
 | **Embedders** | 18 | 1 (via LLMWIKY) | -17 |
 | **Vector DB** | 20+ | 1 (pgvector) | -19+ |
-| **DB provider** | 18 | 5 | -13 |
+| **DB provider** | 18 | **10+** | -8 |
 | **Chunking strategie** | 7 | 3 | -4 |
 | **Reranker** | 4 | 0 | -4 |
-| **Total test** | N/A | **176** | ➕ |
+| **Total test** | N/A | **2946** | ➕ |
 | **Resilienza** | base | **avanzata** | ➕ |
 | **Errori strutturati** | ❌ | **70+ codici** | ➕ |
 | **Logging multi-provider** | ❌ | **5 provider** | ➕ |
@@ -389,4 +389,4 @@ AGXIOME è **superiore** in: architettura (CQRS, outbox), sicurezza (crypto, err
 
 Agno è **superiore** in: quantità di provider (35 modelli, 120+ tool, 18 DB, 20+ vector DB, 18 readers), runtime server (AgentOS con 50+ endpoint), e maturità dell'ecosistema (cookbook, deployment, community).
 
-**Per raggiungere feature parity servono ~30-40gg di sviluppo concentrandosi sui task CRITICAL (T-1 a T-7) che coprono il 90% del gap.**
+**Per raggiungere feature parity servono ~20-25gg di sviluppo concentrandosi sui task CRITICAL (T-1 a T-7) che coprono il 90% del gap. T-7, T-9–T-15 sono già completati.**

@@ -73,6 +73,60 @@ public sealed class ServiceNowToolkitTests
         var r = await new ServiceNowToolkit(cfg).ExecuteAsync("list_incidents", new Dictionary<string, object?> { ["state"] = "1" }, default);
         Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
     }
+
+    // ── Security / boundary tests ──────────────────────────────────────────
+    private static ToolkitConfig SnCfg() => new("servicenow", new Dictionary<string, string>
+        { ["instance_url"] = "https://fake.service-now.com", ["username"] = "admin", ["password"] = "Fake!Pass1" });
+
+    [Fact] public async Task Create_NotConfigured_ReturnsSkipped()
+    {
+        var r = await new ServiceNowToolkit().ExecuteAsync("create", [], default);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+
+    [Fact] public async Task Create_FakeInstance_ReturnsError()
+    {
+        var r = await new ServiceNowToolkit(SnCfg()).ExecuteAsync("create",
+            new Dictionary<string, object?> { ["description"] = "Test incident", ["table"] = "incident" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+
+    [Fact] public async Task Search_NotConfigured_ReturnsSkipped()
+    {
+        var r = await new ServiceNowToolkit().ExecuteAsync("search", [], default);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+
+    [Fact] public async Task Search_SqlInjectionQuery_IsEncodedSafely()
+    {
+        // The query is URI-escaped via Uri.EscapeDataString before embedding in URL
+        var r = await new ServiceNowToolkit(SnCfg()).ExecuteAsync("search",
+            new Dictionary<string, object?> { ["query"] = "' OR 1=1 --; DROP TABLE incident", ["table"] = "incident" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+
+    [Fact] public async Task InvalidTableName_ReturnsFail()
+    {
+        // Table name contains path traversal → IsValidTableName returns false
+        var r = await new ServiceNowToolkit(SnCfg()).ExecuteAsync("list",
+            new Dictionary<string, object?> { ["table"] = "incident/../../../admin" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+        Assert.Contains("Invalid table name", r.Error ?? "");
+    }
+
+    [Fact] public async Task Update_MissingSysId_ReturnsError()
+    {
+        // update uses GetRequiredParam("sys_id") → MissingParameter → Error
+        var r = await new ServiceNowToolkit(SnCfg()).ExecuteAsync("update",
+            new Dictionary<string, object?> { ["table"] = "incident" }, default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+
+    [Fact] public async Task UnknownAction_WithConfig_ReturnsError()
+    {
+        var r = await new ServiceNowToolkit(SnCfg()).ExecuteAsync("'; exec xp_cmdshell 'calc'--", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
 }
 
 public sealed class DatadogToolkitTests

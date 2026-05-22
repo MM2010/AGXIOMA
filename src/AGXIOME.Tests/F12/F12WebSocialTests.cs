@@ -55,6 +55,43 @@ public sealed class LinkedInToolkitTests
         var r = await new LinkedInToolkit(cfg).ExecuteAsync("get_profile", [], default);
         Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
     }
+
+    // ── Security / boundary tests ──────────────────────────────────────────
+    [Fact] public async Task CreatePost_NotConfigured_ReturnsSkipped()
+    {
+        var r = await new LinkedInToolkit().ExecuteAsync("create_post", [], default);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+
+    [Fact] public async Task CreatePost_FakeToken_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("linkedin", new Dictionary<string, string> { ["access_token"] = "fake_token_abc" });
+        var r = await new LinkedInToolkit(cfg).ExecuteAsync("create_post",
+            new Dictionary<string, object?> { ["text"] = "<script>alert(1)</script> Test post" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+
+    [Fact] public async Task GetCompany_MissingId_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("linkedin", new Dictionary<string, string> { ["access_token"] = "fake_token" });
+        // get_company uses GetRequiredParam("id") → MissingParameter → Error
+        var r = await new LinkedInToolkit(cfg).ExecuteAsync("get_company", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+
+    [Fact] public async Task GetJob_MissingId_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("linkedin", new Dictionary<string, string> { ["access_token"] = "fake_token" });
+        var r = await new LinkedInToolkit(cfg).ExecuteAsync("get_job", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+
+    [Fact] public async Task UnknownAction_WithToken_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("linkedin", new Dictionary<string, string> { ["access_token"] = "fake_token" });
+        var r = await new LinkedInToolkit(cfg).ExecuteAsync("'; UNION SELECT * FROM secrets--", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
 }
 
 public sealed class InstagramToolkitTests
@@ -72,6 +109,44 @@ public sealed class InstagramToolkitTests
         var cfg = new ToolkitConfig("instagram", new Dictionary<string, string> { ["access_token"] = "test" });
         var r = await new InstagramToolkit(cfg).ExecuteAsync("list_media", new Dictionary<string, object?> { ["limit"] = 5 }, default);
         Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+
+    // ── Security / boundary tests ──────────────────────────────────────────
+    [Fact] public async Task GetMedia_NotConfigured_ReturnsSkipped()
+    {
+        var r = await new InstagramToolkit().ExecuteAsync("get_media", [], default);
+        Assert.Equal(ToolkitResultStatus.Skipped, r.Status);
+    }
+
+    [Fact] public async Task GetMedia_FakeToken_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("instagram", new Dictionary<string, string> { ["access_token"] = "FAKE_IGT" });
+        var r = await new InstagramToolkit(cfg).ExecuteAsync("get_media",
+            new Dictionary<string, object?> { ["media_id"] = "12345" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+
+    [Fact] public async Task ListComments_MissingMediaId_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("instagram", new Dictionary<string, string> { ["access_token"] = "FAKE_IGT" });
+        // list_comments requires media_id via GetRequiredParam → MissingParameter → Error
+        var r = await new InstagramToolkit(cfg).ExecuteAsync("list_comments", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+
+    [Fact] public async Task GetInsights_XssInMediaId_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("instagram", new Dictionary<string, string> { ["access_token"] = "FAKE_IGT" });
+        var r = await new InstagramToolkit(cfg).ExecuteAsync("get_insights",
+            new Dictionary<string, object?> { ["media_id"] = "<script>alert(1)</script>" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Error or ToolkitResultStatus.Unauthorized);
+    }
+
+    [Fact] public async Task UnknownAction_WithToken_ReturnsError()
+    {
+        var cfg = new ToolkitConfig("instagram", new Dictionary<string, string> { ["access_token"] = "FAKE_IGT" });
+        var r = await new InstagramToolkit(cfg).ExecuteAsync("__inject_action__", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
@@ -161,6 +236,49 @@ public sealed class HashnodeToolkitTests
     {
         var cfg = new ToolkitConfig("hashnode", new Dictionary<string, string> { ["token"] = "test" });
         var r = await new HashnodeToolkit(cfg).ExecuteAsync("list_posts", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+
+    // ── Security / boundary tests ──────────────────────────────────────────
+    [Fact] public async Task ListTags_ReturnsOkOrError()
+    {
+        // Public GraphQL API: no auth required
+        var r = await new HashnodeToolkit().ExecuteAsync("list_tags", [], default);
+        Assert.True(r.Status is ToolkitResultStatus.Ok or ToolkitResultStatus.Error);
+    }
+
+    [Fact] public async Task SearchPosts_WithXssQuery_DoesNotCrash()
+    {
+        // Query is URI-encoded before embedding in GraphQL — no script execution possible
+        var r = await new HashnodeToolkit().ExecuteAsync("search_posts",
+            new Dictionary<string, object?> { ["query"] = "<script>alert('xss')</script>" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Ok or ToolkitResultStatus.Error);
+    }
+
+    [Fact] public async Task SearchPosts_GraphQLInjectionAttempt_DoesNotCrash()
+    {
+        var r = await new HashnodeToolkit().ExecuteAsync("search_posts",
+            new Dictionary<string, object?> { ["query"] = "\"} mutation { deletePost(id: \"123\") }" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Ok or ToolkitResultStatus.Error);
+    }
+
+    [Fact] public async Task GetUser_WithUsername_ReturnsOkOrError()
+    {
+        var r = await new HashnodeToolkit().ExecuteAsync("get_user",
+            new Dictionary<string, object?> { ["username"] = "johndoe" }, default);
+        Assert.True(r.Status is ToolkitResultStatus.Ok or ToolkitResultStatus.Error);
+    }
+
+    [Fact] public async Task GetPost_MissingId_ReturnsError()
+    {
+        // get_post uses GetRequiredParam("id") → MissingParameter → Error
+        var r = await new HashnodeToolkit().ExecuteAsync("get_post", [], default);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
+    }
+
+    [Fact] public async Task UnknownAction_ReturnsError()
+    {
+        var r = await new HashnodeToolkit().ExecuteAsync("__inject__{malicious}", [], default);
         Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }

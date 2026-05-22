@@ -1,4 +1,4 @@
-// T-120..T-131 — Search & Knowledge Toolkits
+// T-120..T-136 — Search & Knowledge Toolkits
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -25,13 +25,26 @@ public sealed class GoogleSearchToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg
         var cx=GetRequiredSetting("cx");
         var query=HttpUtility.UrlEncode(GetParam<string>(p,"query")??"");
         var num=GetParam<int?>(p,"num")??10;
-        var url=$"https://www.googleapis.com/customsearch/v1?key={key}&cx={cx}&q={query}&num={num}";
+        return a switch{
+            "search" or "web_search" => await GoogleSearch($"https://www.googleapis.com/customsearch/v1?key={key}&cx={cx}&q={query}&num={num}",query,ct).ConfigureAwait(false),
+            "image_search"           => await GoogleSearch($"https://www.googleapis.com/customsearch/v1?key={key}&cx={cx}&q={query}&num={num}&searchType=image",query,ct).ConfigureAwait(false),
+            "news_search"            => await GoogleSearch($"https://www.googleapis.com/customsearch/v1?key={key}&cx={cx}&q={query}&num={num}&tbm=nws",query,ct).ConfigureAwait(false),
+            "video_search"           => await GoogleSearch($"https://www.googleapis.com/customsearch/v1?key={key}&cx={cx}&q={query}&num={num}&tbm=vid",query,ct).ConfigureAwait(false),
+            "suggest"                => await GsGet($"https://suggestqueries.google.com/complete/search?client=firefox&q={query}",ct).ConfigureAwait(false),
+            _                        => throw AgxiomeToolkitException.UnknownAction(Id, a)
+        };
+    }
+    private static async Task<ToolkitResult> GoogleSearch(string url,string rawQuery,CancellationToken ct){
         var json=await Http.Client.GetFromJsonAsync<JsonElement>(url,ct).ConfigureAwait(false);
         var items=json.TryGetProperty("items",out var el)?el.EnumerateArray().Select(i=>new{
             title=i.TryGetProperty("title",out var t)?t.GetString():"",
             link=i.TryGetProperty("link",out var l)?l.GetString():"",
             snippet=i.TryGetProperty("snippet",out var s)?s.GetString():""}).ToArray():[];
-        return ToolkitResult.Success(new{query,results=items,totalResults=items.Length});
+        return ToolkitResult.Success(new{query=rawQuery,results=items,totalResults=items.Length});
+    }
+    private static async Task<ToolkitResult> GsGet(string url,CancellationToken ct){
+        var json=await Http.Client.GetFromJsonAsync<JsonElement>(url,ct).ConfigureAwait(false);
+        return ToolkitResult.Success(json);
     }
 }
 
@@ -45,17 +58,22 @@ public sealed class BingSearchToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
         var key=GetRequiredSetting("api_key");
         var query=HttpUtility.UrlEncode(GetParam<string>(p,"query")??"");
         var count=GetParam<int?>(p,"count")??10;
-        var req=new HttpRequestMessage(HttpMethod.Get,$"https://api.bing.microsoft.com/v7.0/search?q={query}&count={count}");
+        return a switch{
+            "search" or "web_search" => await BingSearch($"search?q={query}&count={count}",key,"webPages",ct).ConfigureAwait(false),
+            "news_search"            => await BingSearch($"news/search?q={query}&count={count}",key,"value",ct).ConfigureAwait(false),
+            "image_search"           => await BingSearch($"images/search?q={query}&count={count}",key,"value",ct).ConfigureAwait(false),
+            "video_search"           => await BingSearch($"videos/search?q={query}&count={count}",key,"value",ct).ConfigureAwait(false),
+            "suggest"                => await BingSearch($"suggestions?q={query}",key,"suggestionGroups",ct).ConfigureAwait(false),
+            _                        => throw AgxiomeToolkitException.UnknownAction(Id, a)
+        };
+    }
+    private static async Task<ToolkitResult> BingSearch(string path,string key,string root,CancellationToken ct){
+        var req=new HttpRequestMessage(HttpMethod.Get,$"https://api.bing.microsoft.com/v7.0/{path}");
         req.Headers.Add("Ocp-Apim-Subscription-Key",key);
         var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);
         resp.EnsureSuccessStatusCode();
         var json=await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false);
-        var items=json.TryGetProperty("webPages",out var wp)&&wp.TryGetProperty("value",out var vals)
-            ?vals.EnumerateArray().Select(i=>new{
-                name=i.TryGetProperty("name",out var n)?n.GetString():"",
-                url=i.TryGetProperty("url",out var u)?u.GetString():"",
-                snippet=i.TryGetProperty("snippet",out var s)?s.GetString():""}).ToArray():[];
-        return ToolkitResult.Success(new{query,results=items});
+        return ToolkitResult.Success(json);
     }
 }
 
@@ -68,8 +86,18 @@ public sealed class SearXngToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         var base_=GetRequiredSetting("base_url").TrimEnd('/');
         var query=HttpUtility.UrlEncode(GetParam<string>(p,"query")??"");
-        var format=GetParam<string>(p,"format")??"json";
-        var json=await Http.Client.GetFromJsonAsync<JsonElement>($"{base_}/search?q={query}&format={format}",ct).ConfigureAwait(false);
+        var lang=GetParam<string>(p,"language")??""; var safesearch=GetParam<string>(p,"safesearch")??"0";
+        return a switch{
+            "search" or "web_search" => await SxSearch($"{base_}/search?q={query}&format=json&categories=general&language={lang}",query,ct).ConfigureAwait(false),
+            "image_search"           => await SxSearch($"{base_}/search?q={query}&format=json&categories=images&language={lang}",query,ct).ConfigureAwait(false),
+            "news_search"            => await SxSearch($"{base_}/search?q={query}&format=json&categories=news&language={lang}",query,ct).ConfigureAwait(false),
+            "video_search"           => await SxSearch($"{base_}/search?q={query}&format=json&categories=videos&language={lang}",query,ct).ConfigureAwait(false),
+            "file_search"            => await SxSearch($"{base_}/search?q={query}&format=json&categories=files&language={lang}",query,ct).ConfigureAwait(false),
+            _                        => throw AgxiomeToolkitException.UnknownAction(Id, a)
+        };
+    }
+    private static async Task<ToolkitResult> SxSearch(string url,string query,CancellationToken ct){
+        var json=await Http.Client.GetFromJsonAsync<JsonElement>(url,ct).ConfigureAwait(false);
         var results=json.TryGetProperty("results",out var r)?r.EnumerateArray().Select(i=>new{
             title=i.TryGetProperty("title",out var t)?t.GetString():"",
             url=i.TryGetProperty("url",out var u)?u.GetString():"",
@@ -112,23 +140,23 @@ public sealed class ExaToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         var key=GetRequiredSetting("api_key");
-        var query=GetParam<string>(p,"query")??"";
-        var numResults=GetParam<int?>(p,"num_results")??5;
+        var query=GetParam<string>(p,"query")??""; var numResults=GetParam<int?>(p,"num_results")??5;
         var useAutoprompt=GetParam<bool?>(p,"use_autoprompt")??true;
-        var body=new{query,numResults,useAutoprompt,type=GetParam<string>(p,"type")??"auto"};
-        var req=new HttpRequestMessage(HttpMethod.Post,"https://api.exa.ai/search"){
-            Content=JsonContent.Create(body)
+        return a switch{
+            "search" or "web_search" => await ExaPost(key,"search",new{query,numResults,useAutoprompt,type=GetParam<string>(p,"type")??"auto"},ct).ConfigureAwait(false),
+            "neural_search"          => await ExaPost(key,"search",new{query,numResults,useAutoprompt=true,type="neural"},ct).ConfigureAwait(false),
+            "get_contents"           => await ExaPost(key,"contents",new{ids=GetParam<string[]?>(p,"ids")??Array.Empty<string>(),text=new{maxCharacters=GetParam<int?>(p,"max_chars")??1000}},ct).ConfigureAwait(false),
+            "find_similar"           => await ExaPost(key,"findSimilar",new{url=GetRequiredParam<string>(p,"url"),numResults,excludeSourceDomain=GetParam<bool?>(p,"exclude_source")??true},ct).ConfigureAwait(false),
+            "search_and_contents"    => await ExaPost(key,"search",new{query,numResults,useAutoprompt,type=GetParam<string>(p,"type")??"auto",contents=new{text=new{maxCharacters=500}}},ct).ConfigureAwait(false),
+            _                        => throw AgxiomeToolkitException.UnknownAction(Id, a)
         };
+    }
+    private static async Task<ToolkitResult> ExaPost(string key,string endpoint,object body,CancellationToken ct){
+        var req=new HttpRequestMessage(HttpMethod.Post,$"https://api.exa.ai/{endpoint}"){Content=JsonContent.Create(body)};
         req.Headers.Add("x-api-key",key);
         var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);
         resp.EnsureSuccessStatusCode();
-        var json=await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false);
-        var results=json.TryGetProperty("results",out var r)?r.EnumerateArray().Select(i=>new{
-            title=i.TryGetProperty("title",out var t)?t.GetString():"",
-            url=i.TryGetProperty("url",out var u)?u.GetString():"",
-            publishedDate=i.TryGetProperty("publishedDate",out var d)?d.GetString():"",
-            author=i.TryGetProperty("author",out var au)?au.GetString():""}).ToArray():[];
-        return ToolkitResult.Success(new{query,results});
+        return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
     }
 }
 
@@ -142,19 +170,23 @@ public sealed class BraveSearchToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg)
         var key=GetRequiredSetting("api_key");
         var query=HttpUtility.UrlEncode(GetParam<string>(p,"query")??"");
         var count=GetParam<int?>(p,"count")??10;
-        var req=new HttpRequestMessage(HttpMethod.Get,$"https://api.search.brave.com/res/v1/web/search?q={query}&count={count}");
+        return a switch{
+            "search" or "web_search" => await BraveGet($"web/search?q={query}&count={count}",key,ct).ConfigureAwait(false),
+            "news_search"            => await BraveGet($"news/search?q={query}&count={count}",key,ct).ConfigureAwait(false),
+            "image_search"           => await BraveGet($"images/search?q={query}&count={count}",key,ct).ConfigureAwait(false),
+            "video_search"           => await BraveGet($"videos/search?q={query}&count={count}",key,ct).ConfigureAwait(false),
+            "suggest"                => await BraveGet($"suggest/search?q={query}&count={count}",key,ct).ConfigureAwait(false),
+            _                        => throw AgxiomeToolkitException.UnknownAction(Id, a)
+        };
+    }
+    private static async Task<ToolkitResult> BraveGet(string path,string key,CancellationToken ct){
+        var req=new HttpRequestMessage(HttpMethod.Get,$"https://api.search.brave.com/res/v1/{path}");
         req.Headers.Add("Accept","application/json");
         req.Headers.Add("Accept-Encoding","gzip");
         req.Headers.Add("X-Subscription-Token",key);
         var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);
         resp.EnsureSuccessStatusCode();
-        var json=await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false);
-        var results=json.TryGetProperty("web",out var web)&&web.TryGetProperty("results",out var r)
-            ?r.EnumerateArray().Select(i=>new{
-                title=i.TryGetProperty("title",out var t)?t.GetString():"",
-                url=i.TryGetProperty("url",out var u)?u.GetString():"",
-                description=i.TryGetProperty("description",out var d)?d.GetString():""}).ToArray():[];
-        return ToolkitResult.Success(new{query,results});
+        return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
     }
 }
 
@@ -167,16 +199,19 @@ public sealed class SerpApiToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         var key=GetRequiredSetting("api_key");
         var q=HttpUtility.UrlEncode(GetParam<string>(p,"q")??"");
-        var engine=GetParam<string>(p,"engine")??"google";
         var num=GetParam<int?>(p,"num")??10;
-        var json=await Http.Client.GetFromJsonAsync<JsonElement>(
-            $"https://serpapi.com/search.json?engine={engine}&q={q}&num={num}&api_key={key}",ct).ConfigureAwait(false);
-        var results=json.TryGetProperty("organic_results",out var r)
-            ?r.EnumerateArray().Select(i=>new{
-                title=i.TryGetProperty("title",out var t)?t.GetString():"",
-                link=i.TryGetProperty("link",out var l)?l.GetString():"",
-                snippet=i.TryGetProperty("snippet",out var s)?s.GetString():""}).ToArray():[];
-        return ToolkitResult.Success(new{q,engine,results});
+        return a switch{
+            "search" or "google"  => await SerpGet($"engine=google&q={q}&num={num}&api_key={key}",ct).ConfigureAwait(false),
+            "news_search"         => await SerpGet($"engine=google_news&q={q}&api_key={key}",ct).ConfigureAwait(false),
+            "image_search"        => await SerpGet($"engine=google_images&q={q}&num={num}&api_key={key}",ct).ConfigureAwait(false),
+            "scholar_search"      => await SerpGet($"engine=google_scholar&q={q}&num={num}&api_key={key}",ct).ConfigureAwait(false),
+            "jobs_search"         => await SerpGet($"engine=google_jobs&q={q}&api_key={key}",ct).ConfigureAwait(false),
+            _                     => await SerpGet($"engine={a}&q={q}&num={num}&api_key={key}",ct).ConfigureAwait(false)
+        };
+    }
+    private static async Task<ToolkitResult> SerpGet(string qs,CancellationToken ct){
+        var json=await Http.Client.GetFromJsonAsync<JsonElement>($"https://serpapi.com/search.json?{qs}",ct).ConfigureAwait(false);
+        return ToolkitResult.Success(json);
     }
 }
 
@@ -188,11 +223,17 @@ public sealed class SerperToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
     protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
         var key=GetRequiredSetting("api_key");
-        var query=GetParam<string>(p,"query")??"";
-        var type=GetParam<string>(p,"type")??"search"; // search|news|images
-        var num=GetParam<int?>(p,"num")??10;
+        var query=GetParam<string>(p,"query")??""; var num=GetParam<int?>(p,"num")??10;
+        var endpoint=a switch{
+            "search" or "web_search" =>"search",
+            "news_search"            =>"news",
+            "image_search"           =>"images",
+            "scholar_search"         =>"scholar",
+            "places_search"          =>"places",
+            _                        =>a
+        };
         var body=new{q=query,num};
-        var req=new HttpRequestMessage(HttpMethod.Post,$"https://google.serper.dev/{type}"){
+        var req=new HttpRequestMessage(HttpMethod.Post,$"https://google.serper.dev/{endpoint}"){
             Content=JsonContent.Create(body)
         };
         req.Headers.Add("X-API-KEY",key);
@@ -205,7 +246,7 @@ public sealed class SerperToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
                 link=i.TryGetProperty("link",out var l)?l.GetString():"",
                 snippet=i.TryGetProperty("snippet",out var s)?s.GetString():""}).ToArray():[];
         var answerBox=json.TryGetProperty("answerBox",out var ab)?ab.GetRawText():null;
-        return ToolkitResult.Success(new{query,type,results,answerBox});
+        return ToolkitResult.Success(new{query,endpoint,results,answerBox});
     }
 }
 
@@ -368,5 +409,151 @@ public sealed class PubMedToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
         var xml=await Http.Client.GetStringAsync(
             $"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id={pmid}&rettype=abstract&retmode=text{apiKey}",ct).ConfigureAwait(false);
         return ToolkitResult.Success(new{pmid,abstract_text=xml.Trim(),charCount=xml.Length});
+    }
+}
+
+// T-132 — DuckDuckGo Instant Answer (free, no API key required)
+[Toolkit("duckduckgo","DuckDuckGo",ToolkitCategory.SearchKnowledge)]
+public sealed class DuckDuckGoToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
+    public override string Id=>"duckduckgo";public override string Name=>"DuckDuckGo";
+    public override ToolkitCategory Category=>ToolkitCategory.SearchKnowledge;
+    public override bool IsConfigured=>true;
+    protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
+        var query=GetParam<string>(p,"query")??"";
+        var q=HttpUtility.UrlEncode(query);
+        var json=await Http.Client.GetFromJsonAsync<JsonElement>(
+            $"https://api.duckduckgo.com/?q={q}&format=json&no_redirect=1&no_html=1&skip_disambig=1",ct).ConfigureAwait(false);
+        var answer=json.TryGetProperty("AbstractText",out var at)?at.GetString():"";
+        var definition=json.TryGetProperty("Definition",out var def)?def.GetString():"";
+        var entity=json.TryGetProperty("Heading",out var h)?h.GetString():"";
+        var related=json.TryGetProperty("RelatedTopics",out var rt)
+            ?rt.EnumerateArray().Take(10).Select(t=>new{
+                text=t.TryGetProperty("Text",out var tx)?tx.GetString():"",
+                url=t.TryGetProperty("FirstURL",out var u)?u.GetString():""}).ToArray():[];
+        return a switch{
+            "related"    =>ToolkitResult.Success(new{query,entity,related}),
+            "definition" =>ToolkitResult.Success(new{query,entity,definition}),
+            _            =>ToolkitResult.Success(new{query,entity,answer,definition,related})
+        };
+    }
+}
+
+// T-133 — You.com AI Search (api_key required)
+[Toolkit("youcom","You.com",ToolkitCategory.SearchKnowledge)]
+public sealed class YouComToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
+    public override string Id=>"youcom";public override string Name=>"You.com";
+    public override ToolkitCategory Category=>ToolkitCategory.SearchKnowledge;
+    public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
+    protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
+        var key=GetRequiredSetting("api_key");
+        var query=GetParam<string>(p,"query")??"";
+        var num=GetParam<int?>(p,"num")??10;
+        var searchType=a switch{
+            "news"        =>"news",
+            "code"        =>"code",
+            "ai_snippets" =>"snippets",
+            _             =>"web"
+        };
+        var req=new HttpRequestMessage(HttpMethod.Get,
+            $"https://api.you.com/v2/search?q={HttpUtility.UrlEncode(query)}&num={num}&search_type={searchType}");
+        req.Headers.Add("X-API-Key",key);
+        var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);
+        resp.EnsureSuccessStatusCode();
+        var json=await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false);
+        return ToolkitResult.Success(new{query,searchType,results=json});
+    }
+}
+
+// T-134 — Kagi Search (api_key required)
+[Toolkit("kagi","Kagi",ToolkitCategory.SearchKnowledge)]
+public sealed class KagiToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
+    public override string Id=>"kagi";public override string Name=>"Kagi";
+    public override ToolkitCategory Category=>ToolkitCategory.SearchKnowledge;
+    public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
+    protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
+        var key=GetRequiredSetting("api_key");
+        return a switch{
+            "summarize"=>await KagiReq(HttpMethod.Post,"https://kagi.com/api/v0/summarize",key,
+                new{url=GetParam<string>(p,"url")??"",engine=GetParam<string>(p,"engine")??"agnes"},ct).ConfigureAwait(false),
+            "fastgpt"  =>await KagiReq(HttpMethod.Post,"https://kagi.com/api/v0/fastgpt",key,
+                new{query=GetParam<string>(p,"query")??"",cache=true,web_search=true},ct).ConfigureAwait(false),
+            _          =>await KagiReq(HttpMethod.Get,
+                $"https://kagi.com/api/v0/search?q={HttpUtility.UrlEncode(GetParam<string>(p,"query")??"")}" +
+                $"&limit={GetParam<int?>(p,"limit")??10}",key,null,ct).ConfigureAwait(false)
+        };
+    }
+    private static async Task<ToolkitResult> KagiReq(HttpMethod method,string url,string key,object? body,CancellationToken ct){
+        var req=new HttpRequestMessage(method,url);
+        req.Headers.Add("Authorization",$"Bot {key}");
+        if(body is not null)req.Content=JsonContent.Create(body);
+        var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);
+        resp.EnsureSuccessStatusCode();
+        return ToolkitResult.Success(await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false));
+    }
+    private static Task<ToolkitResult> KagiReq(HttpMethod m,string url,string key,CancellationToken ct)
+        =>KagiReq(m,url,key,null,ct);
+}
+
+// T-135 — Perplexity Search (api_key required — chat completions format with citations)
+[Toolkit("perplexity","Perplexity",ToolkitCategory.SearchKnowledge)]
+public sealed class PerplexityToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
+    public override string Id=>"perplexity";public override string Name=>"Perplexity";
+    public override ToolkitCategory Category=>ToolkitCategory.SearchKnowledge;
+    public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
+    protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
+        var key=GetRequiredSetting("api_key");
+        var query=GetParam<string>(p,"query")??"";
+        var model=a switch{
+            "deep_search" =>"sonar-pro",
+            "research"    =>"sonar-deep-research",
+            "reasoning"   =>"sonar-reasoning-pro",
+            _             =>GetParam<string>(p,"model")??"sonar"
+        };
+        var body=new{model,messages=new[]{new{role="user",content=query}},
+            return_citations=true,return_related_questions=true};
+        var req=new HttpRequestMessage(HttpMethod.Post,"https://api.perplexity.ai/chat/completions"){
+            Content=JsonContent.Create(body)
+        };
+        req.Headers.Add("Authorization",$"Bearer {key}");
+        var resp=await Http.Client.SendAsync(req,ct).ConfigureAwait(false);
+        resp.EnsureSuccessStatusCode();
+        var json=await resp.Content.ReadFromJsonAsync<JsonElement>(ct).ConfigureAwait(false);
+        var content=json.TryGetProperty("choices",out var ch)&&ch.GetArrayLength()>0
+            &&ch[0].TryGetProperty("message",out var msg)&&msg.TryGetProperty("content",out var c)?c.GetString():"";
+        var citations=json.TryGetProperty("citations",out var cit)
+            ?cit.EnumerateArray().Select(x=>x.GetString()??"").ToArray():[];
+        var relatedQuestions=json.TryGetProperty("related_questions",out var rq)
+            ?rq.EnumerateArray().Select(x=>x.GetString()??"").ToArray():[];
+        return ToolkitResult.Success(new{query,model,answer=content,citations,relatedQuestions});
+    }
+}
+
+// T-136 — GNews (api_key required — dedicated news search across 60 000+ sources)
+[Toolkit("gnews","GNews",ToolkitCategory.SearchKnowledge)]
+public sealed class GNewsToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
+    public override string Id=>"gnews";public override string Name=>"GNews";
+    public override ToolkitCategory Category=>ToolkitCategory.SearchKnowledge;
+    public override bool IsConfigured=>!string.IsNullOrWhiteSpace(GetSetting("api_key"));
+    protected override async Task<ToolkitResult> ExecuteCoreAsync(string a,Dictionary<string,object?> p,CancellationToken ct){
+        var key=GetRequiredSetting("api_key");
+        var lang=GetParam<string>(p,"lang")??"en";
+        var country=GetParam<string>(p,"country")??"us";
+        var max=GetParam<int?>(p,"max")??10;
+        var endpoint=a switch{
+            "top_headlines"=>$"/v4/top-headlines?category={GetParam<string>(p,"category")??"general"}&lang={lang}&country={country}&max={max}&apikey={key}",
+            "topic"        =>$"/v4/top-headlines?topic={HttpUtility.UrlEncode(GetParam<string>(p,"topic")??"breaking-news")}&lang={lang}&max={max}&apikey={key}",
+            _              =>$"/v4/search?q={HttpUtility.UrlEncode(GetParam<string>(p,"query")??"")} &lang={lang}&country={country}&max={max}&apikey={key}"
+        };
+        var json=await Http.Client.GetFromJsonAsync<JsonElement>($"https://gnews.io{endpoint}",ct).ConfigureAwait(false);
+        var articles=json.TryGetProperty("articles",out var arts)
+            ?arts.EnumerateArray().Select(art=>new{
+                title=art.TryGetProperty("title",out var t)?t.GetString():"",
+                description=art.TryGetProperty("description",out var d)?d.GetString():"",
+                url=art.TryGetProperty("url",out var u)?u.GetString():"",
+                publishedAt=art.TryGetProperty("publishedAt",out var pub)?pub.GetString():"",
+                source=art.TryGetProperty("source",out var src)&&src.TryGetProperty("name",out var sn)?sn.GetString():""
+            }).ToArray():[];
+        var total=json.TryGetProperty("totalArticles",out var tot)?tot.GetInt32():0;
+        return ToolkitResult.Success(new{query=GetParam<string>(p,"query")??a,articles,total,lang,country});
     }
 }
