@@ -325,6 +325,27 @@ public sealed class WikiDatabase : IWikiDatabase
             new { Slug = pageSlug });
     }
 
+    /// <summary>
+    /// Returns ALL stored chunks for a given slug, ordered by chunk_index (from JSONB metadata).
+    /// Used to reconstruct the full article text when Redis cache and filesystem are unavailable.
+    /// </summary>
+    public async Task<string?> GetAllChunksBySlugAsync(string pageSlug, CancellationToken ct = default)
+    {
+        await using var conn = new NpgsqlConnection(_connStr);
+        await conn.OpenAsync(ct);
+        var rows = await conn.QueryAsync<(string text_content, int chunk_index)>(
+            $@"SELECT text_content,
+                      COALESCE((metadata->>'chunk_index')::int, 0) AS chunk_index
+               FROM {EmbeddingsTable}
+               WHERE page_slug = @Slug AND text_content IS NOT NULL
+               ORDER BY chunk_index",
+            new { Slug = pageSlug },
+            commandTimeout: 15);
+        var chunks = rows.ToList();
+        if (chunks.Count == 0) return null;
+        return string.Join("\n\n", chunks.Select(c => c.text_content));
+    }
+
     // ── Redis: ingest job state ────────────────────────────────────────────────
 
     public async Task SaveJobStateAsync(IngestJobState state, CancellationToken ct = default)

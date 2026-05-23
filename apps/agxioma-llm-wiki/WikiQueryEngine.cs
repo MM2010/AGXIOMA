@@ -221,14 +221,6 @@ public sealed class WikiQueryEngine : IWikiQueryEngine
             .GroupBy(h => h.PageSlug)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Score).First());
 
-        var chunksBySlug = hits
-            .GroupBy(h => h.PageSlug)
-            .ToDictionary(
-                g => g.Key,
-                g => string.Join("\n\n", g.OrderByDescending(x => x.Score)
-                                           .Select(x => x.TextContent)
-                                           .Where(t => !string.IsNullOrEmpty(t))));
-
         var topSlugs = bySlug.Values
             .OrderByDescending(h => h.Score)
             .Take(topK)
@@ -241,8 +233,9 @@ public sealed class WikiQueryEngine : IWikiQueryEngine
             var content = cached ?? await _pageWriter.ReadWikiPageAsync(hit.PageSlug, ct);
             if (content is null)
             {
-                chunksBySlug.TryGetValue(hit.PageSlug, out var chunks);
-                if (!string.IsNullOrEmpty(chunks)) content = chunks;
+                // Parent-document retrieval: reconstruct the complete article from ALL
+                // stored chunks ordered by chunk_index — never just the query-matched subset
+                content = await _db.GetAllChunksBySlugAsync(hit.PageSlug, ct);
             }
             if (content is null) continue;
             if (cached is null) await _db.CachePageContentAsync(hit.PageSlug, content);
