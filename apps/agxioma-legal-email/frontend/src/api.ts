@@ -24,10 +24,10 @@ export function createHubConnection(
   return conn;
 }
 
-export async function ingestEmail(sender: string, subject: string, body: string) {
+export async function ingestEmail(sender: string, subject: string, body: string, useReranker = false) {
   const r = await fetch(`${BASE}/email/ingest`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sender, subject, body, attachments: [] }),
+    body: JSON.stringify({ sender, subject, body, attachments: [], useReranker }),
   });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json() as Promise<{ emailId: string; state: string; timeline: PipelineEntry[] }>;
@@ -57,10 +57,10 @@ export async function rejectReview(emailId: string, lawyerId: string, notes: str
   return r.json();
 }
 
-export async function queryLegalCodes(q: string) {
-  const r = await fetch(`${BASE}/legal/query?q=${encodeURIComponent(q)}`);
+export async function queryLegalCodes(q: string, useReranker = false) {
+  const r = await fetch(`${BASE}/legal/query?q=${encodeURIComponent(q)}&rerank=${useReranker}`);
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r.json() as Promise<QueryResult>;
+  return r.json() as Promise<QueryResult & { rerankerUsed?: boolean }>;
 }
 
 export async function getDashboard() {

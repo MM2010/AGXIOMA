@@ -17,13 +17,14 @@ export default function EmailInboxPanel({ onSelectEmail }: Props) {
   const [body, setBody] = useState('');
   const [loading, setLoading] = useState(false);
   const [resultId, setResultId] = useState<string | null>(null);
+  const [useReranker, setUseReranker] = useState(false);
 
   async function send() {
     if (!subject.trim() || !body.trim() || loading) return;
     setLoading(true);
     setResultId(null);
     try {
-      const res = await ingestEmail(sender, subject, body);
+      const res = await ingestEmail(sender, subject, body, useReranker);
       setResultId(res.emailId);
       onSelectEmail(res.emailId);
     } catch (e) {
@@ -62,6 +63,29 @@ export default function EmailInboxPanel({ onSelectEmail }: Props) {
 
         <label>Corpo</label>
         <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="Descrivi il tuo caso..." rows={6} disabled={loading} />
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0', cursor: 'pointer', userSelect: 'none' }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 36, height: 20, borderRadius: 10, cursor: 'pointer', transition: '.2s',
+            background: useReranker ? 'var(--accent, #7c3aed)' : 'var(--border, #374151)',
+          }} onClick={() => setUseReranker(v => !v)}>
+            <span style={{
+              width: 14, height: 14, borderRadius: '50%', background: '#fff',
+              transform: useReranker ? 'translateX(8px)' : 'translateX(-8px)',
+              transition: '.2s', display: 'block',
+            }} />
+          </span>
+          <span style={{ fontSize: 13 }}>Reranker nella pipeline RAG</span>
+          <span style={{
+            fontSize: 11, padding: '1px 7px', borderRadius: 10,
+            background: useReranker ? '#7c3aed22' : 'transparent',
+            border: '1px solid ' + (useReranker ? '#7c3aed88' : 'var(--border, #374151)'),
+            color: useReranker ? '#a78bfa' : 'var(--text2)',
+          }}>
+            {useReranker ? 'ON — ri-ordina articoli per relevanza' : 'OFF — ordine coseno'}
+          </span>
+        </label>
 
         <button onClick={send} disabled={loading}>
           {loading ? 'Invio in corso...' : '📨 Invia Email'}

@@ -202,8 +202,9 @@ public sealed record IngestProgressResponse(
 
 public sealed record WikiQueryRequest(
     string Question,
-    int?   TopK     = null,
-    double? MinScore = null
+    int?   TopK        = null,
+    double? MinScore   = null,
+    bool?  UseReranker = null   // when true: apply OllamaReranker after vector search
 );
 
 public sealed record WikiQueryResponse(
@@ -211,7 +212,8 @@ public sealed record WikiQueryResponse(
     string            Answer,
     List<WikiPageRef> Sources,
     bool              ContextFound,
-    double            LatencyMs
+    double            LatencyMs,
+    bool              RerankerUsed = false
 );
 
 public sealed record WikiPageRef(

@@ -25,6 +25,7 @@ public sealed class WikiQueryEngine : IWikiQueryEngine
     private readonly WikiPageWriter          _pageWriter;
     private readonly OllamaMxbaiEmbedder     _embedder;
     private readonly IAgxiomeAgent           _agent;
+    private readonly OllamaReranker?         _reranker;
     private readonly ILogger<WikiQueryEngine> _log;
 
     public WikiQueryEngine(
@@ -34,7 +35,8 @@ public sealed class WikiQueryEngine : IWikiQueryEngine
         WikiPageWriter pageWriter,
         OllamaMxbaiEmbedder embedder,
         IAgxiomeAgent agent,
-        ILogger<WikiQueryEngine> log)
+        ILogger<WikiQueryEngine> log,
+        OllamaReranker? reranker = null)
     {
         _settings        = settings;
         _profileProvider = profileProvider;
@@ -42,6 +44,7 @@ public sealed class WikiQueryEngine : IWikiQueryEngine
         _pageWriter      = pageWriter;
         _embedder        = embedder;
         _agent           = agent;
+        _reranker        = reranker;
         _log             = log;
     }
 
@@ -85,6 +88,36 @@ public sealed class WikiQueryEngine : IWikiQueryEngine
             .OrderByDescending(h => h.Score)
             .Take(topK)
             .ToList();
+
+        // Step 3b: optional reranking (cross-encoder quality via local LLM)
+        bool rerankerUsed = false;
+        if ((request.UseReranker ?? false) && _reranker is not null && topSlugs.Count > 2)
+        {
+            var candidates = topSlugs.Select(h =>
+            {
+                var text = hits
+                    .Where(x => x.PageSlug == h.PageSlug)
+                    .OrderByDescending(x => x.Score)
+                    .Take(3)
+                    .Select(x => x.TextContent ?? "")
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .Aggregate("", (a, b) => a.Length == 0 ? b : a + "\n\n" + b);
+                return new RerankCandidate(h.PageSlug, text, h.Score, 0f);
+            }).ToList();
+
+            var reranked = await _reranker.RerankAsync(request.Question, candidates, ct);
+
+            // Re-order topSlugs according to reranker output
+            var rerankedSlugs = reranked.Select(r => r.Slug).ToList();
+            var slugIndex = topSlugs.ToDictionary(h => h.PageSlug, h => h);
+            topSlugs = rerankedSlugs
+                .Where(slug => slugIndex.ContainsKey(slug))
+                .Select(slug => slugIndex[slug])
+                .ToList();
+            rerankerUsed = true;
+            _log.LogInformation("[Query] Reranker applied. New order: {Slugs}",
+                string.Join(", ", rerankedSlugs));
+        }
 
         // Build fallback content from stored chunk text (used when wiki page file is missing,
         // e.g. after a container restart where the wiki/ folder was not volume-mounted).
@@ -190,7 +223,8 @@ public sealed class WikiQueryEngine : IWikiQueryEngine
             Answer:       answer,
             Sources:      sourceRefs,
             ContextFound: true,
-            LatencyMs:    sw.Elapsed.TotalMilliseconds);
+            LatencyMs:    sw.Elapsed.TotalMilliseconds,
+            RerankerUsed: rerankerUsed);
     }
 
     /// <summary>

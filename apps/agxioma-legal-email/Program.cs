@@ -161,21 +161,21 @@ app.MapPost("/api/review/reject", (ReviewRejectRequest req, PipelineOrchestrator
     return Results.Ok(new { status = "rejected" });
 });
 
-app.MapGet("/api/legal/query", async (string q, IWikiQueryEngine wiki, LegalReranker reranker, LegalQueryExpander expander, CancellationToken ct) =>
+app.MapGet("/api/legal/query", async (string q, bool? rerank, IWikiQueryEngine wiki, LegalReranker reranker, LegalQueryExpander expander, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(q)) return Results.BadRequest(new { error = "query 'q' required." });
     var expanded = await expander.ExpandAsync(q, ct);
     var result = await wiki.QueryAsync(new WikiQueryRequest(Question: expanded), ct);
-    if (result.ContextFound && result.Sources.Count > 1)
+    if ((rerank ?? false) && result.ContextFound && result.Sources.Count > 1)
     {
         var reranked = await reranker.RerankAsync(q, result.Sources.ToList(), ct);
-        // Return reranked sources with combined scores
         return Results.Ok(new
         {
             result.Question,
             result.Answer,
             result.ContextFound,
             result.LatencyMs,
+            rerankerUsed = true,
             Sources = reranked.Select(r => new
             {
                 r.Source.Slug,
@@ -187,7 +187,7 @@ app.MapGet("/api/legal/query", async (string q, IWikiQueryEngine wiki, LegalRera
             }).ToList()
         });
     }
-    return Results.Ok(result);
+    return Results.Ok(result with { RerankerUsed = false });
 });
 
 app.MapGet("/api/dashboard", (PipelineOrchestrator orch) => Results.Ok(orch.GetDashboard()));

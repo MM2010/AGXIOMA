@@ -167,11 +167,15 @@ public sealed class PipelineOrchestrator
 
                 if (deduped.Count > 0)
                 {
-                    // 3b. Re-rank disabled — Ollama too resource-constrained on local dev
-                    // Re-enable when running on adequate hardware:
-                    // var rerankQuery = $"{req.Subject}\n{string.Join("; ", concepts)}";
-                    // reranked = await _reranker.RerankChunksAsync(rerankQuery, deduped, ct);
+                    // 3b. Reranker — attivato solo se UseReranker=true nella richiesta
                     List<(WikiPageChunk Source, float CombinedScore, float? RerankScore)>? reranked = null;
+                    if (req.UseReranker && _reranker is not null && deduped.Count > 1)
+                    {
+                        var rerankQuery = $"{req.Subject}\n{string.Join("; ", concepts)}";
+                        reranked = await _reranker.RerankChunksAsync(rerankQuery, deduped, ct);
+                        _log.LogInformation("RerankerApplied TopSlug={Slug} Combined={Score:F3}",
+                            reranked[0].Source.Slug, reranked[0].CombinedScore);
+                    }
 
                     // 4. Build unified context block (raw pages — Phase 5 LLM synthesizes)
                     var sb = new System.Text.StringBuilder();

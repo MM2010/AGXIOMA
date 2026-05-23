@@ -80,9 +80,24 @@ builder.Services.AddSingleton<IAgxiomeAgent>(sp =>
 });
 
 // Wiki services
+builder.Services.AddSingleton<OllamaReranker>(sp =>
+{
+    var http   = sp.GetRequiredService<IHttpClientFactory>().CreateClient("ollama");
+    var model  = builder.Configuration["WikiSettings:RerankerModel"] ?? "llama3.1:8b";
+    var logger = sp.GetRequiredService<ILogger<OllamaReranker>>();
+    return new OllamaReranker(http, model, logger);
+});
 builder.Services.AddSingleton<WikiPageWriter>();
 builder.Services.AddSingleton<WikiIngester>();
-builder.Services.AddSingleton<WikiQueryEngine>();
+builder.Services.AddSingleton<WikiQueryEngine>(sp => new WikiQueryEngine(
+    sp.GetRequiredService<WikiSettings>(),
+    sp.GetRequiredService<IIngestProfileProvider>(),
+    sp.GetRequiredService<WikiDatabase>(),
+    sp.GetRequiredService<WikiPageWriter>(),
+    sp.GetRequiredService<OllamaMxbaiEmbedder>(),
+    sp.GetRequiredService<IAgxiomeAgent>(),
+    sp.GetRequiredService<ILogger<WikiQueryEngine>>(),
+    sp.GetRequiredService<OllamaReranker>()));
 builder.Services.AddSingleton<WikiLintEngine>();
 builder.Services.AddSingleton<IWikiPageWriter>(sp => sp.GetRequiredService<WikiPageWriter>());
 builder.Services.AddSingleton<IWikiIngester>(sp => sp.GetRequiredService<WikiIngester>());
@@ -239,6 +254,168 @@ app.MapGet("/wiki/{**slug}", async (string slug, IWikiDatabase wdb, IWikiPageWri
         Category:  pageRecord.Category,
         Content:   content,
         UpdatedAt: pageRecord.UpdatedAt));
+})
+    .AllowAnonymousAgxiome();
+
+// GET /demo — interactive HTML demo page (no auth required for local dev)
+app.MapGet("/demo", () =>
+{
+    const string html = """
+        <!DOCTYPE html>
+        <html lang="it">
+        <head>
+        <meta charset="UTF-8"/>
+        <meta name="viewport" content="width=device-width,initial-scale=1"/>
+        <title>AGXIOMA LLM Wiki — Demo</title>
+        <style>
+          body{font-family:system-ui,sans-serif;max-width:820px;margin:40px auto;padding:0 20px;background:#0f0f0f;color:#e8e8e8}
+          h1{font-size:1.4rem;color:#a78bfa;margin-bottom:4px}
+          .sub{color:#6b7280;font-size:.85rem;margin-bottom:28px}
+          textarea{width:100%;height:90px;background:#1a1a2e;border:1px solid #374151;border-radius:8px;
+                   color:#e8e8e8;padding:10px;font-size:.95rem;resize:vertical;box-sizing:border-box}
+          .row{display:flex;gap:12px;align-items:center;margin:12px 0}
+          label{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+          .toggle{position:relative;width:42px;height:24px}
+          .toggle input{opacity:0;width:0;height:0}
+          .slider{position:absolute;inset:0;background:#374151;border-radius:12px;transition:.2s}
+          .slider:before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;
+                         background:#fff;border-radius:50%;transition:.2s}
+          input:checked+.slider{background:#7c3aed}
+          input:checked+.slider:before{transform:translateX(18px)}
+          .badge{font-size:.72rem;background:#7c3aed22;border:1px solid #7c3aed66;
+                 color:#a78bfa;padding:2px 8px;border-radius:20px}
+          button{background:#7c3aed;color:#fff;border:none;padding:9px 24px;border-radius:8px;
+                 font-size:.95rem;cursor:pointer;transition:.15s}
+          button:hover{background:#6d28d9}
+          button:disabled{background:#4b5563;cursor:default}
+          #result{margin-top:24px}
+          .card{background:#1a1a2e;border:1px solid #374151;border-radius:10px;padding:18px;margin-top:10px}
+          .answer{white-space:pre-wrap;line-height:1.6}
+          .meta{font-size:.78rem;color:#6b7280;margin-top:10px;display:flex;gap:16px;flex-wrap:wrap}
+          .meta span{display:flex;align-items:center;gap:4px}
+          .reranker-on{color:#34d399}
+          .reranker-off{color:#6b7280}
+          .sources{margin-top:14px}
+          .sources summary{cursor:pointer;color:#a78bfa;font-size:.85rem}
+          .src-item{font-size:.82rem;border-top:1px solid #374151;padding:6px 0;display:flex;gap:8px;align-items:baseline}
+          .src-slug{font-family:monospace;color:#60a5fa;min-width:160px}
+          .src-score{color:#6b7280}
+          .src-snip{color:#9ca3af;font-style:italic;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+          .err{color:#f87171;background:#1a1a2e;border:1px solid #7f1d1d;border-radius:8px;padding:14px;margin-top:10px}
+          .spin{display:inline-block;width:16px;height:16px;border:2px solid #7c3aed;
+                border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
+          @keyframes spin{to{transform:rotate(360deg)}}
+        </style>
+        </head>
+        <body>
+        <h1>AGXIOMA LLM Wiki</h1>
+        <p class="sub">Semantic Q&A over the ingested codebase — powered by pgvector + DeepSeek</p>
+
+        <textarea id="q" placeholder="Scrivi una domanda sul framework…&#10;Es: Come funziona l'AgxiomeBuilder?"></textarea>
+
+        <div class="row">
+          <label>
+            <span class="toggle">
+              <input type="checkbox" id="reranker"/>
+              <span class="slider"></span>
+            </span>
+            Reranker <span class="badge">OllamaReranker</span>
+          </label>
+          <span id="reranker-hint" style="font-size:.8rem;color:#6b7280">
+            Off — ordina per similarità vettoriale
+          </span>
+        </div>
+
+        <div class="row" style="gap:10px">
+          <button id="btn" onclick="query()">Chiedi</button>
+          <label style="font-size:.85rem;color:#6b7280">
+            TopK <input id="topk" type="number" value="5" min="1" max="20"
+              style="width:52px;background:#1a1a2e;border:1px solid #374151;color:#e8e8e8;border-radius:4px;padding:3px 6px;margin-left:4px"/>
+          </label>
+        </div>
+
+        <div id="result"></div>
+
+        <script>
+        document.getElementById('reranker').addEventListener('change', e => {
+          document.getElementById('reranker-hint').textContent = e.target.checked
+            ? 'On — cross-encoder LLM riordina i risultati (più lento)'
+            : 'Off — ordina per similarità vettoriale';
+        });
+
+        async function query() {
+          const q   = document.getElementById('q').value.trim();
+          const btn = document.getElementById('btn');
+          const res = document.getElementById('result');
+          if (!q) return;
+
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spin"></span>Elaborazione…';
+          res.innerHTML = '';
+
+          try {
+            const body = {
+              question:    q,
+              topK:        parseInt(document.getElementById('topk').value) || 5,
+              useReranker: document.getElementById('reranker').checked
+            };
+            const r = await fetch('/query', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body)
+            });
+
+            if (!r.ok) {
+              const err = await r.json().catch(() => ({ error: r.statusText }));
+              res.innerHTML = `<div class="err">Errore ${r.status}: ${err.error ?? r.statusText}</div>`;
+              return;
+            }
+
+            const d = await r.json();
+            const rerankerBadge = d.rerankerUsed
+              ? '<span class="reranker-on">⟳ Reranker ON</span>'
+              : '<span class="reranker-off">Reranker OFF</span>';
+
+            let sourcesHtml = '';
+            if (d.sources && d.sources.length) {
+              const items = d.sources.map(s =>
+                `<div class="src-item">
+                  <span class="src-slug">[[${s.slug}]]</span>
+                  <span class="src-score">${(s.score*100).toFixed(1)}%</span>
+                  <span class="src-snip">${escHtml(s.snippet)}</span>
+                </div>`).join('');
+              sourcesHtml = `<div class="sources"><details><summary>Fonti (${d.sources.length})</summary>${items}</details></div>`;
+            }
+
+            res.innerHTML = `<div class="card">
+              <div class="answer">${escHtml(d.answer)}</div>
+              <div class="meta">
+                <span>⏱ ${d.latencyMs.toFixed(0)} ms</span>
+                <span>📄 ${d.sources?.length ?? 0} pagine</span>
+                <span>${rerankerBadge}</span>
+              </div>
+              ${sourcesHtml}
+            </div>`;
+          } catch(e) {
+            res.innerHTML = `<div class="err">Errore di rete: ${e.message}</div>`;
+          } finally {
+            btn.disabled = false;
+            btn.textContent = 'Chiedi';
+          }
+        }
+
+        function escHtml(s) {
+          return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        document.getElementById('q').addEventListener('keydown', e => {
+          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) query();
+        });
+        </script>
+        </body>
+        </html>
+        """;
+    return Results.Content(html, "text/html");
 })
     .AllowAnonymousAgxiome();
 

@@ -70,7 +70,7 @@ public record QueryRequest(string Question, int? TopK, double? MinScore);
 public record QueryResponse(string Question, string Answer, List<ChunkReference> Sources, bool ContextFound);
 public record ChunkReference(string DocumentId, string Snippet, float Score);
 
-public record IngestEmailRequest(string Sender, string Subject, string Body, List<string>? Attachments);
+public record IngestEmailRequest(string Sender, string Subject, string Body, List<string>? Attachments, bool UseReranker = false);
 public record PipelineStatusResponse(string EmailId, PipelineState State, List<PipelineTimelineEntry> Timeline);
 
 public record ReviewApproveRequest(string EmailId, string LawyerId);

@@ -5,13 +5,14 @@ export default function LegalQueryPanel() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [useReranker, setUseReranker] = useState(false);
 
   async function search() {
     if (!query.trim() || loading) return;
     setLoading(true);
     setResult(null);
     try {
-      const res = await queryLegalCodes(query);
+      const res = await queryLegalCodes(query, useReranker);
       setResult(res);
     } catch (e) {
       setResult({ answer: 'Errore di connessione.', contextFound: false });
@@ -45,6 +46,30 @@ export default function LegalQueryPanel() {
         <input value={query} onChange={e => setQuery(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && search()}
           placeholder="Es: Art. 2043 codice civile" disabled={loading} />
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0', cursor: 'pointer', userSelect: 'none' }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 36, height: 20, borderRadius: 10, cursor: 'pointer', transition: '.2s',
+            background: useReranker ? 'var(--accent, #7c3aed)' : 'var(--border, #374151)',
+          }} onClick={() => setUseReranker(v => !v)}>
+            <span style={{
+              width: 14, height: 14, borderRadius: '50%', background: '#fff',
+              transform: useReranker ? 'translateX(8px)' : 'translateX(-8px)',
+              transition: '.2s', display: 'block',
+            }} />
+          </span>
+          <span style={{ fontSize: 13 }}>Reranker</span>
+          <span style={{
+            fontSize: 11, padding: '1px 7px', borderRadius: 10,
+            background: useReranker ? '#7c3aed22' : 'transparent',
+            border: '1px solid ' + (useReranker ? '#7c3aed88' : 'var(--border, #374151)'),
+            color: useReranker ? '#a78bfa' : 'var(--text2)',
+          }}>
+            {useReranker ? 'ON — LLM cross-encoder' : 'OFF — solo similarità vettoriale'}
+          </span>
+        </label>
+
         <button onClick={search} disabled={loading}>
           {loading ? 'Ricerca...' : 'Cerca'}
         </button>
@@ -58,7 +83,9 @@ export default function LegalQueryPanel() {
               <div className="answer">{result.answer}</div>
               {result.sources?.length > 0 && (
                 <>
-                  <h4 style={{ marginTop: 16 }}>Fonti (riordinate da reranker)</h4>
+              <h4 style={{ marginTop: 16 }}>
+                  Fonti {result.rerankerUsed ? '⟳ riordinate dal reranker' : '(ordine vettoriale)'}
+                </h4>
                   {result.sources.map((s: any, i: number) => (
                     <div key={i} className="source">
                       <strong>{s.slug || s.documentId}</strong>
