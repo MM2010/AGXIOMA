@@ -167,13 +167,11 @@ public sealed class PipelineOrchestrator
 
                 if (deduped.Count > 0)
                 {
-                    // 3b. Re-rank with LLM cross-encoder (Ollama ~3-6s for top-5)
+                    // 3b. Re-rank disabled — Ollama too resource-constrained on local dev
+                    // Re-enable when running on adequate hardware:
+                    // var rerankQuery = $"{req.Subject}\n{string.Join("; ", concepts)}";
+                    // reranked = await _reranker.RerankChunksAsync(rerankQuery, deduped, ct);
                     List<(WikiPageChunk Source, float CombinedScore, float? RerankScore)>? reranked = null;
-                    if (_reranker != null && deduped.Count > 1)
-                    {
-                        var rerankQuery = $"{req.Subject}\n{string.Join("; ", concepts)}";
-                        reranked = await _reranker.RerankChunksAsync(rerankQuery, deduped, ct);
-                    }
 
                     // 4. Build unified context block (raw pages — Phase 5 LLM synthesizes)
                     var sb = new System.Text.StringBuilder();
@@ -243,9 +241,6 @@ public sealed class PipelineOrchestrator
 
         // ── Phase 5: Legal Analysis via LLM ───────────────────────────────
         sw.Restart();
-        var specBlock = assignedTree != "fallback"
-            ? $"AREA GIURIDICA: diritto {assignedTree} — specializzazione richiesta: {assignedAgent.Replace("-", " ")}.\n\n"
-            : "";
         string analysis = "";
         if (_llm != null && !string.IsNullOrEmpty(ragContext))
         {
@@ -257,13 +252,12 @@ public sealed class PipelineOrchestrator
                 var resp = await _llm.RunAsync(new AgentRequest(
                     $"Analizza giuridicamente la seguente richiesta alla luce delle norme trovate e della ricerca preliminare.\n\n" +
                     $"RICHIESTA DEL CLIENTE:\nOggetto: {req.Subject}\n{req.Body}\n\n" +
-                    $"{specBlock}" +
                     $"{researchBlock}" +
                     $"CONTESTO NORMATIVO (dal database codici):\n{ragContext}\n\n" +
                     $"Fornisci un'analisi strutturata con:\n1. Qualifica giuridica del caso\n" +
                     $"2. Normativa applicabile (articoli specifici)\n3. Valutazione delle possibilità\n" +
                     $"4. Rischi e criticità\n5. Riferimenti giurisprudenziali pertinenti"), ct);
-                analysis = resp.Content.Length > 400 ? resp.Content[..400] + "…" : resp.Content;
+                analysis = resp.Content; // full analysis passed to Phase 6
                 _log.LogInformation(
                     "LlmAnalysisCompleted LatencyMs={LatencyMs} AnalysisChars={Chars}",
                     sw.ElapsedMilliseconds, analysis.Length);
@@ -291,7 +285,6 @@ public sealed class PipelineOrchestrator
                 var resp = await _llm.RunAsync(new AgentRequest(
                     $"Redigi una bozza di risposta email professionale per un cliente di uno studio legale.\n\n" +
                     $"RICHIESTA DEL CLIENTE:\nOggetto: {req.Subject}\n{req.Body}\n\n" +
-                    $"{specBlock}" +
                     $"{researchBlock}" +
                     $"CONTESTO GIURIDICO (dal database codici):\n{ragContext}\n\n" +
                     $"ANALISI:\n{analysis}\n\n" +

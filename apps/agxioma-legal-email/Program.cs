@@ -89,6 +89,9 @@ builder.Services.AddSingleton<WikiDatabase>(sp => new WikiDatabase(connString, s
 builder.Services.AddSingleton<IAgxiomeAgent>(sp =>
     AgxiomeBuilder.Agent("legal-llm")
         .UseDeepSeek(apiKey, model)
+        .WithTemperature(0.1)       // low: stay anchored to RAG context
+        .WithTopP(0.85)             // nucleus sampling: focused but not degenerate
+        .WithFrequencyPenalty(0.1)  // avoid repetition in long legal drafts
         .WithSystemPrompt("You are an expert Italian legal assistant. Answer queries based on the Italian Civil Code and Penal Code. Always cite specific articles (e.g. [[art624-cp]]). Be precise, professional.")
         .WithAutoLoops(upperBound: 2)
         .Build());

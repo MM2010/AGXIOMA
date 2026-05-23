@@ -214,6 +214,8 @@ public sealed class OpenAICompatibleProvider : ILLMProvider
             ["max_tokens"] = _config.MaxTokens,
             ["stream"] = stream
         };
+        if (_config.TopP.HasValue)           body["top_p"]            = _config.TopP.Value;
+        if (_config.FrequencyPenalty.HasValue) body["frequency_penalty"] = _config.FrequencyPenalty.Value;
 
         if (request.Tools is not null && request.Tools.Count > 0)
         {

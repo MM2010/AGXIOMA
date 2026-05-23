@@ -15,6 +15,10 @@ public record LLMWIKYConfig
     public string? ApiVersion { get; init; }
     public string? OrganizationId { get; init; }
     public double DefaultTemperature { get; init; } = 0.7;
+    /// <summary>Nucleus sampling — limits token pool to cumulative probability. Range 0–1. Lower = more focused.</summary>
+    public double? TopP { get; init; }
+    /// <summary>Penalises repeated tokens. Range -2..2. Positive = discourage repetition.</summary>
+    public double? FrequencyPenalty { get; init; }
     public int MaxTokens { get; init; } = 4096;
     public int EmbeddingDimensions { get; init; } = 1536;
     public int MaxRetries { get; init; } = 3;
