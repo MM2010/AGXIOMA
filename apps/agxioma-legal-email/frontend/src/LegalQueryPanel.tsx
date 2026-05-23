@@ -1,18 +1,30 @@
 import { useState } from 'react';
 import { queryLegalCodes } from './api';
 
+type QueryMode = 'baseline' | 'reranker' | 'hyde' | 'hyde+reranker';
+
+const QUERY_MODES: { id: QueryMode; label: string; color: string; desc: string }[] = [
+  { id: 'baseline',      label: 'Baseline',       color: '#6b7280', desc: 'solo coseno vettoriale' },
+  { id: 'reranker',      label: 'Reranker',        color: '#7c3aed', desc: 'LLM cross-encoder' },
+  { id: 'hyde',          label: 'HyDE',            color: '#0ea5e9', desc: 'doc ipotetico DeepSeek' },
+  { id: 'hyde+reranker', label: 'HyDE + Reranker', color: '#d97706', desc: 'massima qualità' },
+];
+
 export default function LegalQueryPanel() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [useReranker, setUseReranker] = useState(false);
+  const [mode, setMode] = useState<QueryMode>('baseline');
+
+  const useReranker = mode === 'reranker' || mode === 'hyde+reranker';
+  const useHyde     = mode === 'hyde'     || mode === 'hyde+reranker';
 
   async function search() {
     if (!query.trim() || loading) return;
     setLoading(true);
     setResult(null);
     try {
-      const res = await queryLegalCodes(query, useReranker);
+      const res = await queryLegalCodes(query, useReranker, useHyde);
       setResult(res);
     } catch (e) {
       setResult({ answer: 'Errore di connessione.', contextFound: false });
@@ -47,28 +59,27 @@ export default function LegalQueryPanel() {
           onKeyDown={e => e.key === 'Enter' && search()}
           placeholder="Es: Art. 2043 codice civile" disabled={loading} />
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0', cursor: 'pointer', userSelect: 'none' }}>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: 36, height: 20, borderRadius: 10, cursor: 'pointer', transition: '.2s',
-            background: useReranker ? 'var(--accent, #7c3aed)' : 'var(--border, #374151)',
-          }} onClick={() => setUseReranker(v => !v)}>
-            <span style={{
-              width: 14, height: 14, borderRadius: '50%', background: '#fff',
-              transform: useReranker ? 'translateX(8px)' : 'translateX(-8px)',
-              transition: '.2s', display: 'block',
-            }} />
-          </span>
-          <span style={{ fontSize: 13 }}>Reranker</span>
-          <span style={{
-            fontSize: 11, padding: '1px 7px', borderRadius: 10,
-            background: useReranker ? '#7c3aed22' : 'transparent',
-            border: '1px solid ' + (useReranker ? '#7c3aed88' : 'var(--border, #374151)'),
-            color: useReranker ? '#a78bfa' : 'var(--text2)',
-          }}>
-            {useReranker ? 'ON — LLM cross-encoder' : 'OFF — solo similarità vettoriale'}
-          </span>
+        <label style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 4, display: 'block' }}>
+          Modalità ricerca
         </label>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+          {QUERY_MODES.map(m => {
+            const active = mode === m.id;
+            return (
+              <button key={m.id} onClick={() => setMode(m.id)} disabled={loading}
+                style={{
+                  padding: '5px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer',
+                  border: `1.5px solid ${active ? m.color : 'var(--border, #374151)'}`,
+                  background: active ? m.color + '22' : 'transparent',
+                  color: active ? m.color : 'var(--text2)',
+                  fontWeight: active ? 700 : 400, transition: '.15s', textAlign: 'left',
+                }}>
+                <div>{m.label}</div>
+                <div style={{ fontSize: 10, opacity: .8 }}>{m.desc}</div>
+              </button>
+            );
+          })}
+        </div>
 
         <button onClick={search} disabled={loading}>
           {loading ? 'Ricerca...' : 'Cerca'}
@@ -83,9 +94,24 @@ export default function LegalQueryPanel() {
               <div className="answer">{result.answer}</div>
               {result.sources?.length > 0 && (
                 <>
-              <h4 style={{ marginTop: 16 }}>
-                  Fonti {result.rerankerUsed ? '⟳ riordinate dal reranker' : '(ordine vettoriale)'}
-                </h4>
+                  <h4 style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span>Fonti</span>
+                    {result.hydeUsed && (
+                      <span style={{ fontSize: 11, padding: '1px 8px', borderRadius: 10,
+                        background: '#0ea5e922', border: '1px solid #0ea5e988', color: '#38bdf8' }}>
+                        🧪 HyDE
+                      </span>
+                    )}
+                    {result.rerankerUsed && (
+                      <span style={{ fontSize: 11, padding: '1px 8px', borderRadius: 10,
+                        background: '#7c3aed22', border: '1px solid #7c3aed88', color: '#a78bfa' }}>
+                        ⟳ Reranker
+                      </span>
+                    )}
+                    {!result.hydeUsed && !result.rerankerUsed && (
+                      <span style={{ fontSize: 11, color: 'var(--text2)' }}>(ordine vettoriale)</span>
+                    )}
+                  </h4>
                   {result.sources.map((s: any, i: number) => (
                     <div key={i} className="source">
                       <strong>{s.slug || s.documentId}</strong>

@@ -5,7 +5,7 @@ const BASE = '/api';
 export interface PipelineEntry { phase: string; state: string; description: string; duration: number | null; timestamp: string; }
 export interface TimelineResponse { emailId: string; state: string; timeline: PipelineEntry[]; }
 interface DashboardData { totalEmails: number; inHitl: number; completed: number; pendingReview: number; avgResponseSeconds: number; }
-interface QueryResult { question: string; answer: string; sources: { slug: string; title: string; snippet: string; score: number; embedScore?: number; rerankScore?: number; }[]; contextFound: boolean; }
+interface QueryResult { question: string; answer: string; sources: { slug: string; title: string; snippet: string; score: number; embedScore?: number; rerankScore?: number; }[]; contextFound: boolean; hydeUsed?: boolean; rerankerUsed?: boolean; mode?: string; }
 
 /** Create a persistent SignalR connection to receive real-time pipeline updates */
 export function createHubConnection(
@@ -24,10 +24,10 @@ export function createHubConnection(
   return conn;
 }
 
-export async function ingestEmail(sender: string, subject: string, body: string, useReranker = false) {
+export async function ingestEmail(sender: string, subject: string, body: string, useReranker = false, useHyde = false) {
   const r = await fetch(`${BASE}/email/ingest`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sender, subject, body, attachments: [], useReranker }),
+    body: JSON.stringify({ sender, subject, body, attachments: [], useReranker, useHyde }),
   });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json() as Promise<{ emailId: string; state: string; timeline: PipelineEntry[] }>;
@@ -57,10 +57,10 @@ export async function rejectReview(emailId: string, lawyerId: string, notes: str
   return r.json();
 }
 
-export async function queryLegalCodes(q: string, useReranker = false) {
-  const r = await fetch(`${BASE}/legal/query?q=${encodeURIComponent(q)}&rerank=${useReranker}`);
+export async function queryLegalCodes(q: string, useReranker = false, useHyde = false) {
+  const r = await fetch(`${BASE}/legal/query?q=${encodeURIComponent(q)}&rerank=${useReranker}&hyde=${useHyde}`);
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r.json() as Promise<QueryResult & { rerankerUsed?: boolean }>;
+  return r.json() as Promise<QueryResult>;
 }
 
 export async function getDashboard() {

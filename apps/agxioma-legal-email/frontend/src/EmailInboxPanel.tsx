@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import { ingestEmail } from './api';
 
+type PipelineMode = 'baseline' | 'reranker' | 'hyde' | 'hyde+reranker';
+
+const PIPELINE_MODES: { id: PipelineMode; label: string; color: string; desc: string }[] = [
+  { id: 'baseline',      label: 'Baseline',       color: '#6b7280', desc: 'solo coseno vettoriale' },
+  { id: 'reranker',      label: 'Reranker',        color: '#7c3aed', desc: 'LLM cross-encoder' },
+  { id: 'hyde',          label: 'HyDE',            color: '#0ea5e9', desc: 'doc ipotetico DeepSeek' },
+  { id: 'hyde+reranker', label: 'HyDE + Reranker', color: '#d97706', desc: 'massima qualità' },
+];
+
 const EXAMPLES = [
   'Buongiorno, ho subito un furto in appartamento la settimana scorsa. Vorrei sapere quali sono i miei diritti e come procedere con la denuncia.',
   'Il mio vicino ha costruito un muro sul confine senza permesso. Cosa posso fare?',
@@ -17,14 +26,17 @@ export default function EmailInboxPanel({ onSelectEmail }: Props) {
   const [body, setBody] = useState('');
   const [loading, setLoading] = useState(false);
   const [resultId, setResultId] = useState<string | null>(null);
-  const [useReranker, setUseReranker] = useState(false);
+  const [mode, setMode] = useState<PipelineMode>('baseline');
+
+  const useReranker = mode === 'reranker' || mode === 'hyde+reranker';
+  const useHyde     = mode === 'hyde'     || mode === 'hyde+reranker';
 
   async function send() {
     if (!subject.trim() || !body.trim() || loading) return;
     setLoading(true);
     setResultId(null);
     try {
-      const res = await ingestEmail(sender, subject, body, useReranker);
+      const res = await ingestEmail(sender, subject, body, useReranker, useHyde);
       setResultId(res.emailId);
       onSelectEmail(res.emailId);
     } catch (e) {
@@ -64,28 +76,27 @@ export default function EmailInboxPanel({ onSelectEmail }: Props) {
         <label>Corpo</label>
         <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="Descrivi il tuo caso..." rows={6} disabled={loading} />
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0', cursor: 'pointer', userSelect: 'none' }}>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: 36, height: 20, borderRadius: 10, cursor: 'pointer', transition: '.2s',
-            background: useReranker ? 'var(--accent, #7c3aed)' : 'var(--border, #374151)',
-          }} onClick={() => setUseReranker(v => !v)}>
-            <span style={{
-              width: 14, height: 14, borderRadius: '50%', background: '#fff',
-              transform: useReranker ? 'translateX(8px)' : 'translateX(-8px)',
-              transition: '.2s', display: 'block',
-            }} />
-          </span>
-          <span style={{ fontSize: 13 }}>Reranker nella pipeline RAG</span>
-          <span style={{
-            fontSize: 11, padding: '1px 7px', borderRadius: 10,
-            background: useReranker ? '#7c3aed22' : 'transparent',
-            border: '1px solid ' + (useReranker ? '#7c3aed88' : 'var(--border, #374151)'),
-            color: useReranker ? '#a78bfa' : 'var(--text2)',
-          }}>
-            {useReranker ? 'ON — ri-ordina articoli per relevanza' : 'OFF — ordine coseno'}
-          </span>
+        <label style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 4, display: 'block' }}>
+          Modalità pipeline RAG
         </label>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+          {PIPELINE_MODES.map(m => {
+            const active = mode === m.id;
+            return (
+              <button key={m.id} onClick={() => setMode(m.id)} disabled={loading}
+                style={{
+                  padding: '5px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer',
+                  border: `1.5px solid ${active ? m.color : 'var(--border, #374151)'}`,
+                  background: active ? m.color + '22' : 'transparent',
+                  color: active ? m.color : 'var(--text2)',
+                  fontWeight: active ? 700 : 400, transition: '.15s', textAlign: 'left',
+                }}>
+                <div>{m.label}</div>
+                <div style={{ fontSize: 10, opacity: .8 }}>{m.desc}</div>
+              </button>
+            );
+          })}
+        </div>
 
         <button onClick={send} disabled={loading}>
           {loading ? 'Invio in corso...' : '📨 Invia Email'}

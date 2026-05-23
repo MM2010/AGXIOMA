@@ -107,6 +107,7 @@ builder.Services.AddSingleton<IWikiQueryEngine>(sp => sp.GetRequiredService<Wiki
 builder.Services.AddSingleton<LegalReranker>();
 builder.Services.AddSingleton<LegalQueryExpander>();
 builder.Services.AddSingleton<LegalConceptExtractor>();
+builder.Services.AddSingleton<LegalHydeGenerator>();
 
 // ── Startup ingestion ────────────────────────────────────────────────────
 builder.Services.AddSingleton<LegalCodeIngestionService>();
@@ -161,12 +162,25 @@ app.MapPost("/api/review/reject", (ReviewRejectRequest req, PipelineOrchestrator
     return Results.Ok(new { status = "rejected" });
 });
 
-app.MapGet("/api/legal/query", async (string q, bool? rerank, IWikiQueryEngine wiki, LegalReranker reranker, LegalQueryExpander expander, CancellationToken ct) =>
+app.MapGet("/api/legal/query", async (string q, bool? rerank, bool? hyde, IWikiQueryEngine wiki,
+    LegalReranker reranker, LegalQueryExpander expander, LegalHydeGenerator hydeGen,
+    CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(q)) return Results.BadRequest(new { error = "query 'q' required." });
-    var expanded = await expander.ExpandAsync(q, ct);
-    var result = await wiki.QueryAsync(new WikiQueryRequest(Question: expanded), ct);
-    if ((rerank ?? false) && result.ContextFound && result.Sources.Count > 1)
+
+    // Step 1: determina la query di ricerca in base alla modalità selezionata
+    // HyDE genera un documento ipotetico (DeepSeek) — reranker usa sempre la query originale
+    var searchQuery = (hyde ?? false)
+        ? await hydeGen.GenerateAsync(q, ct)
+        : await expander.ExpandAsync(q, ct);
+
+    var result = await wiki.QueryAsync(new WikiQueryRequest(Question: searchQuery), ct);
+
+    var hydeUsed    = hyde   ?? false;
+    var rerankUsed  = rerank ?? false;
+
+    // Step 2: reranker opzionale — lavora sempre sulla query ORIGINALE (non HyDE)
+    if (rerankUsed && result.ContextFound && result.Sources.Count > 1)
     {
         var reranked = await reranker.RerankAsync(q, result.Sources.ToList(), ct);
         return Results.Ok(new
@@ -175,19 +189,40 @@ app.MapGet("/api/legal/query", async (string q, bool? rerank, IWikiQueryEngine w
             result.Answer,
             result.ContextFound,
             result.LatencyMs,
+            hydeUsed,
             rerankerUsed = true,
+            mode = hydeUsed ? "hyde+reranker" : "reranker",
             Sources = reranked.Select(r => new
             {
                 r.Source.Slug,
                 r.Source.Title,
                 r.Source.Snippet,
-                embedScore = r.EmbedScore,
+                embedScore  = r.EmbedScore,
                 rerankScore = r.RerankScore,
-                score = r.CombinedScore
+                score       = r.CombinedScore
             }).ToList()
         });
     }
-    return Results.Ok(result with { RerankerUsed = false });
+
+    return Results.Ok(new
+    {
+        result.Question,
+        result.Answer,
+        result.ContextFound,
+        result.LatencyMs,
+        hydeUsed,
+        rerankerUsed = false,
+        mode = hydeUsed ? "hyde" : "baseline",
+        Sources = result.Sources.Select(s => new
+        {
+            s.Slug,
+            s.Title,
+            s.Snippet,
+            embedScore  = (float?)null,
+            rerankScore = (float?)null,
+            score       = (float)s.Score
+        }).ToList()
+    });
 });
 
 app.MapGet("/api/dashboard", (PipelineOrchestrator orch) => Results.Ok(orch.GetDashboard()));

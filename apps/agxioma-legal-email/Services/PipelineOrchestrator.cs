@@ -33,6 +33,7 @@ public sealed class PipelineOrchestrator
     private readonly LegalQueryExpander? _expander;
     private readonly LegalConceptExtractor? _conceptExtractor;
     private readonly LegalReranker? _reranker;
+    private readonly LegalHydeGenerator? _hyde;
 
     public PipelineOrchestrator(
         ILogger<PipelineOrchestrator> log,
@@ -43,7 +44,8 @@ public sealed class PipelineOrchestrator
         IHubContext<PipelineHub, IPipelineHubClient>? hub = null,
         LegalQueryExpander? expander = null,
         LegalConceptExtractor? conceptExtractor = null,
-        LegalReranker? reranker = null)
+        LegalReranker? reranker = null,
+        LegalHydeGenerator? hyde = null)
     {
         _log = log;
         _legalRouter = forests?.FirstOrDefault(s => string.Equals(s.Name, "legal-router", StringComparison.OrdinalIgnoreCase));
@@ -54,6 +56,7 @@ public sealed class PipelineOrchestrator
         _expander = expander;
         _conceptExtractor = conceptExtractor;
         _reranker = reranker;
+        _hyde = hyde;
     }
 
     public string StartPipelineAsync(IngestEmailRequest req)
@@ -146,9 +149,21 @@ public sealed class PipelineOrchestrator
                     "ConceptsExtracted Count={Count} Concepts={@Concepts}",
                     concepts.Length, concepts);
 
-                // 1b. QueryExpander disabled — Ollama too resource-constrained on local dev
-                // Re-enable when running on adequate hardware: expand each concept sequentially
-                string[] queryTerms = concepts;
+                // 1b. Query augmentation — HyDE o passthrough
+                // HyDE: genera un doc ipotetico per ogni concetto (DeepSeek) e usa quello
+                // come query per pgvector — risolve vocabulary mismatch colloquiale/giuridico.
+                string[] queryTerms;
+                if (req.UseHyde && _hyde is not null)
+                {
+                    queryTerms = await _hyde.GenerateBatchAsync(concepts, ct);
+                    _log.LogInformation(
+                        "HydeApplied ConceptCount={Count} Reranker={Reranker}",
+                        concepts.Length, req.UseReranker);
+                }
+                else
+                {
+                    queryTerms = concepts;
+                }
 
                 // 2. Retrieve parallelo per ogni queryTerm espanso (embed + pgvector, no LLM)
                 var retrieveTasks = queryTerms
@@ -238,8 +253,14 @@ public sealed class PipelineOrchestrator
 
         _emailStates[emailId] = PipelineState.RagCompleted;
         sw.Stop();
+        var ragMode = (req.UseHyde, req.UseReranker) switch {
+            (true,  true)  => "HyDE + Reranker",
+            (true,  false) => "HyDE",
+            (false, true)  => "Reranker",
+            _              => "Baseline"
+        };
         timeline.Add(new(nameof(PipelineState.RagCompleted), PipelineState.RagCompleted,
-            $"📚 Ricerca RAG: {(string.IsNullOrEmpty(ragContext) ? "database non ancora popolato" : "articoli trovati e analizzati")}",
+            $"📚 RAG [{ragMode}]: {(string.IsNullOrEmpty(ragContext) ? "database non ancora popolato" : "articoli trovati e analizzati")}",
             sw.Elapsed, DateTime.UtcNow));
         await Notify(emailId, timeline);
 
