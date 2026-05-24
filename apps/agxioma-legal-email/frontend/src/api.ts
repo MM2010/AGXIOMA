@@ -2,8 +2,8 @@ import * as signalR from '@microsoft/signalr';
 
 const BASE = '/api';
 
-export interface PipelineEntry { phase: string; state: string; description: string; duration: number | null; timestamp: string; }
-export interface TimelineResponse { emailId: string; state: string; timeline: PipelineEntry[]; }
+export interface PipelineEntry { phase: string; state: string; description: string; duration: number | null; timestamp: string; tokensUsed?: number | null; }
+export interface TimelineResponse { emailId: string; state: string; timeline: PipelineEntry[]; totalTokensUsed?: number; estimatedCostUsd?: number; }
 interface DashboardData { totalEmails: number; inHitl: number; completed: number; pendingReview: number; avgResponseSeconds: number; }
 interface QueryResult { question: string; answer: string; sources: { slug: string; title: string; snippet: string; score: number; embedScore?: number; rerankScore?: number; }[]; contextFound: boolean; hydeUsed?: boolean; rerankerUsed?: boolean; mode?: string; }
 

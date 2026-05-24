@@ -29,10 +29,10 @@ public sealed class LegalHydeGenerator
     /// Genera un documento ipotetico per il concetto/query dato.
     /// Il testo generato viene usato come query per pgvector al posto della query grezza.
     /// </summary>
-    public async Task<string> GenerateAsync(string query, CancellationToken ct = default)
+    public async Task<(string Result, int Tokens)> GenerateAsync(string query, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(query) || query.Length < 5)
-            return query;
+            return (query, 0);
 
         var prompt = $"""
             Sei un assistente giuridico specializzato in diritto italiano.
@@ -49,20 +49,21 @@ public sealed class LegalHydeGenerator
         {
             var resp      = await _agent.RunAsync(new AgentRequest(prompt), ct);
             var generated = resp.Content?.Trim() ?? query;
+            var tokens    = resp.Metadata?.TotalTokens ?? 0;
 
             _log.LogInformation(
-                "[HyDE] Query='{Q}' → GeneratedChars={Chars} Preview='{P}'",
-                query, generated.Length,
+                "[HyDE] Query='{Q}' → GeneratedChars={Chars} Tokens={Tokens} Preview='{P}'",
+                query, generated.Length, tokens,
                 generated.Length > 120
                     ? generated[..120].Replace('\n', ' ') + "…"
                     : generated.Replace('\n', ' '));
 
-            return generated;
+            return (generated, tokens);
         }
         catch (Exception ex)
         {
             _log.LogWarning("[HyDE] Fallback to original query for '{Q}': {Err}", query, ex.Message);
-            return query;   // graceful degradation — pipeline continua senza HyDE
+            return (query, 0);   // graceful degradation — pipeline continua senza HyDE
         }
     }
 
@@ -70,9 +71,10 @@ public sealed class LegalHydeGenerator
     /// Genera documenti ipotetici per più concetti in parallelo.
     /// Usato da PipelineOrchestrator Phase 4 nel retrieval multi-concetto.
     /// </summary>
-    public async Task<string[]> GenerateBatchAsync(string[] concepts, CancellationToken ct = default)
+    public async Task<(string[] Results, int TotalTokens)> GenerateBatchAsync(string[] concepts, CancellationToken ct = default)
     {
         var tasks = concepts.Select(c => GenerateAsync(c, ct));
-        return await Task.WhenAll(tasks);
+        var results = await Task.WhenAll(tasks);
+        return (results.Select(r => r.Result).ToArray(), results.Sum(r => r.Tokens));
     }
 }

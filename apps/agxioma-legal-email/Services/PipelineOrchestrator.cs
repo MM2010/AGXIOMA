@@ -134,6 +134,7 @@ public sealed class PipelineOrchestrator
         // Nessuna LLM synthesis qui: Phase 5 riceve raw pages e fa analisi completa.
         sw.Restart();
         string ragContext = "";
+        int hydeTokens = 0;  // declared here so it's in scope for the timeline entry below
         if (_wiki != null)
         {
             try
@@ -155,10 +156,12 @@ public sealed class PipelineOrchestrator
                 string[] queryTerms;
                 if (req.UseHyde && _hyde is not null)
                 {
-                    queryTerms = await _hyde.GenerateBatchAsync(concepts, ct);
+                    var (hydeResults, hydeTokenCount) = await _hyde.GenerateBatchAsync(concepts, ct);
+                    queryTerms = hydeResults;
+                    hydeTokens = hydeTokenCount;
                     _log.LogInformation(
-                        "HydeApplied ConceptCount={Count} Reranker={Reranker}",
-                        concepts.Length, req.UseReranker);
+                        "HydeApplied ConceptCount={Count} Reranker={Reranker} HydeTokens={Tokens}",
+                        concepts.Length, req.UseReranker, hydeTokens);
                 }
                 else
                 {
@@ -261,12 +264,14 @@ public sealed class PipelineOrchestrator
         };
         timeline.Add(new(nameof(PipelineState.RagCompleted), PipelineState.RagCompleted,
             $"📚 RAG [{ragMode}]: {(string.IsNullOrEmpty(ragContext) ? "database non ancora popolato" : "articoli trovati e analizzati")}",
-            sw.Elapsed, DateTime.UtcNow));
+            sw.Elapsed, DateTime.UtcNow,
+            TokensUsed: req.UseHyde ? (int?)hydeTokens : null));
         await Notify(emailId, timeline);
 
         // ── Phase 5: Legal Analysis via LLM ───────────────────────────────
         sw.Restart();
         string analysis = "";
+        int analysisTokens = 0;
         if (_llm != null && !string.IsNullOrEmpty(ragContext))
         {
             try
@@ -284,8 +289,9 @@ public sealed class PipelineOrchestrator
                     $"4. Rischi e criticità\n5. Riferimenti giurisprudenziali pertinenti"), ct);
                 analysis = resp.Content; // full analysis passed to Phase 6
                 _log.LogInformation(
-                    "LlmAnalysisCompleted LatencyMs={LatencyMs} AnalysisChars={Chars}",
-                    sw.ElapsedMilliseconds, analysis.Length);
+                    "LlmAnalysisCompleted LatencyMs={LatencyMs} AnalysisChars={Chars} Tokens={Tokens}",
+                    sw.ElapsedMilliseconds, analysis.Length, resp.Metadata?.TotalTokens ?? 0);
+                analysisTokens = resp.Metadata?.TotalTokens ?? 0;
             }
             catch (Exception ex) { _log.LogWarning(ex, "LLM analysis failed"); }
         }
@@ -294,16 +300,27 @@ public sealed class PipelineOrchestrator
         sw.Stop();
         timeline.Add(new(nameof(PipelineState.AnalysisDone), PipelineState.AnalysisDone,
             $"🔍 Analisi legale: {(string.IsNullOrEmpty(analysis) ? "completata (sintesi generica)" : "completata con citazioni")}",
-            sw.Elapsed, DateTime.UtcNow));
+            sw.Elapsed, DateTime.UtcNow,
+            TokensUsed: analysisTokens > 0 ? analysisTokens : null));
         await Notify(emailId, timeline);
 
         // ── Phase 6: Draft Response via LLM ───────────────────────────────
         sw.Restart();
         string draft = "";
+        int draftTokens = 0;
         if (_llm != null)
         {
             try
             {
+                // Truncate heavy inputs to stay within the flash model's ~16K context window.
+                // ragContext: 14K chars → 4K tokens; analysis: 9.7K → 2.8K tokens.
+                // Combined with system prompt + output (8K tokens) that easily exceeds 16K.
+                // Cap at 5500 + 3500 chars ≈ 1570 + 1000 tokens input → safe margin.
+                const int MaxRagChars      = 5500;
+                const int MaxAnalysisChars = 3500;
+                var ragCtxTrimmed  = ragContext.Length  > MaxRagChars      ? ragContext[..MaxRagChars]  + "\n...[troncato]" : ragContext;
+                var analysisTrimmed = analysis.Length   > MaxAnalysisChars ? analysis[..MaxAnalysisChars] + "\n...[troncato]" : analysis;
+
                 var researchBlock = !string.IsNullOrEmpty(fullResearch)
                     ? $"RICERCA LEGALE PRELIMINARE (prospettive: normativa, giurisprudenziale, dottrinale, prassi, comparata):\n{fullResearch}\n\n"
                     : "";
@@ -311,25 +328,39 @@ public sealed class PipelineOrchestrator
                     $"Redigi una bozza di risposta email professionale per un cliente di uno studio legale.\n\n" +
                     $"RICHIESTA DEL CLIENTE:\nOggetto: {req.Subject}\n{req.Body}\n\n" +
                     $"{researchBlock}" +
-                    $"CONTESTO GIURIDICO (dal database codici):\n{ragContext}\n\n" +
-                    $"ANALISI:\n{analysis}\n\n" +
+                    $"CONTESTO GIURIDICO (dal database codici):\n{ragCtxTrimmed}\n\n" +
+                    $"ANALISI:\n{analysisTrimmed}\n\n" +
                     $"Formato richiesto:\n- Gentile [Cliente],\n- [Analisi e riferimenti normativi con citazioni [[art-XXX]]]\n" +
                     $"- [Riferimenti giurisprudenziali pertinenti]\n" +
                     $"- [Prossimi passi consigliati]\n- [Avvertenze]\n- Distinti saluti,\n  [Studio Legale AGXIOME]"), ct);
-                draft = resp.Content;
-                _drafts[emailId] = draft;
+                draft = resp.Content ?? "";
+                draftTokens = resp.Metadata?.TotalTokens ?? 0;
                 _log.LogInformation(
-                    "DraftGenerated LatencyMs={LatencyMs} DraftChars={Chars}",
-                    sw.ElapsedMilliseconds, draft.Length);
+                    "DraftGenerated LatencyMs={LatencyMs} DraftChars={Chars} Tokens={Tokens}",
+                    sw.ElapsedMilliseconds, draft.Length, draftTokens);
             }
             catch (Exception ex) { _log.LogWarning(ex, "LLM draft failed"); }
         }
+
+        // If the LLM returned empty content (context overflow / refusal), provide a template
+        // so the frontend always gets a reviewable draft instead of an infinite polling loop.
+        if (string.IsNullOrWhiteSpace(draft))
+        {
+            draft = $"Gentile Cliente,\n\n" +
+                    $"In riferimento alla Sua richiesta (Oggetto: {req.Subject}),\n\n" +
+                    $"[NOTA: La generazione automatica della bozza non è riuscita. " +
+                    $"Si prega di redigere manualmente la risposta sulla base dell'analisi disponibile nella timeline.]\n\n" +
+                    $"Distinti saluti,\n  Studio Legale AGXIOME";
+            _log.LogWarning("DraftFallbackTemplate EmailId={EmailId}", emailId);
+        }
+        _drafts[emailId] = draft;
 
         _emailStates[emailId] = PipelineState.DraftReady;
         sw.Stop();
         timeline.Add(new(nameof(PipelineState.DraftReady), PipelineState.DraftReady,
             $"📝 Bozza di risposta: {(string.IsNullOrEmpty(draft) ? "generata (template base)" : $"pronta ({draft.Length} caratteri)")}",
-            sw.Elapsed, DateTime.UtcNow));
+            sw.Elapsed, DateTime.UtcNow,
+            TokensUsed: draftTokens > 0 ? draftTokens : null));
         await Notify(emailId, timeline);
 
         // ── Phase 7: HITL ─────────────────────────────────────────────────
@@ -350,6 +381,18 @@ public sealed class PipelineOrchestrator
         => _timelines.TryGetValue(emailId, out var t) ? t : [];
     public string? GetDraft(string emailId)
         => _drafts.TryGetValue(emailId, out var d) ? d : null;
+
+    /// <summary>Returns pipeline status with total token usage and estimated DeepSeek cost.</summary>
+    public PipelineStatusResponse GetStatus(string emailId)
+    {
+        var state    = GetState(emailId);
+        var timeline = GetTimeline(emailId);
+        var totalTok = timeline.Sum(e => e.TokensUsed ?? 0);
+        // DeepSeek v4-flash: $0.14/M input (cache miss), $0.28/M output.
+        // Blended ~$0.19/M for our prompt-heavy pipeline (est. 65% input, 35% output).
+        var costUsd  = Math.Round((decimal)totalTok * 0.00000019m, 8);
+        return new PipelineStatusResponse(emailId, state, timeline, totalTok, costUsd);
+    }
 
     public IEnumerable<string> GetAllEmailIds() => _emailStates.Keys;
 

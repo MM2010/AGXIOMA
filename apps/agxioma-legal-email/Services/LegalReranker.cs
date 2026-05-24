@@ -1,28 +1,30 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using AgxiomaLLMWiki;
 
 namespace AgxiomaLegalEmail.Services;
 
 /// <summary>
-/// Cross-encoder style reranker using Ollama (qwen2.5-coder:3b — piccolo e già installato).
-/// Prende i candidati dalla ricerca vettoriale e li ri-ordina per rilevanza semantica.
+/// Cross-encoder reranker using Qwen3-Reranker via /api/chat with pre-filled think block.
+/// Strategy: pass empty &lt;think&gt;&lt;/think&gt; as assistant prefix → model outputs only "yes"/"no" (num_predict=1, ~270ms/doc).
+/// Falls back to embedding order on error.
 /// </summary>
 public sealed class LegalReranker
 {
     private readonly HttpClient _http;
-    private readonly WikiPageWriter _pageWriter;
     private readonly ILogger<LegalReranker> _log;
-    private const string Model = "qwen2.5-coder:3b";
+    private readonly string _model;
+    // Max concurrency to avoid overwhelming Ollama
+    private static readonly SemaphoreSlim _sem = new(3, 3);
 
-    public LegalReranker(IHttpClientFactory httpFactory, WikiPageWriter pageWriter, ILogger<LegalReranker> log)
+    public LegalReranker(IHttpClientFactory httpFactory, ILogger<LegalReranker> log,
+        string model = "dengcao/Qwen3-Reranker-0.6B:F16")
     {
         _http = httpFactory.CreateClient("ollama");
-        _pageWriter = pageWriter;
         _log = log;
+        _model = model;
     }
 
-    /// <summary>Re-rank WikiPageRef list using LLM relevance scoring.</summary>
+    /// <summary>Re-rank WikiPageRef list via Qwen3-Reranker yes/no scoring.</summary>
     public async Task<List<RerankedSource>> RerankAsync(
         string query,
         List<WikiPageRef> sources,
@@ -31,41 +33,25 @@ public sealed class LegalReranker
         if (sources.Count <= 1)
             return sources.Select(s => new RerankedSource(s, s.Score, null)).ToList();
 
-        // Only rerank top 5 to keep prompt short for the small model
-        var candidates = sources.Take(5).ToList();
-
-        // Load full page content for each source
-        var fullContents = new List<string>();
-        foreach (var src in candidates)
-        {
-            var content = await _pageWriter.ReadWikiPageAsync(src.Slug, ct) ?? src.Slug;
-            fullContents.Add(content.Length > 400 ? content[..400] + "…[troncato]" : content);
-        }
-
-        var prompt = BuildPrompt(query, candidates, fullContents);
-
         try
         {
-            var llmOutput = await CallOllamaAsync(prompt, ct);
-            var scores = ParseScores(llmOutput, sources.Count);
+            var documents = sources.Select(s =>
+                s.Snippet?.Length > 0
+                    ? (s.Snippet.Length > 512 ? s.Snippet[..512] : s.Snippet)
+                    : s.Slug).ToList();
 
-            var reranked = candidates.Select((src, i) =>
+            var scores = await ScoreDocumentsAsync(query, documents, ct);
+
+            var reranked = sources.Select((src, i) =>
             {
-                var rerank = i < scores.Count ? scores[i] : 5.0f;
-                // Combined: 30% embed score + 70% LLM rerank score
-                var combined = src.Score * 0.3f + (rerank / 10f) * 0.7f;
-                var rsi = new RerankedSource(src, combined, rerank);
-                // Carry over remaining sources in original order after reranked ones
-                return rsi;
+                var rerank = i < scores.Count ? scores[i] : 0.5f;
+                var combined = src.Score * 0.3f + rerank * 0.7f;
+                return new RerankedSource(src, combined, rerank);
             })
             .OrderByDescending(x => x.CombinedScore)
             .ToList();
 
-            // Append any sources beyond the 5 we reranked
-            foreach (var src in sources.Skip(5))
-                reranked.Add(new RerankedSource(src, src.Score, null));
-
-            _log.LogInformation("[Reranker] Top: {Slug} combined={S:F3} (embed={E:F3} rerank={R:F1})",
+            _log.LogInformation("[Reranker] Top: {Slug} combined={S:F3} (embed={E:F3} rerank={R:F3})",
                 reranked[0].Slug, reranked[0].CombinedScore, reranked[0].EmbedScore, reranked[0].RerankScore ?? 0);
             return reranked;
         }
@@ -76,46 +62,7 @@ public sealed class LegalReranker
         }
     }
 
-    private static string BuildPrompt(string query, List<WikiPageRef> candidates, List<string> contents)
-    {
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine("Valuta la rilevanza legale di questi documenti per la domanda.");
-        sb.AppendLine();
-        sb.AppendLine("DOMANDA: " + query);
-        sb.AppendLine();
-
-        for (int i = 0; i < candidates.Count; i++)
-            sb.AppendLine($"[{i + 1}] ({candidates[i].Slug})\n{contents[i]}\n");
-
-        sb.AppendLine("Rispondi SOLO con un array JSON di numeri da 0.0 a 10.0, uno per documento.");
-        sb.AppendLine("Esempio: [8.5, 3.0, 9.2]");
-        return sb.ToString();
-    }
-
-    private async Task<string> CallOllamaAsync(string prompt, CancellationToken ct)
-    {
-        var body = new { model = Model, prompt, stream = false, options = new { num_predict = 256, temperature = 0.1 } };
-        var resp = await _http.PostAsJsonAsync("api/generate", body, ct);
-        resp.EnsureSuccessStatusCode();
-        var json = await resp.Content.ReadFromJsonAsync<OllamaGenResponse>(ct);
-        return json?.Response ?? "[]";
-    }
-
-    private static List<float> ParseScores(string resp, int n)
-    {
-        try
-        {
-            var txt = resp;
-            var s = txt.IndexOf('['); var e = txt.LastIndexOf(']');
-            if (s >= 0 && e > s) txt = txt[s..(e + 1)];
-            var arr = JsonSerializer.Deserialize<float[]>(txt);
-            if (arr?.Length > 0) return arr.ToList();
-        }
-        catch { }
-        return Enumerable.Repeat(7.0f, n).ToList();
-    }
-
-    /// <summary>Re-rank WikiPageChunk list directly — uses Content from the chunk, no extra DB read.</summary>
+    /// <summary>Re-rank WikiPageChunk list via Qwen3-Reranker yes/no scoring.</summary>
     public async Task<List<(WikiPageChunk Source, float CombinedScore, float? RerankScore)>> RerankChunksAsync(
         string query,
         List<WikiPageChunk> sources,
@@ -124,39 +71,23 @@ public sealed class LegalReranker
         if (sources.Count <= 1)
             return sources.Select(s => (s, s.Score, (float?)null)).ToList();
 
-        var candidates = sources.Take(5).ToList();
-
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine("Valuta la rilevanza legale di questi documenti per la domanda.");
-        sb.AppendLine();
-        sb.AppendLine("DOMANDA: " + query);
-        sb.AppendLine();
-        for (int i = 0; i < candidates.Count; i++)
-        {
-            var snip = candidates[i].Content.Length > 400 ? candidates[i].Content[..400] + "…[troncato]" : candidates[i].Content;
-            sb.AppendLine($"[{i + 1}] ({candidates[i].Slug})\n{snip}\n");
-        }
-        sb.AppendLine("Rispondi SOLO con un array JSON di numeri da 0.0 a 10.0, uno per documento.");
-        sb.AppendLine("Esempio: [8.5, 3.0, 9.2]");
-
         try
         {
-            var llmOutput = await CallOllamaAsync(sb.ToString(), ct);
-            var scores = ParseScores(llmOutput, candidates.Count);
+            var documents = sources.Select(s =>
+                s.Content.Length > 512 ? s.Content[..512] : s.Content).ToList();
 
-            var reranked = candidates.Select((chunk, i) =>
+            var scores = await ScoreDocumentsAsync(query, documents, ct);
+
+            var reranked = sources.Select((chunk, i) =>
             {
-                var rerank = i < scores.Count ? scores[i] : 5.0f;
-                var combined = chunk.Score * 0.3f + (rerank / 10f) * 0.7f;
+                var rerank = i < scores.Count ? scores[i] : 0.5f;
+                var combined = chunk.Score * 0.3f + rerank * 0.7f;
                 return (Source: chunk, CombinedScore: combined, RerankScore: (float?)rerank);
             })
             .OrderByDescending(x => x.CombinedScore)
             .ToList();
 
-            foreach (var chunk in sources.Skip(5))
-                reranked.Add((chunk, chunk.Score, null));
-
-            _log.LogInformation("[Reranker] Top chunk: {Slug} combined={S:F3} (embed={E:F3} rerank={R:F1})",
+            _log.LogInformation("[Reranker] Top chunk: {Slug} combined={S:F3} (embed={E:F3} rerank={R:F3})",
                 reranked[0].Source.Slug, reranked[0].CombinedScore, reranked[0].Source.Score, reranked[0].RerankScore ?? 0);
             return reranked;
         }
@@ -167,7 +98,57 @@ public sealed class LegalReranker
         }
     }
 
-    private sealed class OllamaGenResponse { [JsonPropertyName("response")] public string Response { get; set; } = ""; }
+    /// <summary>
+    /// Scores each document against the query using Qwen3-Reranker's yes/no classification.
+    /// Uses pre-filled empty &lt;think&gt; block to skip chain-of-thought and get a single token.
+    /// Documents are scored concurrently (max 3 parallel).
+    /// </summary>
+    private async Task<List<float>> ScoreDocumentsAsync(string query, List<string> documents, CancellationToken ct)
+    {
+        var tasks = documents.Select(doc => ScoreOneAsync(query, doc, ct)).ToList();
+        var scores = await Task.WhenAll(tasks);
+        return scores.ToList();
+    }
+
+    private async Task<float> ScoreOneAsync(string query, string document, CancellationToken ct)
+    {
+        await _sem.WaitAsync(ct);
+        try
+        {
+            var body = new
+            {
+                model = _model,
+                stream = false,
+                messages = new object[]
+                {
+                    new { role = "system",    content = "Judge whether the Document is relevant to the Query. Output only yes or no. /no_think" },
+                    new { role = "user",      content = $"Query: {query}\nDocument: {document}\nRelevant?" },
+                    new { role = "assistant", content = "<think>\n\n</think>\n\n" }
+                },
+                options = new { num_predict = 1 }
+            };
+
+            var resp = await _http.PostAsJsonAsync("api/chat", body, ct);
+            resp.EnsureSuccessStatusCode();
+            var result = await resp.Content.ReadFromJsonAsync<OllamaChatResponse>(ct);
+            var text = result?.Message?.Content?.Trim().ToLowerInvariant() ?? "";
+            return text.StartsWith("yes") ? 1.0f : 0.0f;
+        }
+        finally
+        {
+            _sem.Release();
+        }
+    }
+
+    private sealed class OllamaChatResponse
+    {
+        [JsonPropertyName("message")] public OllamaMessage? Message { get; set; }
+    }
+
+    private sealed class OllamaMessage
+    {
+        [JsonPropertyName("content")] public string? Content { get; set; }
+    }
 }
 
 public record RerankedSource(WikiPageRef Source, float CombinedScore, float? RerankScore)

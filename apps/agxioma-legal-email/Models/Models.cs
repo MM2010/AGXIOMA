@@ -55,7 +55,8 @@ public record PipelineTimelineEntry(
     PipelineState State,
     string Description,
     TimeSpan? Duration,
-    DateTime Timestamp
+    DateTime Timestamp,
+    int? TokensUsed = null
 );
 
 public record IngestionState(
@@ -71,7 +72,13 @@ public record QueryResponse(string Question, string Answer, List<ChunkReference>
 public record ChunkReference(string DocumentId, string Snippet, float Score);
 
 public record IngestEmailRequest(string Sender, string Subject, string Body, List<string>? Attachments, bool UseReranker = false, bool UseHyde = false);
-public record PipelineStatusResponse(string EmailId, PipelineState State, List<PipelineTimelineEntry> Timeline);
+public record PipelineStatusResponse(
+    string EmailId,
+    PipelineState State,
+    List<PipelineTimelineEntry> Timeline,
+    int TotalTokensUsed = 0,
+    decimal EstimatedCostUsd = 0m
+);
 
 public record ReviewApproveRequest(string EmailId, string LawyerId);
 public record ReviewRejectRequest(string EmailId, string LawyerId, string Notes);

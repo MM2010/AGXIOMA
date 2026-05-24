@@ -163,6 +163,7 @@ public sealed class AgxiomeBuilder
         public AgentBuilder WithTemperature(double t) { _llmConfig = _llmConfig with { DefaultTemperature = t }; return this; }
         public AgentBuilder WithTopP(double p) { _llmConfig = _llmConfig with { TopP = p }; return this; }
         public AgentBuilder WithFrequencyPenalty(double p) { _llmConfig = _llmConfig with { FrequencyPenalty = p }; return this; }
+        public AgentBuilder WithMaxTokens(int n) { _llmConfig = _llmConfig with { MaxTokens = n }; return this; }
         public AgentBuilder WithMaxIterations(int n) { _maxIterations = n; return this; }
         public AgentBuilder WithAutoLoops(int upperBound = 50) { _maxIterations = upperBound; _maxIterationsMode = MaxIterationsMode.Auto; return this; }
         public AgentBuilder WithInfiniteLoops(int maxSafe = 1000) { _maxIterations = maxSafe; _maxIterationsMode = MaxIterationsMode.Infinite; return this; }

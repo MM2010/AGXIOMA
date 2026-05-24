@@ -65,7 +65,7 @@ builder.Services.AddAgxiome()
 builder.Services.AddSingleton<PipelineOrchestrator>();
 
 // ── HttpClient for Ollama ─────────────────────────────────────────────────
-builder.Services.AddHttpClient("ollama", c => { c.BaseAddress = new Uri(wikiSettings.OllamaBaseUrl); c.Timeout = TimeSpan.FromSeconds(60); });
+builder.Services.AddHttpClient("ollama", c => { c.BaseAddress = new Uri(wikiSettings.OllamaBaseUrl); c.Timeout = TimeSpan.FromSeconds(180); });
 
 // ── Ollama Embedder ──────────────────────────────────────────────────────
 builder.Services.AddSingleton<OllamaMxbaiEmbedder>(sp =>
@@ -92,6 +92,7 @@ builder.Services.AddSingleton<IAgxiomeAgent>(sp =>
         .WithTemperature(0.1)       // low: stay anchored to RAG context
         .WithTopP(0.85)             // nucleus sampling: focused but not degenerate
         .WithFrequencyPenalty(0.1)  // avoid repetition in long legal drafts
+        .WithMaxTokens(8192)          // Phase 6 drafts can be long — raise ceiling from default 4096
         .WithSystemPrompt("You are an expert Italian legal assistant. Answer queries based on the Italian Civil Code and Penal Code. Always cite specific articles (e.g. [[art624-cp]]). Be precise, professional.")
         .WithAutoLoops(upperBound: 2)
         .Build());
@@ -103,8 +104,10 @@ builder.Services.AddSingleton<WikiQueryEngine>();
 builder.Services.AddSingleton<IWikiIngester>(sp => sp.GetRequiredService<WikiIngester>());
 builder.Services.AddSingleton<IWikiQueryEngine>(sp => sp.GetRequiredService<WikiQueryEngine>());
 
-// ── Reranker (Ollama qwen2.5-coder:3b) ───────────────────────────────
-builder.Services.AddSingleton<LegalReranker>();
+// ── Reranker (Ollama /api/rerank — requires qwen3-reranker:0.6b + Ollama >= 0.5) ───────────
+var rerankModel = builder.Configuration["Legal:RerankModel"] ?? "qwen3-reranker:0.6b";
+builder.Services.AddSingleton<LegalReranker>(sp =>
+    new LegalReranker(sp.GetRequiredService<IHttpClientFactory>(), sp.GetRequiredService<ILogger<LegalReranker>>(), rerankModel));
 builder.Services.AddSingleton<LegalQueryExpander>();
 builder.Services.AddSingleton<LegalConceptExtractor>();
 builder.Services.AddSingleton<LegalHydeGenerator>();
@@ -140,7 +143,7 @@ app.MapPost("/api/email/ingest", (IngestEmailRequest req, PipelineOrchestrator o
 });
 
 app.MapGet("/api/email/{id}/pipeline", (string id, PipelineOrchestrator orch) =>
-    Results.Ok(new PipelineStatusResponse(id, orch.GetState(id), orch.GetTimeline(id))));
+    Results.Ok(orch.GetStatus(id)));
 
 app.MapGet("/api/email/{id}/draft", (string id, PipelineOrchestrator orch) =>
 {
@@ -170,9 +173,16 @@ app.MapGet("/api/legal/query", async (string q, bool? rerank, bool? hyde, IWikiQ
 
     // Step 1: determina la query di ricerca in base alla modalità selezionata
     // HyDE genera un documento ipotetico (DeepSeek) — reranker usa sempre la query originale
-    var searchQuery = (hyde ?? false)
-        ? await hydeGen.GenerateAsync(q, ct)
-        : await expander.ExpandAsync(q, ct);
+    string searchQuery;
+    if (hyde ?? false)
+    {
+        var (hydeText, _) = await hydeGen.GenerateAsync(q, ct);
+        searchQuery = hydeText;
+    }
+    else
+    {
+        searchQuery = await expander.ExpandAsync(q, ct);
+    }
 
     var result = await wiki.QueryAsync(new WikiQueryRequest(Question: searchQuery), ct);
 
