@@ -1,0 +1,20 @@
+  Individuazione dei progetti da ripristinare...
+  Tutti i progetti sono aggiornati per il ripristino.
+C:\Program Files\dotnet\sdk\10.0.300-preview.0.26177.108\Sdks\Microsoft.NET.Sdk\targets\Microsoft.NET.RuntimeIdentifierInference.targets(383,5): message NETSDK1057: si sta usando una versione in anteprima di .NET. Vedere https://aka.ms/dotnet-support-policy [D:\REPO_PERSONALI\AGXIOMA\AGXIOMA\apps\agxioma-support-hub\AgxiomaSupportHub.csproj]
+  AGXIOME.Shared -> D:\REPO_PERSONALI\AGXIOMA\AGXIOMA\src\AGXIOME.Shared\bin\Debug\net10.0\AGXIOME.Shared.dll
+  AGXIOME.Security -> D:\REPO_PERSONALI\AGXIOMA\AGXIOMA\src\AGXIOME.Security\bin\Debug\net10.0\AGXIOME.Security.dll
+  AGXIOME.Storage -> D:\REPO_PERSONALI\AGXIOMA\AGXIOMA\src\AGXIOME.Storage\bin\Debug\net10.0\AGXIOME.Storage.dll
+  AGXIOME.LLMWIKY -> D:\REPO_PERSONALI\AGXIOMA\AGXIOMA\src\AGXIOME.LLMWIKY\bin\Debug\net10.0\AGXIOME.LLMWIKY.dll
+  AGXIOME.DynamicRuntime -> D:\REPO_PERSONALI\AGXIOMA\AGXIOMA\src\AGXIOME.DynamicRuntime\bin\Debug\net10.0\AGXIOME.DynamicRuntime.dll
+  AGXIOME.Core -> D:\REPO_PERSONALI\AGXIOMA\AGXIOMA\src\AGXIOME.Core\bin\Debug\net10.0\AGXIOME.Core.dll
+  AGXIOME.Interfaces -> D:\REPO_PERSONALI\AGXIOMA\AGXIOMA\src\AGXIOME.Interfaces\bin\Debug\net10.0\AGXIOME.Interfaces.dll
+  AGXIOME.Toolkits -> D:\REPO_PERSONALI\AGXIOMA\AGXIOMA\src\AGXIOME.Toolkits\bin\Debug\net10.0\AGXIOME.Toolkits.dll
+  AGXIOME.Telemetry -> D:\REPO_PERSONALI\AGXIOMA\AGXIOMA\src\AGXIOME.Telemetry\bin\Debug\net10.0\AGXIOME.Telemetry.dll
+  AGXIOME.Runtime -> D:\REPO_PERSONALI\AGXIOMA\AGXIOMA\src\AGXIOME.Runtime\bin\Debug\net10.0\AGXIOME.Runtime.dll
+  AgxiomaSupportHub -> D:\REPO_PERSONALI\AGXIOMA\AGXIOMA\apps\agxioma-support-hub\bin\Debug\net10.0\AgxiomaSupportHub.dll
+
+Compilazione completata.
+    Avvisi: 0
+    Errori: 0
+
+Tempo trascorso 00:00:20.93

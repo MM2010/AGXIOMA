@@ -158,12 +158,12 @@ public sealed class PgVectorStore : IVectorStore
     }
 
     private static string FormatVector(float[] v) =>
-        "[" + string.Join(",", v.Select(f => f.ToString("F8"))) + "]";
+        "[" + string.Join(",", v.Select(f => f.ToString("F8", System.Globalization.CultureInfo.InvariantCulture))) + "]";
 
     private static float[] ParseVector(string pgVec)
     {
-        // pgvector returns [0.1,0.2,...] as string.
+        // pgvector returns [0.1,0.2,...] as string with dot decimal separator.
         var trimmed = pgVec.Trim('[', ']');
-        return trimmed.Split(',').Select(float.Parse).ToArray();
+        return trimmed.Split(',').Select(s => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
     }
 }

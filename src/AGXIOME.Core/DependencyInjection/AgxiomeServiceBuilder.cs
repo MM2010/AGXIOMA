@@ -63,6 +63,19 @@ public sealed class AgxiomeServiceBuilder
     }
 
     /// <summary>
+    /// Set the LLM provider for all swarms registered via this builder using explicit values.
+    /// Use this overload when the API key has already been resolved from configuration.
+    /// </summary>
+    public AgxiomeServiceBuilder UseModel(LLMProviderType provider, string? model = null, string? apiKey = null)
+    {
+        var (_, defaultModel, _) = AgxiomeProviderResolver.Defaults(provider);
+        _provider = provider;
+        _model    = model ?? defaultModel;
+        _apiKey   = apiKey;
+        return this;
+    }
+
+    /// <summary>
     /// Register a <see cref="ForestSwarm"/> (keyword-routed multi-tree) in DI.
     /// </summary>
     public AgxiomeServiceBuilder AddForestSwarm(string name, Action<ForestSwarmBuilder> configure)
