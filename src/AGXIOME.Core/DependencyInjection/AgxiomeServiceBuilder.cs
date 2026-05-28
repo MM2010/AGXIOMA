@@ -35,6 +35,7 @@ public sealed class AgxiomeServiceBuilder
     private LLMProviderType _provider = LLMProviderType.DeepSeek;
     private string _model = "deepseek-chat";
     private string? _apiKey;
+    private string? _endpoint;
 
     /// <summary>The underlying service collection. Use for raw DI registrations.</summary>
     public IServiceCollection Services { get; }
@@ -50,12 +51,14 @@ public sealed class AgxiomeServiceBuilder
     /// </summary>
     /// <param name="providerName">Provider name: "deepseek", "openai", "anthropic", "gemini", "ollama", etc.</param>
     /// <param name="model">Override the default model for this provider.</param>
-    public AgxiomeServiceBuilder UseProvider(string providerName, string? model = null)
+    /// <param name="endpoint">Override the default endpoint for this provider.</param>
+    public AgxiomeServiceBuilder UseProvider(string providerName, string? model = null, string? endpoint = null)
     {
-        var (provider, defaultModel, _) = AgxiomeProviderResolver.Resolve(providerName, null);
+        var (provider, defaultModel, defaultEndpoint) = AgxiomeProviderResolver.Resolve(providerName, null);
         _provider = provider;
         _model    = model ?? defaultModel;
         _apiKey   = AgxiomeProviderResolver.ResolveApiKey(provider, null);
+        _endpoint = endpoint ?? defaultEndpoint;
         return this;
     }
 
@@ -64,7 +67,7 @@ public sealed class AgxiomeServiceBuilder
     /// </summary>
     public AgxiomeServiceBuilder AddForestSwarm(string name, Action<ForestSwarmBuilder> configure)
     {
-        var sb = new ForestSwarmBuilder(name, _provider, _model, _apiKey);
+        var sb = new ForestSwarmBuilder(name, _provider, _model, _apiKey, _endpoint);
         configure(sb);
         Services.AddSingleton(sb.Build());
         return this;
@@ -75,7 +78,7 @@ public sealed class AgxiomeServiceBuilder
     /// </summary>
     public AgxiomeServiceBuilder AddHeavySwarm(string name, Action<HeavySwarmBuilder> configure)
     {
-        var hb = new HeavySwarmBuilder(name, _provider, _model, _apiKey);
+        var hb = new HeavySwarmBuilder(name, _provider, _model, _apiKey, _endpoint);
         configure(hb);
         Services.AddSingleton(hb.Build());
         return this;
@@ -94,12 +97,13 @@ public sealed class ForestSwarmBuilder
     private readonly LLMProviderType _provider;
     private readonly string _model;
     private readonly string? _apiKey;
+    private readonly string? _endpoint;
     private readonly List<ForestTreeBuilder> _trees = [];
     private int _minMatchScore;
 
-    internal ForestSwarmBuilder(string name, LLMProviderType provider, string model, string? apiKey)
+    internal ForestSwarmBuilder(string name, LLMProviderType provider, string model, string? apiKey, string? endpoint)
     {
-        _name = name; _provider = provider; _model = model; _apiKey = apiKey;
+        _name = name; _provider = provider; _model = model; _apiKey = apiKey; _endpoint = endpoint;
     }
 
     /// <summary>
@@ -107,7 +111,7 @@ public sealed class ForestSwarmBuilder
     /// </summary>
     public ForestTreeBuilder AddTree(string treeName)
     {
-        var tb = new ForestTreeBuilder(treeName, _provider, _model, _apiKey);
+        var tb = new ForestTreeBuilder(treeName, _provider, _model, _apiKey, _endpoint);
         _trees.Add(tb);
         return tb;
     }
@@ -136,11 +140,12 @@ public sealed class ForestTreeBuilder
     private readonly LLMProviderType _provider;
     private readonly string _model;
     private readonly string? _apiKey;
+    private readonly string? _endpoint;
     private readonly List<AgentDef> _defs = [];
 
-    internal ForestTreeBuilder(string treeName, LLMProviderType provider, string model, string? apiKey)
+    internal ForestTreeBuilder(string treeName, LLMProviderType provider, string model, string? apiKey, string? endpoint)
     {
-        _treeName = treeName; _provider = provider; _model = model; _apiKey = apiKey;
+        _treeName = treeName; _provider = provider; _model = model; _apiKey = apiKey; _endpoint = endpoint;
     }
 
     /// <summary>
@@ -164,7 +169,7 @@ public sealed class ForestTreeBuilder
         var entries = _defs.Select(def =>
         {
             var ab = AgxiomeBuilder.Agent(def.Id)
-                .UseModel(_provider, _model, _apiKey)
+                .UseModel(_provider, _model, _apiKey, _endpoint)
                 .WithSystemPrompt(def.SystemPrompt ?? $"You are a helpful {def.Id} specialist.");
             foreach (var tool in def.Tools) ab = ab.WithTool(tool);
             return new ForestAgentEntry(def.Id, def.Id, def.Keywords.AsReadOnly(), ab.Build());
@@ -233,6 +238,7 @@ public sealed class HeavySwarmBuilder
     private readonly LLMProviderType _provider;
     private readonly string _model;
     private readonly string? _apiKey;
+    private readonly string? _endpoint;
 
     private int _workerCount = 3;
     private bool _enableParallel = true;
@@ -255,9 +261,9 @@ public sealed class HeavySwarmBuilder
         "5. Conclusion\n" +
         "Be objective and evidence-based.";
 
-    internal HeavySwarmBuilder(string name, LLMProviderType provider, string model, string? apiKey)
+    internal HeavySwarmBuilder(string name, LLMProviderType provider, string model, string? apiKey, string? endpoint)
     {
-        _name = name; _provider = provider; _model = model; _apiKey = apiKey;
+        _name = name; _provider = provider; _model = model; _apiKey = apiKey; _endpoint = endpoint;
     }
 
     /// <summary>Number of parallel research worker agents (default 3).</summary>
@@ -281,19 +287,19 @@ public sealed class HeavySwarmBuilder
     internal HeavySwarm Build()
     {
         var questionAgent = AgxiomeBuilder.Agent("question-generator")
-            .UseModel(_provider, _model, _apiKey)
+            .UseModel(_provider, _model, _apiKey, _endpoint)
             .WithSystemPrompt(_questionPrompt)
             .Build();
 
         var workers = Enumerable.Range(1, _workerCount)
             .Select(i => AgxiomeBuilder.Agent($"research-worker-{i}")
-                .UseModel(_provider, _model, _apiKey)
+                .UseModel(_provider, _model, _apiKey, _endpoint)
                 .WithSystemPrompt(_workerPromptTemplate.Replace("{n}", i.ToString()))
                 .Build())
             .ToList();
 
         var synthesizer = AgxiomeBuilder.Agent("synthesizer")
-            .UseModel(_provider, _model, _apiKey)
+            .UseModel(_provider, _model, _apiKey, _endpoint)
             .WithSystemPrompt(_synthesisPrompt)
             .Build();
 

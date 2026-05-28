@@ -4,7 +4,9 @@ Support hub minimale che espone il flusso backoffice usato dal frontend `backoff
 
 ## LLM attivo
 
-Il provider configurato e' `deepseek` con modello `deepseek-chat`.
+Il provider configurato di default e' `ollama` con modello `qwen2.5-coder:1.5b`.
+
+Per default il backend punta a `http://localhost:11434`. In Docker Compose usa `http://host.docker.internal:11434`, quindi l'istanza Ollama deve essere attiva sulla macchina host e avere il modello caricato.
 
 ## Endpoint principali
 
@@ -26,6 +28,12 @@ dotnet run --project AGXIOMA/apps/agxioma-support-hub/AgxiomaSupportHub.csproj
 
 Per default il backend ascolta su `http://localhost:5012` e gira in modalita' `local` con SQLite come store canonico e read model operativo.
 
+Per cambiare modello/provider in locale puoi sovrascrivere:
+
+```bash
+Agent__Provider=ollama Agent__Model=qwen2.5-coder:1.5b Agent__Endpoint=http://localhost:11434 dotnet run --project AGXIOMA/apps/agxioma-support-hub/AgxiomaSupportHub.csproj
+```
+
 ## Modalita' enterprise
 
 La modalita' `enterprise` usa:
@@ -42,6 +50,12 @@ La modalita' `enterprise` usa:
 ```bash
 docker compose -f AGXIOMA/docker-compose.support-hub-enterprise.yml up --build -d
 ```
+
+Le variabili LLM principali per lo stack sono:
+
+- `AGENT_PROVIDER` default `ollama`
+- `AGENT_MODEL` default `qwen2.5-coder:1.5b`
+- `AGENT_ENDPOINT` default `http://host.docker.internal:11434`
 
 3. Verifica il dashboard:
 

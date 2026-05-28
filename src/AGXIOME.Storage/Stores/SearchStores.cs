@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
+using Meilisearch;
 
 namespace AGXIOME.Storage.Stores;
 
@@ -95,6 +96,13 @@ public sealed record MeilisearchStoreOptions
 
 public sealed class MeilisearchCommandStore : ICommandStore
 {
+    private const int TaskTimeoutMs = 30_000;
+    private const int TaskPollIntervalMs = 250;
+    private static readonly JsonSerializerOptions MeilisearchDocumentJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
     private readonly MeilisearchStoreOptions _opts;
     private readonly Meilisearch.MeilisearchClient _meili;
 
@@ -109,9 +117,9 @@ public sealed class MeilisearchCommandStore : ICommandStore
     public async Task SaveAsync<T>(T entity, CancellationToken ct = default) where T : class
     {
         var idx  = _meili.Index(IndexName<T>());
-        var task = await idx.AddDocumentsAsync(new[] { entity }, primaryKey: "Id", cancellationToken: ct);
-        // Fire-and-forget the task completion; caller can check status via taskUid if needed.
-        _ = task;
+        var doc  = JsonSerializer.SerializeToElement(entity, MeilisearchDocumentJsonOptions);
+        var task = await idx.AddDocumentsAsync(new[] { doc }, primaryKey: "id", cancellationToken: ct);
+        await _meili.WaitForTaskAsync(task.TaskUid, TaskTimeoutMs, TaskPollIntervalMs, ct);
     }
 
     public async Task UpdateAsync<T>(T entity, CancellationToken ct = default) where T : class
@@ -120,7 +128,8 @@ public sealed class MeilisearchCommandStore : ICommandStore
     public async Task DeleteAsync<T>(string id, CancellationToken ct = default) where T : class
     {
         var idx = _meili.Index(IndexName<T>());
-        await idx.DeleteOneDocumentAsync(id, ct);
+        var task = await idx.DeleteOneDocumentAsync(id, ct);
+        await _meili.WaitForTaskAsync(task.TaskUid, TaskTimeoutMs, TaskPollIntervalMs, ct);
     }
 
     private string IndexName<T>() => $"{_opts.IndexPrefix}-{typeof(T).Name.ToLowerInvariant()}";

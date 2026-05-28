@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Google.Api.Gax;
 using Google.Cloud.Firestore;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
@@ -31,6 +32,12 @@ public sealed class FirestoreCommandStore : ICommandStore
     {
         if (opts is null) throw new ArgumentNullException(nameof(opts));
         var builder = new FirestoreDbBuilder { ProjectId = opts.ProjectId };
+
+        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("FIRESTORE_EMULATOR_HOST")))
+        {
+            builder.EmulatorDetection = EmulatorDetection.EmulatorOrProduction;
+        }
+
 #pragma warning disable CS0618 // GoogleCredential.FromFile is deprecated but CredentialFactory API may not be available in all versions
         if (opts.CredentialFilePath is not null)
             builder.Credential = Google.Apis.Auth.OAuth2.GoogleCredential.FromFile(opts.CredentialFilePath);

@@ -8,8 +8,9 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       Kestrel__Endpoints__Http__Url: http://0.0.0.0:8080
-      Agent__Provider: deepseek
-      Agent__Model: deepseek-chat
+      Agent__Provider: ${AGENT_PROVIDER:-ollama}
+      Agent__Model: ${AGENT_MODEL:-qwen2.5-coder:1.5b}
+      Agent__Endpoint: ${AGENT_ENDPOINT:-http://host.docker.internal:11434}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       Backoffice__Mode: enterprise
       Backoffice__Enterprise__PostgresConnectionString: Host=postgres;Port=5432;Database=agxiome_backoffice;Username=agxiome;Password=${AGXIOME_POSTGRES_PASSWORD:-change-me}

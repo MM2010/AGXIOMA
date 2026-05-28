@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AGXIOME.Shared.Interfaces;
@@ -38,36 +39,67 @@ public sealed class SurrealDbCommandStore : ICommandStore
             System.Text.Encoding.UTF8.GetBytes($"{opts.Username}:{opts.Password}"));
         _http.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", credentials);
-        _http.DefaultRequestHeaders.Add("NS", opts.Namespace);
-        _http.DefaultRequestHeaders.Add("DB", opts.Database);
+        _http.DefaultRequestHeaders.Add("Surreal-NS", opts.Namespace);
+        _http.DefaultRequestHeaders.Add("Surreal-DB", opts.Database);
     }
 
     public async Task SaveAsync<T>(T entity, CancellationToken ct = default) where T : class
     {
         var table = TableName<T>();
         var id    = GetId(entity);
-        // PUT creates or replaces a specific record.
-        var res = await _http.PutAsJsonAsync($"/key/{table}/{id}", entity, ct);
-        res.EnsureSuccessStatusCode();
+        await ExecuteSqlAsync(BuildUpsertQuery(table, id, entity), ct);
     }
 
     public async Task UpdateAsync<T>(T entity, CancellationToken ct = default) where T : class
     {
         var table = TableName<T>();
         var id    = GetId(entity);
-        // PATCH performs a merge update; we use PUT for full replacement.
-        var res = await _http.PutAsJsonAsync($"/key/{table}/{id}", entity, ct);
-        res.EnsureSuccessStatusCode();
+        await ExecuteSqlAsync(BuildUpsertQuery(table, id, entity), ct);
     }
 
     public async Task DeleteAsync<T>(string id, CancellationToken ct = default) where T : class
     {
         var table = TableName<T>();
-        var res = await _http.DeleteAsync($"/key/{table}/{id}", ct);
-        res.EnsureSuccessStatusCode();
+        await ExecuteSqlAsync($"DELETE type::record('{EscapeSqlString(table)}', '{EscapeSqlString(id)}');", ct);
+    }
+
+    private async Task ExecuteSqlAsync(string sql, CancellationToken ct)
+    {
+        using var content = new StringContent(sql, Encoding.UTF8, "text/plain");
+        using var response = await _http.PostAsync("/sql", content, ct);
+        var payload = await response.Content.ReadAsStringAsync(ct);
+
+        response.EnsureSuccessStatusCode();
+
+        if (string.IsNullOrWhiteSpace(payload))
+            return;
+
+        using var document = JsonDocument.Parse(payload);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+            return;
+
+        foreach (var item in document.RootElement.EnumerateArray())
+        {
+            if (item.TryGetProperty("status", out var status)
+                && string.Equals(status.GetString(), "ERR", StringComparison.OrdinalIgnoreCase))
+            {
+                var message = item.TryGetProperty("result", out var result)
+                    ? result.ToString()
+                    : payload;
+                throw new InvalidOperationException($"SurrealDB SQL request failed: {message}");
+            }
+        }
+    }
+
+    private static string BuildUpsertQuery<T>(string table, string id, T entity)
+    {
+        var json = JsonSerializer.Serialize(entity);
+        return $"UPSERT type::record('{EscapeSqlString(table)}', '{EscapeSqlString(id)}') CONTENT {json};";
     }
 
     private static string TableName<T>() => typeof(T).Name.ToLowerInvariant() + "s";
+
+    private static string EscapeSqlString(string value) => value.Replace("'", "\\'", StringComparison.Ordinal);
 
     private static string GetId<T>(T entity)
     {

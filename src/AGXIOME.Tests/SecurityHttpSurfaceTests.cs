@@ -29,6 +29,36 @@ using StockTrackerProgram = stocktracker::Program;
 using SupportHubProgram = supporthub::Program;
 using ToolAgentProgram = toolagent::Program;
 
+internal static class SecurityHttpTestDoubles
+{
+    public static IAgxiomeAgent CreateDeterministicAgent(string content)
+    {
+        var agent = Substitute.For<IAgxiomeAgent>();
+        agent.Id.Returns("deterministic-test-agent");
+        agent.Status.Returns(AgentStatus.Completed);
+        agent.RunAsync(Arg.Any<AgentRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new AgentResponse(content, AgentStatus.Completed)));
+        return agent;
+    }
+
+    public static IEmbedder CreateDeterministicEmbedder()
+    {
+        var embedder = Substitute.For<IEmbedder>();
+        embedder.EmbedderType.Returns(EmbedderType.OllamaMxbai);
+        embedder.Dimensions.Returns(1024);
+        embedder.EmbedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new float[1024]));
+        embedder.EmbedBatchAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                var texts = call.Arg<IReadOnlyList<string>>();
+                var vectors = texts.Select(_ => new float[1024]).ToArray();
+                return Task.FromResult(vectors);
+            });
+        return embedder;
+    }
+}
+
 public sealed class ToolAgentHttpSecurityTests
 {
     [Fact]
@@ -110,7 +140,14 @@ public sealed class ToolAgentHttpSecurityTests
 
     private static WebApplicationFactory<ToolAgentProgram> CreateToolAgentFactory(Dictionary<string, string?> config) =>
         new WebApplicationFactory<ToolAgentProgram>().WithWebHostBuilder(builder =>
-            builder.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(config)));
+        {
+            builder.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(config));
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IAgxiomeAgent>();
+                services.AddSingleton(_ => SecurityHttpTestDoubles.CreateDeterministicAgent("tool response"));
+            });
+        });
 }
 
 public sealed class RagPipelineHttpSecurityTests
@@ -344,7 +381,16 @@ public sealed class RagPipelineHttpSecurityTests
 
     private static WebApplicationFactory<RagPipelineProgram> CreateRagPipelineFactory(Dictionary<string, string?> config) =>
         new WebApplicationFactory<RagPipelineProgram>().WithWebHostBuilder(builder =>
-            builder.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(config)));
+        {
+            builder.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(config));
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IEmbedder>();
+                services.RemoveAll<IAgxiomeAgent>();
+                services.AddSingleton(_ => SecurityHttpTestDoubles.CreateDeterministicEmbedder());
+                services.AddSingleton(_ => SecurityHttpTestDoubles.CreateDeterministicAgent("grounded response"));
+            });
+        });
 
     private sealed class RagInputScope : IDisposable
     {
@@ -1582,6 +1628,7 @@ public sealed class SupportHubHttpSecurityTests
             });
         return agent;
     }
+
 }
 
 public sealed class ResearchAgentHttpSecurityTests

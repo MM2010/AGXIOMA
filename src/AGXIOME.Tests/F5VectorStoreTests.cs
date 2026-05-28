@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
@@ -282,11 +283,16 @@ public class ChromaDbCloudStoreTests
         => Assert.Throws<ArgumentNullException>(() => new ChromaDbCloudStore(null!));
 
     [Fact] public async Task Get_MissingRecord_ReturnsNull()
-        => Assert.Null(await new ChromaDbCloudStore(MockHttp("""{"ids":[],"embeddings":[]}""")).GetAsync("missing", "r1"));
+    {
+        var store = new ChromaDbCloudStore(StatefulHttp());
+        await store.EnsureCollectionAsync("missing", 2);
+        Assert.Null(await store.GetAsync("missing", "r1"));
+    }
 
     [Fact] public async Task Search_EmptyCollection_ReturnsEmpty()
     {
-        var store = new ChromaDbCloudStore(MockHttp("""{"ids":[[]],"distances":[[]]}"""));
+        var store = new ChromaDbCloudStore(StatefulHttp());
+        await store.EnsureCollectionAsync("empty", 3);
         var results = await store.SearchAsync("empty", new float[] { 1f, 0f, 0f });
         Assert.Empty(results);
     }
@@ -294,6 +300,7 @@ public class ChromaDbCloudStoreTests
     [Fact] public async Task UpsertBatch_MultipleRecords()
     {
         var store = new ChromaDbCloudStore(StatefulHttp());
+        await store.EnsureCollectionAsync("batch", 2);
         await store.UpsertBatchAsync("batch", [
             new VectorRecord("a", [1f, 0f], "alpha"),
             new VectorRecord("b", [0f, 1f], "beta")
@@ -306,6 +313,7 @@ public class ChromaDbCloudStoreTests
     [Fact] public async Task Delete_RemovesRecord()
     {
         var store = new ChromaDbCloudStore(StatefulHttp());
+        await store.EnsureCollectionAsync("del", 2);
         await store.UpsertBatchAsync("del", [new VectorRecord("x", [1f, 0f], "delete-me")]);
         await store.DeleteAsync("del", "x");
 
@@ -446,20 +454,36 @@ public class SingleStoreVectorStoreTests
     [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new SingleStoreVectorStore(null!));
 
-    [Fact(Skip = "requires live SingleStore instance")]
-    public Task EnsureCollection_Upsert_Get_RoundTrip() => Task.CompletedTask;
+}
 
-    [Fact(Skip = "requires live SingleStore instance")]
-    public Task Search_EmptyCollection_ReturnsEmpty() => Task.CompletedTask;
+public sealed class SingleStoreVectorStoreLiveTests
+{
+    private static async Task RunAsync(Func<IVectorStore, Task> assertion)
+    {
+        await AsyncFixtureRunner.UseAsync<SingleStoreContainerFixture>(fixture =>
+        {
+            var store = new SingleStoreVectorStore(new SingleStoreVectorOptions
+            {
+                ConnectionString = fixture.ConnectionString!,
+            });
+            return assertion(store);
+        });
+    }
 
-    [Fact(Skip = "requires live SingleStore instance")]
-    public Task UpsertBatch_MultipleRecords() => Task.CompletedTask;
+    [RequiresSingleStoreFact] public Task EnsureCollection_Upsert_Get_RoundTrip()
+        => RunAsync(store => PgVectorLiveTestCases.EnsureCollectionUpsertGetRoundTripAsync(() => store));
 
-    [Fact(Skip = "requires live SingleStore instance")]
-    public Task Delete_RemovesRecord() => Task.CompletedTask;
+    [RequiresSingleStoreFact] public Task Search_EmptyCollection_ReturnsEmpty()
+        => RunAsync(store => PgVectorLiveTestCases.SearchEmptyCollectionReturnsEmptyAsync(() => store));
 
-    [Fact(Skip = "requires live SingleStore instance")]
-    public Task ListCollections_ReturnsCollections() => Task.CompletedTask;
+    [RequiresSingleStoreFact] public Task UpsertBatch_MultipleRecords()
+        => RunAsync(store => PgVectorLiveTestCases.UpsertBatchMultipleRecordsAsync(() => store));
+
+    [RequiresSingleStoreFact] public Task Delete_RemovesRecord()
+        => RunAsync(store => PgVectorLiveTestCases.DeleteRemovesRecordAsync(() => store));
+
+    [RequiresSingleStoreFact] public Task ListCollections_ReturnsCollections()
+        => RunAsync(store => PgVectorLiveTestCases.ListCollectionsReturnsCollectionsAsync(() => store));
 }
 
 // ─── VD-11 — Qdrant Self-Hosted ───────────────────────────────────────────────
@@ -579,6 +603,27 @@ public class WeaviateSelfHostedStoreTests
     }
 }
 
+public sealed class WeaviateSelfHostedContainerTests(WeaviateContainerFixture fixture) : IClassFixture<WeaviateContainerFixture>
+{
+    private WeaviateSelfHostedStore CreateStore()
+        => new(new HttpClient { BaseAddress = new Uri(fixture.Endpoint) });
+
+    [Fact] public Task EnsureCollection_Upsert_Get_RoundTrip()
+        => WeaviateLiveTestCases.EnsureCollectionUpsertGetRoundTripAsync(CreateStore);
+
+    [Fact] public Task Search_EmptyCollection_ReturnsEmpty()
+        => WeaviateLiveTestCases.SearchEmptyCollectionReturnsEmptyAsync(CreateStore);
+
+    [Fact] public Task UpsertBatch_MultipleRecords()
+        => WeaviateLiveTestCases.UpsertBatchMultipleRecordsAsync(CreateStore);
+
+    [Fact] public Task Delete_RemovesRecord()
+        => WeaviateLiveTestCases.DeleteRemovesRecordAsync(CreateStore);
+
+    [Fact] public Task ListCollections_ReturnsCollections()
+        => WeaviateLiveTestCases.ListCollectionsReturnsCollectionsAsync(CreateStore);
+}
+
 // ─── VD-13 — Milvus Self-Hosted ───────────────────────────────────────────────
 
 public class MilvusSelfHostedStoreTests
@@ -647,6 +692,48 @@ public class MilvusSelfHostedStoreTests
     }
 }
 
+public sealed class MilvusSelfHostedContainerTests(MilvusContainerFixture fixture) : IClassFixture<MilvusContainerFixture>
+{
+    private MilvusSelfHostedStore CreateStore()
+        => new(new HttpClient { BaseAddress = new Uri(fixture.Endpoint) });
+
+    [Fact] public Task EnsureCollection_Upsert_Get_RoundTrip()
+        => MilvusLiveTestCases.EnsureCollectionUpsertGetRoundTripAsync(CreateStore);
+
+    [Fact] public Task Search_EmptyCollection_ReturnsEmpty()
+        => MilvusLiveTestCases.SearchEmptyCollectionReturnsEmptyAsync(CreateStore);
+
+    [Fact] public Task UpsertBatch_MultipleRecords()
+        => MilvusLiveTestCases.UpsertBatchMultipleRecordsAsync(CreateStore);
+
+    [Fact] public Task Delete_RemovesRecord()
+        => MilvusLiveTestCases.DeleteRemovesRecordAsync(CreateStore);
+
+    [Fact] public Task ListCollections_ReturnsCollections()
+        => MilvusLiveTestCases.ListCollectionsReturnsCollectionsAsync(CreateStore);
+}
+
+public sealed class ChromaSelfHostedContainerTests(ChromaContainerFixture fixture) : IClassFixture<ChromaContainerFixture>
+{
+    private ChromaDbSelfHostedStore CreateStore()
+        => new(new HttpClient { BaseAddress = new Uri(fixture.Endpoint) });
+
+    [Fact] public Task EnsureCollection_Upsert_Get_RoundTrip()
+        => ChromaLiveTestCases.EnsureCollectionUpsertGetRoundTripAsync(CreateStore);
+
+    [Fact] public Task Search_EmptyCollection_ReturnsEmpty()
+        => ChromaLiveTestCases.SearchEmptyCollectionReturnsEmptyAsync(CreateStore);
+
+    [Fact] public Task UpsertBatch_MultipleRecords()
+        => ChromaLiveTestCases.UpsertBatchMultipleRecordsAsync(CreateStore);
+
+    [Fact] public Task Delete_RemovesRecord()
+        => ChromaLiveTestCases.DeleteRemovesRecordAsync(CreateStore);
+
+    [Fact] public Task ListCollections_ReturnsCollections()
+        => ChromaLiveTestCases.ListCollectionsReturnsCollectionsAsync(CreateStore);
+}
+
 // ─── VD-14 — Chroma Self-Hosted ───────────────────────────────────────────────
 
 public class ChromaDbSelfHostedStoreTests
@@ -675,7 +762,8 @@ public class ChromaDbSelfHostedStoreTests
 
     [Fact] public async Task Search_EmptyCollection_ReturnsEmpty()
     {
-        var store = new ChromaDbSelfHostedStore(MockHttp("""{"ids":[[]],"distances":[[]]}"""));
+        var store = new ChromaDbSelfHostedStore(StatefulHttp());
+        await store.EnsureCollectionAsync("empty", 3);
         var results = await store.SearchAsync("empty", [1f, 0f, 0f]);
         Assert.Empty(results);
     }
@@ -683,6 +771,7 @@ public class ChromaDbSelfHostedStoreTests
     [Fact] public async Task UpsertBatch_MultipleRecords()
     {
         var store = new ChromaDbSelfHostedStore(StatefulHttp());
+        await store.EnsureCollectionAsync("batch", 2);
         await store.UpsertBatchAsync("batch", [
             new VectorRecord("a", [1f, 0f], "alpha"),
             new VectorRecord("b", [0f, 1f], "beta")
@@ -695,6 +784,7 @@ public class ChromaDbSelfHostedStoreTests
     [Fact] public async Task Delete_RemovesRecord()
     {
         var store = new ChromaDbSelfHostedStore(StatefulHttp());
+        await store.EnsureCollectionAsync("del", 2);
         await store.UpsertBatchAsync("del", [new VectorRecord("x", [1f, 0f], "delete-me")]);
         await store.DeleteAsync("del", "x");
 
@@ -1995,6 +2085,9 @@ internal sealed class MilvusStatefulHandler : StatefulHttpMessageHandler
             return JsonResponse(new { });
         }
 
+        if (path == "/v2/vectordb/collections/load" || path == "/v2/vectordb/collections/flush")
+            return JsonResponse(new { });
+
         if (path == "/v2/vectordb/entities/upsert")
         {
             var collection = doc.RootElement.GetProperty("collectionName").GetString() ?? string.Empty;
@@ -2025,13 +2118,58 @@ internal sealed class MilvusStatefulHandler : StatefulHttpMessageHandler
             return JsonResponse(new { data = results });
         }
 
+        if (path == "/v2/vectordb/entities/query")
+        {
+            var collection = doc.RootElement.GetProperty("collectionName").GetString() ?? string.Empty;
+            var results = new List<object>();
+            if (_collections.TryGetValue(collection, out var store)
+                && doc.RootElement.TryGetProperty("filter", out var filterElement))
+            {
+                var filter = filterElement.GetString() ?? string.Empty;
+                const string prefix = "id in [\"";
+                const string suffix = "\"]";
+                if (filter.StartsWith(prefix, StringComparison.Ordinal) && filter.EndsWith(suffix, StringComparison.Ordinal))
+                {
+                    var id = filter.Substring(prefix.Length, filter.Length - prefix.Length - suffix.Length)
+                        .Replace("\\\"", "\"");
+                    if (store.TryGetValue(id, out var record))
+                        results.Add(new { id = record.Id, vector = record.Vector, text_content = record.Text });
+                }
+            }
+
+            return JsonResponse(new { data = results });
+        }
+
         if (path == "/v2/vectordb/entities/delete")
         {
             var collection = doc.RootElement.GetProperty("collectionName").GetString() ?? string.Empty;
             if (_collections.TryGetValue(collection, out var store))
             {
-                foreach (var id in doc.RootElement.GetProperty("id").EnumerateArray())
-                    store.Remove(id.GetString() ?? string.Empty);
+                if (doc.RootElement.TryGetProperty("id", out var ids))
+                {
+                    foreach (var id in ids.EnumerateArray())
+                        store.Remove(id.GetString() ?? string.Empty);
+                }
+                else if (doc.RootElement.TryGetProperty("filter", out var filterElement))
+                {
+                    var filter = filterElement.GetString() ?? string.Empty;
+                    const string prefix = "id in ['";
+                    const string suffix = "']";
+                    const string doubleQuotedPrefix = "id in [\"";
+                    const string doubleQuotedSuffix = "\"]";
+                    if (filter.StartsWith(prefix, StringComparison.Ordinal) && filter.EndsWith(suffix, StringComparison.Ordinal))
+                    {
+                        var id = filter.Substring(prefix.Length, filter.Length - prefix.Length - suffix.Length)
+                            .Replace("\\'", "'");
+                        store.Remove(id);
+                    }
+                    else if (filter.StartsWith(doubleQuotedPrefix, StringComparison.Ordinal) && filter.EndsWith(doubleQuotedSuffix, StringComparison.Ordinal))
+                    {
+                        var id = filter.Substring(doubleQuotedPrefix.Length, filter.Length - doubleQuotedPrefix.Length - doubleQuotedSuffix.Length)
+                            .Replace("\\\"", "\"");
+                        store.Remove(id);
+                    }
+                }
             }
             return JsonResponse(new { });
         }
@@ -2050,7 +2188,9 @@ internal sealed class ChromaStatefulHandler : StatefulHttpMessageHandler
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var segments = RequestSegments(request);
-        if (segments.Length == 3 && request.Method == HttpMethod.Post && segments[0] == "api" && segments[1] == "v1" && segments[2] == "collections")
+        if (segments.Length == 7 && request.Method == HttpMethod.Post
+            && segments[0] == "api" && segments[1] == "v2"
+            && segments[2] == "tenants" && segments[4] == "databases" && segments[6] == "collections")
         {
             using var createDoc = await ReadJsonAsync(request, cancellationToken);
             var collectionName = createDoc.RootElement.GetProperty("name").GetString() ?? string.Empty;
@@ -2059,30 +2199,31 @@ internal sealed class ChromaStatefulHandler : StatefulHttpMessageHandler
             return JsonResponse(new { id = collectionName, name = collectionName });
         }
 
-        if (segments.Length == 3 && request.Method == HttpMethod.Get && segments[0] == "api" && segments[1] == "v1" && segments[2] == "collections")
+        if (segments.Length == 7 && request.Method == HttpMethod.Get
+            && segments[0] == "api" && segments[1] == "v2"
+            && segments[2] == "tenants" && segments[4] == "databases" && segments[6] == "collections")
             return JsonResponse(_knownCollections.Select(name => new { id = name, name }).ToArray());
 
-        if (segments.Length == 4 && segments[0] == "api" && segments[1] == "v1" && segments[2] == "collections")
+        if (segments.Length == 8
+            && segments[0] == "api" && segments[1] == "v2"
+            && segments[2] == "tenants" && segments[4] == "databases" && segments[6] == "collections")
         {
-            var collectionName = Uri.UnescapeDataString(segments[3]);
-            if (request.Method == HttpMethod.Get)
-                return _knownCollections.Contains(collectionName)
-                    ? JsonResponse(new { id = collectionName, name = collectionName })
-                    : JsonResponse(new { }, HttpStatusCode.NotFound);
-
             if (request.Method == HttpMethod.Delete)
             {
+                var collectionName = Uri.UnescapeDataString(segments[7]);
                 _knownCollections.Remove(collectionName);
                 _collections.Remove(collectionName);
                 return JsonResponse(new { });
             }
         }
 
-        if (segments.Length < 5 || segments[0] != "api" || segments[1] != "v1" || segments[2] != "collections")
+        if (segments.Length < 9
+            || segments[0] != "api" || segments[1] != "v2"
+            || segments[2] != "tenants" || segments[4] != "databases" || segments[6] != "collections")
             return JsonResponse(Array.Empty<object>());
 
-        var collection = Uri.UnescapeDataString(segments[3]);
-        var action = segments[4];
+        var collection = Uri.UnescapeDataString(segments[7]);
+        var action = segments[8];
         using var doc = await ReadJsonAsync(request, cancellationToken);
 
         if (request.Method == HttpMethod.Post && action == "upsert")
@@ -2434,6 +2575,93 @@ public sealed class QdrantContainerFixture : IAsyncLifetime
     }
 }
 
+public sealed class WeaviateContainerFixture : IAsyncLifetime
+{
+    private IContainer? _container;
+
+    public string Endpoint { get; private set; } = "http://localhost:8080/";
+
+    public async Task InitializeAsync()
+    {
+        _container = new ContainerBuilder("cr.weaviate.io/semitechnologies/weaviate:1.30.7")
+            .WithEnvironment("AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED", "true")
+            .WithEnvironment("PERSISTENCE_DATA_PATH", "/var/lib/weaviate")
+            .WithEnvironment("DEFAULT_VECTORIZER_MODULE", "none")
+            .WithEnvironment("ENABLE_MODULES", "")
+            .WithEnvironment("QUERY_DEFAULTS_LIMIT", "25")
+            .WithEnvironment("CLUSTER_HOSTNAME", "node1")
+            .WithPortBinding(8080, true)
+            .Build();
+
+        await _container.StartAsync();
+        var port = _container.GetMappedPublicPort(8080);
+        Endpoint = $"http://{_container.Hostname}:{port}/";
+        await ContainerReadiness.WaitForTcpPortAsync(_container.Hostname, port, attempts: 120);
+        await ContainerReadiness.WaitForWeaviateAsync(Endpoint, attempts: 120);
+    }
+
+    public async Task DisposeAsync()
+    {
+        if (_container is not null)
+            await _container.DisposeAsync();
+    }
+}
+
+public sealed class MilvusContainerFixture : IAsyncLifetime
+{
+    private IContainer? _container;
+
+    public string Endpoint { get; private set; } = "http://localhost:19530/";
+
+    public async Task InitializeAsync()
+    {
+        _container = new ContainerBuilder("milvusdb/milvus:v2.5.10")
+            .WithCommand("milvus", "run", "standalone")
+            .WithEnvironment("ETCD_USE_EMBED", "true")
+            .WithEnvironment("COMMON_STORAGETYPE", "local")
+            .WithPortBinding(19530, true)
+            .Build();
+
+        await _container.StartAsync();
+        var port = _container.GetMappedPublicPort(19530);
+        Endpoint = $"http://{_container.Hostname}:{port}/";
+        await ContainerReadiness.WaitForTcpPortAsync(_container.Hostname, port, attempts: 180);
+        await ContainerReadiness.WaitForMilvusAsync(Endpoint, attempts: 180);
+    }
+
+    public async Task DisposeAsync()
+    {
+        if (_container is not null)
+            await _container.DisposeAsync();
+    }
+}
+
+public sealed class ChromaContainerFixture : IAsyncLifetime
+{
+    private IContainer? _container;
+
+    public string Endpoint { get; private set; } = "http://localhost:8000/";
+
+    public async Task InitializeAsync()
+    {
+        _container = new ContainerBuilder("ghcr.io/chroma-core/chroma:latest")
+            .WithPortBinding(8000, true)
+            .Build();
+
+        await _container.StartAsync();
+        var port = _container.GetMappedPublicPort(8000);
+        Endpoint = $"http://{_container.Hostname}:{port}/";
+        await ContainerReadiness.WaitForTcpPortAsync(_container.Hostname, port, attempts: 120);
+        await ContainerReadiness.WaitForChromaAsync(Endpoint, attempts: 120);
+    }
+
+    public async Task DisposeAsync()
+    {
+        if (_container is not null)
+            await _container.DisposeAsync();
+    }
+}
+
 public sealed class RedisStackContainerFixture : IAsyncLifetime
 {
     private IContainer? _container;
@@ -2654,6 +2882,72 @@ internal static class ContainerReadiness
         throw new TimeoutException($"Meilisearch endpoint {endpoint} did not become ready in time.");
     }
 
+    public static async Task WaitForWeaviateAsync(string endpoint, int attempts = 40)
+    {
+        using var client = new HttpClient { BaseAddress = new Uri(endpoint) };
+        for (var attempt = 0; attempt < attempts; attempt++)
+        {
+            try
+            {
+                using var response = await client.GetAsync("/v1/meta");
+                if (response.IsSuccessStatusCode)
+                    return;
+            }
+            catch when (attempt < attempts - 1)
+            {
+            }
+
+            if (attempt < attempts - 1)
+                await Task.Delay(500);
+        }
+
+        throw new TimeoutException($"Weaviate endpoint {endpoint} did not become ready in time.");
+    }
+
+    public static async Task WaitForMilvusAsync(string endpoint, int attempts = 40)
+    {
+        using var client = new HttpClient { BaseAddress = new Uri(endpoint) };
+        for (var attempt = 0; attempt < attempts; attempt++)
+        {
+            try
+            {
+                using var response = await client.PostAsJsonAsync("/v2/vectordb/collections/list", new { });
+                if (response.IsSuccessStatusCode)
+                    return;
+            }
+            catch when (attempt < attempts - 1)
+            {
+            }
+
+            if (attempt < attempts - 1)
+                await Task.Delay(1000);
+        }
+
+        throw new TimeoutException($"Milvus endpoint {endpoint} did not become ready in time.");
+    }
+
+    public static async Task WaitForChromaAsync(string endpoint, int attempts = 40)
+    {
+        using var client = new HttpClient { BaseAddress = new Uri(endpoint) };
+        for (var attempt = 0; attempt < attempts; attempt++)
+        {
+            try
+            {
+                using var response = await client.GetAsync("api/v2/heartbeat");
+                if (response.IsSuccessStatusCode)
+                    return;
+            }
+            catch when (attempt < attempts - 1)
+            {
+            }
+
+            if (attempt < attempts - 1)
+                await Task.Delay(1000);
+        }
+
+        throw new TimeoutException($"Chroma endpoint {endpoint} did not become ready in time.");
+    }
+
     public static async Task WaitForPostgresAsync(string connectionString, int attempts = 40)
     {
         for (var attempt = 0; attempt < attempts; attempt++)
@@ -2801,6 +3095,332 @@ internal static class QdrantLiveTestCases
         }
         catch
         {
+        }
+    }
+}
+
+internal static class WeaviateLiveTestCases
+{
+    public static async Task EnsureCollectionUpsertGetRoundTripAsync(Func<IVectorStore> createStore)
+    {
+        var collection = $"F5WeaviateRoundtrip{Guid.NewGuid():N}";
+        var recordId = Guid.NewGuid().ToString();
+        var store = createStore();
+        try
+        {
+            await store.EnsureCollectionAsync(collection, 3);
+            await store.UpsertAsync(collection, new VectorRecord(recordId, [1f, 0f, 0f], "hello"));
+
+            await LiveTestRetry.EventuallyAsync(async () => await store.GetAsync(collection, recordId) is not null, attempts: 60, delayMs: 500);
+            Assert.NotNull(await store.GetAsync(collection, recordId));
+        }
+        finally
+        {
+            await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collection);
+        }
+    }
+
+    public static async Task SearchEmptyCollectionReturnsEmptyAsync(Func<IVectorStore> createStore)
+    {
+        var collection = $"F5WeaviateEmpty{Guid.NewGuid():N}";
+        var store = createStore();
+        try
+        {
+            await store.EnsureCollectionAsync(collection, 3);
+            Assert.Empty(await store.SearchAsync(collection, [1f, 0f, 0f]));
+        }
+        finally
+        {
+            await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collection);
+        }
+    }
+
+    public static async Task UpsertBatchMultipleRecordsAsync(Func<IVectorStore> createStore)
+    {
+        var collection = $"F5WeaviateBatch{Guid.NewGuid():N}";
+        var recordA = Guid.NewGuid().ToString();
+        var recordB = Guid.NewGuid().ToString();
+        var store = createStore();
+        try
+        {
+            await store.EnsureCollectionAsync(collection, 2);
+            await store.UpsertBatchAsync(collection, [
+                new VectorRecord(recordA, [1f, 0f], "alpha"),
+                new VectorRecord(recordB, [0f, 1f], "beta")
+            ]);
+
+            await LiveTestRetry.EventuallyAsync(async () =>
+                await store.GetAsync(collection, recordA) is not null
+                && await store.GetAsync(collection, recordB) is not null,
+                attempts: 60,
+                delayMs: 500);
+        }
+        finally
+        {
+            await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collection);
+        }
+    }
+
+    public static async Task DeleteRemovesRecordAsync(Func<IVectorStore> createStore)
+    {
+        var collection = $"F5WeaviateDelete{Guid.NewGuid():N}";
+        var recordId = Guid.NewGuid().ToString();
+        var store = createStore();
+        try
+        {
+            await store.EnsureCollectionAsync(collection, 2);
+            await store.UpsertAsync(collection, new VectorRecord(recordId, [1f, 0f], "delete-me"));
+            await LiveTestRetry.EventuallyAsync(async () => await store.GetAsync(collection, recordId) is not null, attempts: 60, delayMs: 500);
+
+            await store.DeleteAsync(collection, recordId);
+            await LiveTestRetry.EventuallyAsync(async () => await store.GetAsync(collection, recordId) is null, attempts: 60, delayMs: 500);
+        }
+        finally
+        {
+            await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collection);
+        }
+    }
+
+    public static async Task ListCollectionsReturnsCollectionsAsync(Func<IVectorStore> createStore)
+    {
+        var collectionA = $"F5WeaviateListA{Guid.NewGuid():N}";
+        var collectionB = $"F5WeaviateListB{Guid.NewGuid():N}";
+        var store = createStore();
+        try
+        {
+            await store.EnsureCollectionAsync(collectionA, 2);
+            await store.EnsureCollectionAsync(collectionB, 2);
+
+            await LiveTestRetry.EventuallyAsync(async () =>
+            {
+                var collections = await store.ListCollectionsAsync();
+                return collections.Contains(collectionA) && collections.Contains(collectionB);
+            }, attempts: 60, delayMs: 500);
+        }
+        finally
+        {
+            await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collectionA);
+            await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collectionB);
+        }
+    }
+}
+
+internal static class MilvusLiveTestCases
+{
+    public static async Task EnsureCollectionUpsertGetRoundTripAsync(Func<IVectorStore> createStore)
+    {
+        var collection = $"f5_milvus_roundtrip_{Guid.NewGuid():N}";
+        var recordId = Guid.NewGuid().ToString();
+        var store = createStore();
+        try
+        {
+            await store.EnsureCollectionAsync(collection, 3);
+            await store.UpsertAsync(collection, new VectorRecord(recordId, [1f, 0f, 0f], "hello"));
+
+            await LiveTestRetry.EventuallyAsync(async () =>
+            {
+                var got = await store.GetAsync(collection, recordId);
+                return got is not null && got.Text == "hello";
+            }, attempts: 60, delayMs: 500);
+        }
+        finally
+        {
+            await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collection);
+        }
+    }
+
+    public static async Task SearchEmptyCollectionReturnsEmptyAsync(Func<IVectorStore> createStore)
+    {
+        var collection = $"f5_milvus_empty_{Guid.NewGuid():N}";
+        var store = createStore();
+        try
+        {
+            await store.EnsureCollectionAsync(collection, 3);
+            Assert.Empty(await store.SearchAsync(collection, [1f, 0f, 0f]));
+        }
+        finally
+        {
+            await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collection);
+        }
+    }
+
+    public static async Task UpsertBatchMultipleRecordsAsync(Func<IVectorStore> createStore)
+    {
+        var collection = $"f5_milvus_batch_{Guid.NewGuid():N}";
+        var recordA = Guid.NewGuid().ToString();
+        var recordB = Guid.NewGuid().ToString();
+        var store = createStore();
+        try
+        {
+            await store.EnsureCollectionAsync(collection, 2);
+            await store.UpsertBatchAsync(collection, [
+                new VectorRecord(recordA, [1f, 0f], "alpha"),
+                new VectorRecord(recordB, [0f, 1f], "beta")
+            ]);
+
+            await LiveTestRetry.EventuallyAsync(async () =>
+                await store.GetAsync(collection, recordA) is not null
+                && await store.GetAsync(collection, recordB) is not null,
+                attempts: 60,
+                delayMs: 500);
+        }
+        finally
+        {
+            await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collection);
+        }
+    }
+
+    public static async Task DeleteRemovesRecordAsync(Func<IVectorStore> createStore)
+    {
+        var collection = $"f5_milvus_delete_{Guid.NewGuid():N}";
+        var recordId = Guid.NewGuid().ToString();
+        var store = createStore();
+        try
+        {
+            await store.EnsureCollectionAsync(collection, 2);
+            await store.UpsertAsync(collection, new VectorRecord(recordId, [1f, 0f], "delete-me"));
+            await LiveTestRetry.EventuallyAsync(async () => await store.GetAsync(collection, recordId) is not null, attempts: 60, delayMs: 500);
+
+            await store.DeleteAsync(collection, recordId);
+            await LiveTestRetry.EventuallyAsync(async () => await store.GetAsync(collection, recordId) is null, attempts: 60, delayMs: 500);
+        }
+        finally
+        {
+            await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collection);
+        }
+    }
+
+    public static async Task ListCollectionsReturnsCollectionsAsync(Func<IVectorStore> createStore)
+    {
+        var collectionA = $"f5_milvus_list_a_{Guid.NewGuid():N}";
+        var collectionB = $"f5_milvus_list_b_{Guid.NewGuid():N}";
+        var store = createStore();
+        try
+        {
+            await store.EnsureCollectionAsync(collectionA, 2);
+            await store.EnsureCollectionAsync(collectionB, 2);
+
+            await LiveTestRetry.EventuallyAsync(async () =>
+            {
+                var collections = await store.ListCollectionsAsync();
+                return collections.Contains(collectionA) && collections.Contains(collectionB);
+            }, attempts: 60, delayMs: 500);
+        }
+        finally
+        {
+            await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collectionA);
+            await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collectionB);
+        }
+    }
+}
+
+internal static class ChromaLiveTestCases
+{
+    public static async Task EnsureCollectionUpsertGetRoundTripAsync(Func<IVectorStore> createStore)
+    {
+        var collection = $"f5_chroma_roundtrip_{Guid.NewGuid():N}";
+        var recordId = Guid.NewGuid().ToString();
+        var store = createStore();
+        try
+        {
+            await store.EnsureCollectionAsync(collection, 3);
+            await store.UpsertAsync(collection, new VectorRecord(recordId, [1f, 0f, 0f], "hello"));
+
+            await LiveTestRetry.EventuallyAsync(async () =>
+            {
+                var got = await store.GetAsync(collection, recordId);
+                return got is not null;
+            }, attempts: 60, delayMs: 500);
+
+            Assert.NotNull(await store.GetAsync(collection, recordId));
+        }
+        finally
+        {
+            await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collection);
+        }
+    }
+
+    public static async Task SearchEmptyCollectionReturnsEmptyAsync(Func<IVectorStore> createStore)
+    {
+        var collection = $"f5_chroma_empty_{Guid.NewGuid():N}";
+        var store = createStore();
+        try
+        {
+            await store.EnsureCollectionAsync(collection, 3);
+            Assert.Empty(await store.SearchAsync(collection, [1f, 0f, 0f]));
+        }
+        finally
+        {
+            await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collection);
+        }
+    }
+
+    public static async Task UpsertBatchMultipleRecordsAsync(Func<IVectorStore> createStore)
+    {
+        var collection = $"f5_chroma_batch_{Guid.NewGuid():N}";
+        var recordA = Guid.NewGuid().ToString();
+        var recordB = Guid.NewGuid().ToString();
+        var store = createStore();
+        try
+        {
+            await store.EnsureCollectionAsync(collection, 2);
+            await store.UpsertBatchAsync(collection, [
+                new VectorRecord(recordA, [1f, 0f], "alpha"),
+                new VectorRecord(recordB, [0f, 1f], "beta")
+            ]);
+
+            await LiveTestRetry.EventuallyAsync(async () =>
+                await store.GetAsync(collection, recordA) is not null
+                && await store.GetAsync(collection, recordB) is not null,
+                attempts: 60,
+                delayMs: 500);
+        }
+        finally
+        {
+            await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collection);
+        }
+    }
+
+    public static async Task DeleteRemovesRecordAsync(Func<IVectorStore> createStore)
+    {
+        var collection = $"f5_chroma_delete_{Guid.NewGuid():N}";
+        var recordId = Guid.NewGuid().ToString();
+        var store = createStore();
+        try
+        {
+            await store.EnsureCollectionAsync(collection, 2);
+            await store.UpsertAsync(collection, new VectorRecord(recordId, [1f, 0f], "delete-me"));
+            await LiveTestRetry.EventuallyAsync(async () => await store.GetAsync(collection, recordId) is not null, attempts: 60, delayMs: 500);
+
+            await store.DeleteAsync(collection, recordId);
+            await LiveTestRetry.EventuallyAsync(async () => await store.GetAsync(collection, recordId) is null, attempts: 60, delayMs: 500);
+        }
+        finally
+        {
+            await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collection);
+        }
+    }
+
+    public static async Task ListCollectionsReturnsCollectionsAsync(Func<IVectorStore> createStore)
+    {
+        var collectionA = $"f5_chroma_list_a_{Guid.NewGuid():N}";
+        var collectionB = $"f5_chroma_list_b_{Guid.NewGuid():N}";
+        var store = createStore();
+        try
+        {
+            await store.EnsureCollectionAsync(collectionA, 2);
+            await store.EnsureCollectionAsync(collectionB, 2);
+
+            await LiveTestRetry.EventuallyAsync(async () =>
+            {
+                var collections = await store.ListCollectionsAsync();
+                return collections.Contains(collectionA) && collections.Contains(collectionB);
+            }, attempts: 60, delayMs: 500);
+        }
+        finally
+        {
+            await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collectionA);
+            await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collectionB);
         }
     }
 }

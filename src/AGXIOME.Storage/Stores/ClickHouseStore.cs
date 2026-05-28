@@ -55,7 +55,7 @@ public sealed class ClickHouseCommandStore : ICommandStore
             return $"{p.Name} = {s}";
         }));
         var id = GetId(entity);
-        var sql = $"ALTER TABLE {_opts.Database}.{table} UPDATE {set} WHERE Id = '{id}'";
+        var sql = $"ALTER TABLE {_opts.Database}.{table} UPDATE {set} WHERE Id = '{id}' SETTINGS mutations_sync = 1";
         using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
         await cmd.ExecuteNonQueryAsync(ct);
@@ -65,7 +65,7 @@ public sealed class ClickHouseCommandStore : ICommandStore
     {
         await using var conn = new ClickHouseConnection(_opts.ConnectionString);
         var table = TableName<T>();
-        var sql   = $"ALTER TABLE {_opts.Database}.{table} DELETE WHERE Id = '{id}'";
+        var sql   = $"ALTER TABLE {_opts.Database}.{table} DELETE WHERE Id = '{id}' SETTINGS mutations_sync = 1";
         using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
         await cmd.ExecuteNonQueryAsync(ct);

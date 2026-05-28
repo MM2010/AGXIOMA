@@ -43,8 +43,11 @@ public sealed class BackofficeRuntimeService
         IWebHostEnvironment environment,
         ILogger<BackofficeRuntimeService> log)
     {
-        _router = swarms.First(s => string.Equals(s.Name, "backoffice-router", StringComparison.OrdinalIgnoreCase));
-        _contentSwarm = swarms.First(s => string.Equals(s.Name, "backoffice-content", StringComparison.OrdinalIgnoreCase));
+        var swarmList = swarms.ToList();
+        _router = swarmList.FirstOrDefault(s => string.Equals(s.Name, "backoffice-router", StringComparison.OrdinalIgnoreCase))
+            ?? swarmList.First();
+        _contentSwarm = swarmList.FirstOrDefault(s => string.Equals(s.Name, "backoffice-content", StringComparison.OrdinalIgnoreCase))
+            ?? _router;
         _log = log;
 
         var appDataPath = Path.Combine(environment.ContentRootPath, "App_Data");

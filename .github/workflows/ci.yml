@@ -51,10 +51,31 @@ jobs:
           path: TestResults/*.trx
           retention-days: 14
 
+  isolated-tests:
+    name: Isolated Test Gate
+    runs-on: windows-latest
+    needs: build-and-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.SOLUTION }}
+
+      - name: Run isolated AGXIOME.Tests gate
+        shell: pwsh
+        run: ./scripts/test-agxiome-tests-isolated.ps1
+
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
-    needs: build-and-test
+    needs: isolated-tests
 
     steps:
       - name: Checkout

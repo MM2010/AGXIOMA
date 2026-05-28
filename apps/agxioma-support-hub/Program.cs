@@ -11,11 +11,12 @@ builder.Services.AddSingleton<BackofficeRuntimeService>();
 
 var provider = builder.Configuration["Agent:Provider"] ?? "deepseek";
 var model    = builder.Configuration["Agent:Model"];
+var endpoint = builder.Configuration["Agent:Endpoint"];
 var workers  = builder.Configuration.GetValue("Agent:ResearchWorkers", 3);
 
 // ── Swarm registration — fluent API ──────────────────────────────────────────
 builder.Services.AddAgxiome()
-    .UseProvider(provider, string.IsNullOrEmpty(model) ? null : model)
+    .UseProvider(provider, string.IsNullOrEmpty(model) ? null : model, string.IsNullOrEmpty(endpoint) ? null : endpoint)
 
     // ── Customer support routing (ForestSwarm) ────────────────────────────
     .AddForestSwarm("support", forest =>
@@ -142,6 +143,7 @@ app.MapGet("/health", (IConfiguration cfg) => Results.Ok(new
     status   = "ok",
     provider = cfg["Agent:Provider"],
     model    = cfg["Agent:Model"],
+    endpoint = cfg["Agent:Endpoint"],
     swarms   = new[] { "support (ForestSwarm)", "analyst (HeavySwarm)" },
     utc      = DateTime.UtcNow
 }))

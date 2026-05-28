@@ -160,7 +160,11 @@ public abstract class WeaviateVectorStoreBase : IVectorStore
         {
             @class = collection,
             vectorizer = "none",  // we supply vectors manually
-            properties = Array.Empty<object>(),
+            properties = new object[]
+            {
+                new { name = "text_content", dataType = new[] { "text" } },
+                new { name = "metadata", dataType = new[] { "text" } },
+            },
         };
         var resp = await _http.PostAsJsonAsync("v1/schema", body, Json.Opts, ct);
         // 422 = class already exists — treat as success.
@@ -297,10 +301,42 @@ public abstract class MilvusVectorStoreBase : IVectorStore
         var body = new
         {
             collectionName = collection,
-            dimension = dimensions,
-            metricType = "COSINE",
-            primaryField = "id",
-            vectorField = "vector",
+            schema = new
+            {
+                autoId = false,
+                enableDynamicField = true,
+                fields = new object[]
+                {
+                    new
+                    {
+                        fieldName = "id",
+                        dataType = "VarChar",
+                        isPrimary = true,
+                        elementTypeParams = new
+                        {
+                            max_length = "128",
+                        },
+                    },
+                    new
+                    {
+                        fieldName = "vector",
+                        dataType = "FloatVector",
+                        elementTypeParams = new
+                        {
+                            dim = dimensions.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        },
+                    },
+                },
+            },
+            indexParams = new object[]
+            {
+                new
+                {
+                    fieldName = "vector",
+                    indexName = "vector",
+                    metricType = "COSINE",
+                },
+            },
         };
         var resp = await _http.PostAsJsonAsync("v2/vectordb/collections/create", body, Json.Opts, ct);
         // Code 65535 = collection already exists — safe to ignore.
@@ -309,6 +345,8 @@ public abstract class MilvusVectorStoreBase : IVectorStore
             var content = await resp.Content.ReadAsStringAsync(ct);
             if (!content.Contains("65535")) resp.EnsureSuccessStatusCode();
         }
+
+        await PostMilvusAdminCommandAsync("v2/vectordb/collections/load", collection, ct);
     }
 
     public async Task DeleteCollectionAsync(string collection, CancellationToken ct = default)
@@ -336,6 +374,7 @@ public abstract class MilvusVectorStoreBase : IVectorStore
         };
         var resp = await _http.PostAsJsonAsync("v2/vectordb/entities/upsert", body, Json.Opts, ct);
         resp.EnsureSuccessStatusCode();
+        await FlushAndLoadCollectionAsync(collection, ct);
     }
 
     public async Task UpsertBatchAsync(string collection, IReadOnlyList<VectorRecord> records, CancellationToken ct = default)
@@ -347,29 +386,69 @@ public abstract class MilvusVectorStoreBase : IVectorStore
         };
         var resp = await _http.PostAsJsonAsync("v2/vectordb/entities/upsert", body, Json.Opts, ct);
         resp.EnsureSuccessStatusCode();
+        await FlushAndLoadCollectionAsync(collection, ct);
     }
 
     public async Task<VectorRecord?> GetAsync(string collection, string id, CancellationToken ct = default)
     {
-        var body = new { collectionName = collection, id = new[] { id }, outputFields = new[] { "id", "vector", "text_content" } };
-        var resp = await _http.PostAsJsonAsync("v2/vectordb/entities/get", body, Json.Opts, ct);
-        resp.EnsureSuccessStatusCode();
-        using var doc = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-        if (!doc.RootElement.TryGetProperty("data", out var data)) return null;
+        var byIdBody = new { collectionName = collection, id = new[] { id }, outputFields = new[] { "id", "vector", "text_content" } };
+        var byIdResponse = await _http.PostAsJsonAsync("v2/vectordb/entities/get", byIdBody, Json.Opts, ct);
+        byIdResponse.EnsureSuccessStatusCode();
+        using var byIdDoc = await JsonDocument.ParseAsync(await byIdResponse.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+        var byIdRecord = ParseMilvusRecord(id, byIdDoc);
+        if (byIdRecord is not null)
+            return byIdRecord;
+
+        var escapedId = id.Replace("\"", "\\\"");
+        var queryBody = new
+        {
+            collectionName = collection,
+            filter = $"id in [\"{escapedId}\"]",
+            outputFields = new[] { "id", "vector", "text_content" }
+        };
+        var queryResponse = await _http.PostAsJsonAsync("v2/vectordb/entities/query", queryBody, Json.Opts, ct);
+        queryResponse.EnsureSuccessStatusCode();
+        using var queryDoc = await JsonDocument.ParseAsync(await queryResponse.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+        return ParseMilvusRecord(id, queryDoc);
+    }
+
+    private static VectorRecord? ParseMilvusRecord(string id, JsonDocument doc)
+    {
+        if (!doc.RootElement.TryGetProperty("data", out var data))
+            return null;
+
         var arr = data.EnumerateArray().ToList();
-        if (arr.Count == 0) return null;
+        if (arr.Count == 0)
+            return null;
+
         var first = arr[0];
         var vec = first.TryGetProperty("vector", out var v)
-            ? v.EnumerateArray().Select(e => e.GetSingle()).ToArray() : Array.Empty<float>();
+            ? v.EnumerateArray().Select(e => e.GetSingle()).ToArray()
+            : Array.Empty<float>();
+
         return new VectorRecord(id, vec,
             first.TryGetProperty("text_content", out var t) ? t.GetString() : null);
     }
 
     public async Task DeleteAsync(string collection, string id, CancellationToken ct = default)
     {
+        var escapedId = id.Replace("\"", "\\\"");
         var resp = await _http.PostAsJsonAsync("v2/vectordb/entities/delete",
-            new { collectionName = collection, id = new[] { id } }, Json.Opts, ct);
+            new { collectionName = collection, filter = $"id in [\"{escapedId}\"]" }, Json.Opts, ct);
         resp.EnsureSuccessStatusCode();
+        await FlushAndLoadCollectionAsync(collection, ct);
+    }
+
+    private async Task FlushAndLoadCollectionAsync(string collection, CancellationToken ct)
+    {
+        await PostMilvusAdminCommandAsync("v2/vectordb/collections/flush", collection, ct);
+        await PostMilvusAdminCommandAsync("v2/vectordb/collections/load", collection, ct);
+    }
+
+    private async Task PostMilvusAdminCommandAsync(string endpoint, string collection, CancellationToken ct)
+    {
+        var response = await _http.PostAsJsonAsync(endpoint, new { collectionName = collection }, Json.Opts, ct);
+        response.EnsureSuccessStatusCode();
     }
 
     public async Task<IReadOnlyList<VectorSearchResult>> SearchAsync(
@@ -421,6 +500,7 @@ public sealed class MilvusSelfHostedStore : MilvusVectorStoreBase
 /// HttpClient base address must point to the Chroma server (e.g. http://localhost:8000/).</summary>
 public abstract class ChromaVectorStoreBase : IVectorStore
 {
+    private const string ChromaCollectionsPath = "api/v2/tenants/default_tenant/databases/default_database/collections";
     private readonly HttpClient _http;
     public abstract VectorDbProviderType ProviderType { get; }
 
@@ -429,38 +509,81 @@ public abstract class ChromaVectorStoreBase : IVectorStore
 
     private async Task<string?> GetCollectionIdAsync(string name, CancellationToken ct)
     {
-        var resp = await _http.GetAsync($"api/v1/collections/{Uri.EscapeDataString(name)}", ct);
-        if (!resp.IsSuccessStatusCode) return null;
+        var resp = await _http.GetAsync(ChromaCollectionsPath, ct);
+        if (!resp.IsSuccessStatusCode)
+            return null;
+
         using var doc = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-        return doc.RootElement.TryGetProperty("id", out var id) ? id.GetString() : null;
+        foreach (var collection in doc.RootElement.EnumerateArray())
+        {
+            if (!collection.TryGetProperty("name", out var collectionName)
+                || !string.Equals(collectionName.GetString(), name, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            return collection.TryGetProperty("id", out var id) ? id.GetString() : null;
+        }
+
+        return null;
+    }
+
+    private async Task<string> GetRequiredCollectionIdAsync(string collection, CancellationToken ct)
+        => await GetCollectionIdAsync(collection, ct)
+            ?? throw new InvalidOperationException($"Chroma collection '{collection}' was not found.");
+
+    private static string GetCollectionRecordsPath(string collectionId, string action)
+        => $"{ChromaCollectionsPath}/{Uri.EscapeDataString(collectionId)}/{action}";
+
+    private static IReadOnlyList<string> ParseChromaCollectionNames(JsonDocument doc)
+        => doc.RootElement.EnumerateArray()
+            .Select(e => e.TryGetProperty("name", out var n) ? n.GetString() : null)
+            .Where(n => n is not null)
+            .Select(n => n!)
+            .ToList();
+
+    private static VectorRecord? ParseChromaRecord(string id, JsonDocument doc)
+    {
+        var ids = doc.RootElement.TryGetProperty("ids", out var idsEl) ? idsEl.EnumerateArray().ToList() : [];
+        if (ids.Count == 0)
+            return null;
+
+        var embs = doc.RootElement.TryGetProperty("embeddings", out var embEl) ? embEl.EnumerateArray().ToList() : [];
+        var docs = doc.RootElement.TryGetProperty("documents", out var docsEl) ? docsEl.EnumerateArray().ToList() : [];
+        var vec = embs.Count > 0 ? embs[0].EnumerateArray().Select(e => e.GetSingle()).ToArray() : Array.Empty<float>();
+        var text = docs.Count > 0 ? docs[0].GetString() : null;
+        return new VectorRecord(id, vec, text);
     }
 
     public async Task EnsureCollectionAsync(string collection, int dimensions, CancellationToken ct = default)
     {
-        var body = new { name = collection, metadata = new { hnsw_space = "cosine" } };
-        var resp = await _http.PostAsJsonAsync("api/v1/collections", body, Json.Opts, ct);
-        if (resp.StatusCode != System.Net.HttpStatusCode.Conflict)
-            resp.EnsureSuccessStatusCode();
+        var body = new
+        {
+            name = collection,
+            metadata = new Dictionary<string, string> { ["hnsw:space"] = "cosine" },
+            get_or_create = true,
+        };
+        var resp = await _http.PostAsJsonAsync(ChromaCollectionsPath, body, Json.Opts, ct);
+        resp.EnsureSuccessStatusCode();
     }
 
     public async Task DeleteCollectionAsync(string collection, CancellationToken ct = default)
     {
-        var resp = await _http.DeleteAsync($"api/v1/collections/{Uri.EscapeDataString(collection)}", ct);
+        var resp = await _http.DeleteAsync($"{ChromaCollectionsPath}/{Uri.EscapeDataString(collection)}", ct);
         resp.EnsureSuccessStatusCode();
     }
 
     public async Task<IReadOnlyList<string>> ListCollectionsAsync(CancellationToken ct = default)
     {
-        var resp = await _http.GetAsync("api/v1/collections", ct);
+        var resp = await _http.GetAsync(ChromaCollectionsPath, ct);
         resp.EnsureSuccessStatusCode();
         using var doc = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-        return doc.RootElement.EnumerateArray()
-            .Select(e => e.TryGetProperty("name", out var n) ? n.GetString() : null)
-            .Where(n => n is not null).Select(n => n!).ToList();
+        return ParseChromaCollectionNames(doc);
     }
 
     public async Task UpsertAsync(string collection, VectorRecord record, CancellationToken ct = default)
     {
+        var collectionId = await GetRequiredCollectionIdAsync(collection, ct);
         var body = new
         {
             ids = new[] { record.Id },
@@ -468,39 +591,38 @@ public abstract class ChromaVectorStoreBase : IVectorStore
             documents = record.Text is not null ? new[] { record.Text } : null,
             metadatas = record.Metadata is not null ? new[] { record.Metadata } : null,
         };
-        var resp = await _http.PostAsJsonAsync($"api/v1/collections/{Uri.EscapeDataString(collection)}/upsert", body, Json.Opts, ct);
+        var resp = await _http.PostAsJsonAsync(GetCollectionRecordsPath(collectionId, "upsert"), body, Json.Opts, ct);
         resp.EnsureSuccessStatusCode();
     }
 
     public async Task UpsertBatchAsync(string collection, IReadOnlyList<VectorRecord> records, CancellationToken ct = default)
     {
+        var collectionId = await GetRequiredCollectionIdAsync(collection, ct);
         var body = new
         {
             ids = records.Select(r => r.Id).ToArray(),
             embeddings = records.Select(r => r.Vector).ToArray(),
             documents = records.Select(r => r.Text).ToArray(),
         };
-        var resp = await _http.PostAsJsonAsync($"api/v1/collections/{Uri.EscapeDataString(collection)}/upsert", body, Json.Opts, ct);
+        var resp = await _http.PostAsJsonAsync(GetCollectionRecordsPath(collectionId, "upsert"), body, Json.Opts, ct);
         resp.EnsureSuccessStatusCode();
     }
 
     public async Task<VectorRecord?> GetAsync(string collection, string id, CancellationToken ct = default)
     {
+        var collectionId = await GetRequiredCollectionIdAsync(collection, ct);
         var body = new { ids = new[] { id }, include = new[] { "embeddings", "documents" } };
-        var resp = await _http.PostAsJsonAsync($"api/v1/collections/{Uri.EscapeDataString(collection)}/get", body, Json.Opts, ct);
+        var resp = await _http.PostAsJsonAsync(GetCollectionRecordsPath(collectionId, "get"), body, Json.Opts, ct);
         resp.EnsureSuccessStatusCode();
         using var doc = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-        var ids = doc.RootElement.TryGetProperty("ids", out var idsEl) ? idsEl.EnumerateArray().ToList() : new();
-        if (ids.Count == 0) return null;
-        var embs = doc.RootElement.TryGetProperty("embeddings", out var embEl) ? embEl.EnumerateArray().ToList() : new();
-        var vec = embs.Count > 0 ? embs[0].EnumerateArray().Select(e => e.GetSingle()).ToArray() : Array.Empty<float>();
-        return new VectorRecord(id, vec);
+        return ParseChromaRecord(id, doc);
     }
 
     public async Task DeleteAsync(string collection, string id, CancellationToken ct = default)
     {
+        var collectionId = await GetRequiredCollectionIdAsync(collection, ct);
         var body = new { ids = new[] { id } };
-        var resp = await _http.PostAsJsonAsync($"api/v1/collections/{Uri.EscapeDataString(collection)}/delete", body, Json.Opts, ct);
+        var resp = await _http.PostAsJsonAsync(GetCollectionRecordsPath(collectionId, "delete"), body, Json.Opts, ct);
         resp.EnsureSuccessStatusCode();
     }
 
@@ -508,13 +630,14 @@ public abstract class ChromaVectorStoreBase : IVectorStore
         string collection, float[] queryVector, int topK = 10, float minScore = 0f,
         VectorFilter? filter = null, CancellationToken ct = default)
     {
+        var collectionId = await GetRequiredCollectionIdAsync(collection, ct);
         var body = new
         {
             query_embeddings = new[] { queryVector },
             n_results = topK,
             include = new[] { "distances", "documents" },
         };
-        var resp = await _http.PostAsJsonAsync($"api/v1/collections/{Uri.EscapeDataString(collection)}/query", body, Json.Opts, ct);
+        var resp = await _http.PostAsJsonAsync(GetCollectionRecordsPath(collectionId, "query"), body, Json.Opts, ct);
         resp.EnsureSuccessStatusCode();
         using var doc = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
         var results = new List<VectorSearchResult>();

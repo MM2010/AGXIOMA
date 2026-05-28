@@ -106,6 +106,8 @@ public sealed record HazelcastStoreOptions
 
 public sealed class HazelcastCommandStore : ICommandStore, IAsyncDisposable
 {
+    private static readonly TimeSpan InitializationTimeout = TimeSpan.FromSeconds(15);
+
     private readonly HazelcastStoreOptions _opts;
     private Hazelcast.IHazelcastClient? _client;
     private Hazelcast.DistributedObjects.IHMap<string, string>? _map;
@@ -124,6 +126,9 @@ public sealed class HazelcastCommandStore : ICommandStore, IAsyncDisposable
         {
             if (_map is null)
             {
+                using var initCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                initCts.CancelAfter(InitializationTimeout);
+
                 var options = new Hazelcast.HazelcastOptionsBuilder()
                     .With(o =>
                     {
@@ -132,8 +137,15 @@ public sealed class HazelcastCommandStore : ICommandStore, IAsyncDisposable
                             o.Networking.Addresses.Add(addr);
                     })
                     .Build();
-                _client = await Hazelcast.HazelcastClientFactory.StartNewClientAsync(options, ct);
-                _map    = await _client.GetMapAsync<string, string>(_opts.MapName);
+
+                _client = await Hazelcast.HazelcastClientFactory
+                    .StartNewClientAsync(options, initCts.Token)
+                    .AsTask()
+                    .WaitAsync(InitializationTimeout, ct);
+
+                _map = await _client
+                    .GetMapAsync<string, string>(_opts.MapName)
+                    .WaitAsync(InitializationTimeout, ct);
             }
         }
         finally { _initLock.Release(); }

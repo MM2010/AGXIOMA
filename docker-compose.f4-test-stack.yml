@@ -25,6 +25,79 @@ services:
       - "${AGXIOME_DYNAMODB_HOST_PORT}:4566"
     restart: unless-stopped
 
+  f4-singlestore:
+    image: singlestore/cluster-in-a-box:latest
+    container_name: agxioma-f4-singlestore
+    environment:
+      ROOT_PASSWORD: ${AGXIOME_SINGLESTORE_PASSWORD}
+      SINGLESTORE_LICENSE: free
+    ports:
+      - "${AGXIOME_SINGLESTORE_HOST_PORT}:3306"
+    restart: unless-stopped
+
+  f4-cockroach:
+    image: cockroachdb/cockroach:v25.2.1
+    container_name: agxioma-f4-cockroach
+    entrypoint:
+      - cockroach
+    command:
+      - start-single-node
+      - --insecure
+      - --advertise-addr=127.0.0.1:26357
+      - --listen-addr=127.0.0.1:26357
+      - --sql-addr=0.0.0.0:26257
+      - --http-addr=0.0.0.0:8080
+    ports:
+      - "${AGXIOME_COCKROACH_HOST_PORT}:26257"
+    restart: unless-stopped
+
+  f4-timescale:
+    image: timescale/timescaledb:latest-pg16
+    container_name: agxioma-f4-timescale
+    environment:
+      POSTGRES_PASSWORD: ${AGXIOME_TIMESCALE_PASSWORD}
+      POSTGRES_DB: ${AGXIOME_TIMESCALE_DATABASE}
+    ports:
+      - "${AGXIOME_TIMESCALE_HOST_PORT}:5432"
+    restart: unless-stopped
+
+  f4-cosmos:
+    image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
+    container_name: agxioma-f4-cosmos
+    environment:
+      ACCEPT_EULA: "Y"
+    ports:
+      - "${AGXIOME_COSMOS_HOST_PORT}:8081"
+      - "10250:10250"
+      - "10251:10251"
+      - "10252:10252"
+      - "10253:10253"
+      - "10254:10254"
+      - "10255:10255"
+      - "10350:10350"
+    restart: unless-stopped
+
+  f4-firestore:
+    image: mtlynch/firestore-emulator:latest
+    container_name: agxioma-f4-firestore
+    ports:
+      - "${AGXIOME_FIRESTORE_HOST_PORT}:8080"
+    restart: unless-stopped
+
+  f4-redis:
+    image: redis:7.4-alpine
+    container_name: agxioma-f4-redis
+    ports:
+      - "6390:6379"
+    restart: unless-stopped
+
+  f4-memcached:
+    image: memcached:1.6-alpine
+    container_name: agxioma-f4-memcached
+    ports:
+      - "${AGXIOME_MEMCACHED_HOST_PORT}:11211"
+    restart: unless-stopped
+
   f4-surreal:
     image: surrealdb/surrealdb:latest
     container_name: agxioma-f4-surreal

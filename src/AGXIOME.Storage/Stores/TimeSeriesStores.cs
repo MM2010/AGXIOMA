@@ -125,7 +125,7 @@ public sealed class QuestDbCommandStore : ICommandStore
     {
         var ilp = BuildIlpLine(entity);
         using var content = new StringContent(ilp, Encoding.UTF8, "text/plain");
-        var res = await _http.PostAsync("/write", content, ct);
+        var res = await _http.PostAsync("/write?precision=ms", content, ct);
         res.EnsureSuccessStatusCode();
     }
 
@@ -137,10 +137,9 @@ public sealed class QuestDbCommandStore : ICommandStore
 
     public async Task DeleteAsync<T>(string id, CancellationToken ct = default) where T : class
     {
-        // QuestDB does not support DELETE on hypertables; partition drop is done via REST or SQL.
-        var sql     = $"DROP TABLE IF EXISTS '{typeof(T).Name.ToLowerInvariant()}s' WHERE Id = '{id}'";
-        var encoded = Uri.EscapeDataString(sql);
-        var res     = await _http.GetAsync($"/exec?query={encoded}", ct);
+        var ilp = BuildDeleteIlpLine<T>(id);
+        using var content = new StringContent(ilp, Encoding.UTF8, "text/plain");
+        var res = await _http.PostAsync("/write?precision=ms", content, ct);
         res.EnsureSuccessStatusCode();
     }
 
@@ -169,6 +168,13 @@ public sealed class QuestDbCommandStore : ICommandStore
         }
         var ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         return $"{table},Id={id} {string.Join(",", fields)} {ts}";
+    }
+
+    private static string BuildDeleteIlpLine<T>(string id)
+    {
+        var table = typeof(T).Name.ToLowerInvariant() + "s";
+        var ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        return $"{table},Id={id} Deleted=t {ts}";
     }
 
     private static string GetId<T>(T entity)
