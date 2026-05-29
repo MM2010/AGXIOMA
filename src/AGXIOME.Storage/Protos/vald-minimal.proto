@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package vald.v1;
+
+option csharp_namespace = "AGXIOME.Storage.VectorStores.ValdProto";
+
+service Upsert {
+  rpc Upsert(UpsertRequest) returns (ObjectLocation);
+  rpc MultiUpsert(UpsertMultiRequest) returns (ObjectLocations);
+}
+
+service Object {
+  rpc GetObject(ObjectVectorRequest) returns (ObjectVector);
+}
+
+service Remove {
+  rpc Remove(RemoveRequest) returns (ObjectLocation);
+}
+
+service Search {
+  rpc Search(SearchRequest) returns (SearchResponse);
+}
+
+message UpsertRequest {
+  ObjectVector vector = 1;
+}
+
+message UpsertMultiRequest {
+  repeated UpsertRequest requests = 1;
+}
+
+message RemoveRequest {
+  ObjectId id = 1;
+}
+
+message SearchRequest {
+  repeated float vector = 1;
+  SearchConfig config = 2;
+}
+
+message SearchConfig {
+  uint32 num = 2;
+}
+
+message SearchResponse {
+  string request_id = 1;
+  repeated ObjectDistance results = 2;
+}
+
+message ObjectVectorRequest {
+  ObjectId id = 1;
+}
+
+message ObjectId {
+  string id = 1;
+}
+
+message ObjectVector {
+  string id = 1;
+  repeated float vector = 2;
+  int64 timestamp = 3;
+}
+
+message ObjectDistance {
+  string id = 1;
+  float distance = 2;
+}
+
+message ObjectLocation {
+  string name = 1;
+  string uuid = 2;
+  repeated string ips = 3;
+}
+
+message ObjectLocations {
+  repeated ObjectLocation locations = 1;
+}

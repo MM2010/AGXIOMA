@@ -1,10 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Net.Sockets;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Configurations;
 using DotNet.Testcontainers.Containers;
+using DotNet.Testcontainers.Networks;
 using static AGXIOME.Tests.F5HttpTestHelpers;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Errors;
@@ -32,15 +35,114 @@ namespace AGXIOME.Tests;
 //   • In-memory stores (HNSWLib, FAISS, Annoy): all 7 tests run — no server needed.
 //   • Embedded DB stores (SqliteVec, DuckDB): all 7 tests run with :memory: data source.
 //   • Persistent disk stores (RocksDB): all 7 tests run with temp directory + cleanup.
-//   • HTTP stores (Pinecone, Weaviate, Milvus, Chroma, Vald, Vespa, LanceDB, ScaNN):
+//   • HTTP stores (Pinecone, Weaviate, Milvus, Chroma, Vespa, LanceDB, ScaNN):
 //       provider, constructor, empty search/list, missing-record get, batch upsert, and delete paths
 //       run via deterministic stateful fake HttpClient handlers.
+//   • Vald uses a deterministic fake transport for unit coverage plus a live standalone
+//       agent-ngt fixture because the real runtime is gRPC-first.
 //   • SDK-dependent stores (Qdrant, pgvector variants, SingleStore, Elasticsearch,
 //     Meilisearch, Redis, MongoDB, Cosmos, SqlServer):
 //       constructor/provider tests run; stateful integration paths still require live server / cloud service.
 //
 // Total: 210 tests (7 × 30 stores).
 // ─────────────────────────────────────────────────────────────────────────────
+
+internal static class LiveVectorStoreTestSupport
+{
+    internal const string MongoAtlasConnectionStringEnv = "AGXIOME_MONGODB_ATLAS_CONNECTION_STRING";
+    internal const string MongoAtlasDatabaseEnv = "AGXIOME_MONGODB_ATLAS_DATABASE";
+    internal const string MongoAtlasCollectionEnv = "AGXIOME_MONGODB_ATLAS_COLLECTION";
+    internal const string CosmosVCoreConnectionStringEnv = "AGXIOME_COSMOS_VCORE_CONNECTION_STRING";
+    internal const string CosmosVCoreDatabaseEnv = "AGXIOME_COSMOS_VCORE_DATABASE";
+    internal const string CosmosVCoreCollectionEnv = "AGXIOME_COSMOS_VCORE_COLLECTION";
+    internal const string SqlServerVectorConnectionStringEnv = "AGXIOME_SQLSERVER_VECTOR_CONNECTION_STRING";
+    internal const string ScaNNEndpointEnv = "AGXIOME_SCANN_ENDPOINT";
+
+    internal static string RequireEnvironmentVariable(string envName, string requirement)
+    {
+        var value = Environment.GetEnvironmentVariable(envName);
+        if (!string.IsNullOrWhiteSpace(value))
+            return value;
+
+        throw new InvalidOperationException($"Missing required environment variable {envName} for {requirement}.");
+    }
+
+    internal static string UniqueName(string prefix)
+        => $"{prefix}_{Guid.NewGuid():N}";
+
+    internal static RocksDbHnswStore CreateRocksDbStoreOrSkip(string path)
+        => new RocksDbHnswStore(path);
+
+    internal static HttpClient CreateScaNNHttpClientOrSkip()
+    {
+        var endpoint = RequireEnvironmentVariable(ScaNNEndpointEnv, "a live ScaNN HTTP endpoint");
+        return new HttpClient
+        {
+            BaseAddress = new Uri(EnsureTrailingSlash(endpoint), UriKind.Absolute),
+        };
+    }
+
+    private static string EnsureTrailingSlash(string value)
+        => value.EndsWith("/", StringComparison.Ordinal) ? value : value + "/";
+
+}
+
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+internal sealed class RequiresEnvironmentFactAttribute : FactAttribute
+{
+    public RequiresEnvironmentFactAttribute(params string[] envNames)
+    {
+        var missing = envNames
+            .Where(envName => string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(envName)))
+            .ToArray();
+
+        if (missing.Length > 0)
+            Skip = $"requires environment variables: {string.Join(", ", missing)}";
+    }
+}
+
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+internal sealed class RequiresRocksDbNativeFactAttribute : FactAttribute
+{
+    private static readonly string[] CandidateDirectories = [
+        "",
+        "runtimes\\win-x64\\native",
+        "native",
+        "native\\amd64",
+        "amd64"
+    ];
+
+    private static readonly string[] CandidateFiles = [
+        "rocksdb-6.2.2.dll",
+        "rocksdb-6.2.dll",
+        "rocksdb-6.dll",
+        "rocksdb.dll"
+    ];
+
+    public RequiresRocksDbNativeFactAttribute()
+    {
+        if (!HasNativeLibrary())
+            Skip = "requires native RocksDB library (rocksdb*.dll) in the test runtime output";
+    }
+
+    private static bool HasNativeLibrary()
+    {
+        var baseDirectory = AppContext.BaseDirectory;
+
+        foreach (var directory in CandidateDirectories)
+        {
+            var root = directory.Length == 0 ? baseDirectory : Path.Combine(baseDirectory, directory);
+
+            foreach (var file in CandidateFiles)
+            {
+                if (File.Exists(Path.Combine(root, file)))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+}
 
 // ─── VD-01 — Pinecone ─────────────────────────────────────────────────────────
 
@@ -869,34 +971,33 @@ public class MeilisearchVectorStoreTests(MeilisearchContainerFixture fixture) : 
 
 // ─── VD-17 — Vald ─────────────────────────────────────────────────────────────
 
-public class ValdStoreTests
+public class ValdStoreTests(ValdContainerFixture fixture) : IClassFixture<ValdContainerFixture>
 {
-    private static HttpClient MockHttp(string body = "{}", HttpStatusCode statusCode = HttpStatusCode.OK) =>
-        new HttpClient(new TestHttpMessageHandler(statusCode, body))
-        { BaseAddress = new Uri("http://localhost:8080/") };
+    private static ValdStore BuildUnitStore()
+        => new(new InMemoryValdClient());
 
-    private static HttpClient StatefulHttp()
-        => new HttpClient(new ValdStatefulHandler()) { BaseAddress = new Uri("http://localhost:8080/") };
+    private ValdStore CreateStore()
+        => new(fixture.Endpoint);
 
     [Fact] public async Task ProviderType_IsVald()
-        => Assert.Equal(VectorDbProviderType.Vald, new ValdStore(MockHttp()).ProviderType);
+        => Assert.Equal(VectorDbProviderType.Vald, BuildUnitStore().ProviderType);
 
-    [Fact] public async Task Constructor_NullHttp_Throws()
-        => Assert.Throws<ArgumentNullException>(() => new ValdStore(null!));
+    [Fact] public async Task Constructor_NullClient_Throws()
+        => Assert.Throws<ArgumentNullException>(() => new ValdStore((IValdClient)null!));
 
     [Fact] public async Task Get_MissingRecord_ReturnsNull()
-        => Assert.Null(await new ValdStore(MockHttp("{}", HttpStatusCode.NotFound)).GetAsync("missing", "r1"));
+        => Assert.Null(await BuildUnitStore().GetAsync("missing", "r1"));
 
     [Fact] public async Task Search_EmptyCollection_ReturnsEmpty()
     {
-        var store = new ValdStore(MockHttp("""{"results":[]}"""));
+        var store = BuildUnitStore();
         var results = await store.SearchAsync("empty", new float[] { 1f, 0f, 0f });
         Assert.Empty(results);
     }
 
     [Fact] public async Task UpsertBatch_MultipleRecords()
     {
-        var store = new ValdStore(StatefulHttp());
+        var store = BuildUnitStore();
         await store.UpsertBatchAsync("batch", [
             new VectorRecord("a", [1f, 0f]),
             new VectorRecord("b", [0f, 1f])
@@ -908,20 +1009,32 @@ public class ValdStoreTests
 
     [Fact] public async Task Delete_RemovesRecord()
     {
-        var store = new ValdStore(StatefulHttp());
+        var store = BuildUnitStore();
         await store.UpsertBatchAsync("del", [new VectorRecord("x", [1f, 0f])]);
         await store.DeleteAsync("del", "x");
 
         Assert.Null(await store.GetAsync("del", "x"));
     }
 
+    [Fact] public Task EnsureCollection_Upsert_Get_RoundTrip()
+        => ValdLiveTestCases.EnsureCollectionUpsertGetRoundTripAsync(CreateStore);
+
+    [Fact] public Task Search_EmptyCollection_Live_ReturnsEmpty()
+        => ValdLiveTestCases.SearchEmptyCollectionReturnsEmptyAsync(CreateStore);
+
+    [Fact] public Task UpsertBatch_Live_MultipleRecords()
+        => ValdLiveTestCases.UpsertBatchMultipleRecordsAsync(CreateStore);
+
+    [Fact] public Task Delete_Live_RemovesRecord()
+        => ValdLiveTestCases.DeleteRemovesRecordAsync(CreateStore);
+
     [Fact] public async Task ListCollections_ReturnsCollections()
-        => Assert.Empty(await new ValdStore(MockHttp()).ListCollectionsAsync());
+        => Assert.Empty(await CreateStore().ListCollectionsAsync());
 }
 
 // ─── VD-18 — Vespa ────────────────────────────────────────────────────────────
 
-public class VespaStoreTests
+public class VespaStoreTests(VespaContainerFixture fixture) : IClassFixture<VespaContainerFixture>
 {
     private static HttpClient MockHttp(string body = "{\"root\":{\"fields\":{\"totalCount\":0},\"children\":[]}}", HttpStatusCode statusCode = HttpStatusCode.OK) =>
         new HttpClient(new TestHttpMessageHandler(statusCode, body))
@@ -929,6 +1042,9 @@ public class VespaStoreTests
 
     private static HttpClient StatefulHttp()
         => new HttpClient(new VespaStatefulHandler()) { BaseAddress = new Uri("http://localhost:8080/") };
+
+    private VespaStore CreateStore()
+        => new(new HttpClient { BaseAddress = new Uri(fixture.Endpoint) });
 
     [Fact] public async Task ProviderType_IsVespa()
         => Assert.Equal(VectorDbProviderType.Vespa, new VespaStore(MockHttp()).ProviderType);
@@ -970,6 +1086,18 @@ public class VespaStoreTests
 
         Assert.Null(await store.GetAsync("del", "x"));
     }
+
+    [Fact] public Task EnsureCollection_Upsert_Get_RoundTrip()
+        => VespaLiveTestCases.EnsureCollectionUpsertGetRoundTripAsync(CreateStore);
+
+    [Fact] public Task Search_ReturnsNormalizedIds()
+        => VespaLiveTestCases.SearchReturnsNormalizedIdsAsync(CreateStore);
+
+    [Fact] public Task UpsertBatch_Live_MultipleRecords()
+        => VespaLiveTestCases.UpsertBatchMultipleRecordsAsync(CreateStore);
+
+    [Fact] public Task Delete_Live_RemovesRecord()
+        => VespaLiveTestCases.DeleteRemovesRecordAsync(CreateStore);
 
     [Fact] public async Task ListCollections_ReturnsCollections()
         => Assert.Empty(await new VespaStore(MockHttp()).ListCollectionsAsync());
@@ -1514,6 +1642,57 @@ public class MongoDbAtlasVectorStoreTests
     }
 }
 
+public class MongoDbAtlasVectorStoreLiveTests
+{
+    [RequiresEnvironmentFact(
+        LiveVectorStoreTestSupport.MongoAtlasConnectionStringEnv,
+        LiveVectorStoreTestSupport.MongoAtlasDatabaseEnv,
+        LiveVectorStoreTestSupport.MongoAtlasCollectionEnv)]
+    public async Task Live_Upsert_Get_Search_Delete_RoundTrip()
+    {
+        var connectionString = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.MongoAtlasConnectionStringEnv,
+            "a live MongoDB Atlas connection string");
+        var databaseName = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.MongoAtlasDatabaseEnv,
+            "a live MongoDB Atlas database name");
+        var collection = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.MongoAtlasCollectionEnv,
+            "a MongoDB Atlas collection that already has the expected vector_index configured");
+
+        var client = new MongoClient(connectionString);
+        var store = new MongoDbAtlasVectorStore(client.GetDatabase(databaseName));
+        var idA = LiveVectorStoreTestSupport.UniqueName("atlas_a");
+        var idB = LiveVectorStoreTestSupport.UniqueName("atlas_b");
+
+        try
+        {
+            await store.UpsertBatchAsync(collection, [
+                new VectorRecord(idA, [1f, 0f, 0f], "alpha"),
+                new VectorRecord(idB, [0f, 1f, 0f], "beta")
+            ]);
+
+            var got = await store.GetAsync(collection, idA);
+            Assert.NotNull(got);
+            Assert.Equal(idA, got!.Id);
+            Assert.Equal("alpha", got.Text);
+
+            var results = await store.SearchAsync(collection, [1f, 0f, 0f], topK: 5);
+            Assert.Contains(results, item => item.Id == idA);
+
+            await store.DeleteAsync(collection, idA);
+            await store.DeleteAsync(collection, idB);
+
+            Assert.Null(await store.GetAsync(collection, idA));
+        }
+        finally
+        {
+            try { await store.DeleteAsync(collection, idA); } catch { }
+            try { await store.DeleteAsync(collection, idB); } catch { }
+        }
+    }
+}
+
 // ─── VD-24 — Cosmos DB vCore ──────────────────────────────────────────────────
 
 public class CosmosDbVCoreStoreTests
@@ -1535,17 +1714,127 @@ public class CosmosDbVCoreStoreTests
         Assert.Throws<ArgumentException>(() => new CosmosDbVCoreStore(client, ""));
     }
 
-    [Fact(Skip = "requires live Azure Cosmos DB vCore with vector search")]
-    public Task EnsureCollection_Upsert_Get_RoundTrip() => Task.CompletedTask;
+    [RequiresEnvironmentFact(
+        LiveVectorStoreTestSupport.CosmosVCoreConnectionStringEnv,
+        LiveVectorStoreTestSupport.CosmosVCoreDatabaseEnv,
+        LiveVectorStoreTestSupport.CosmosVCoreCollectionEnv)]
+    public async Task EnsureCollection_Upsert_Get_RoundTrip()
+    {
+        var connectionString = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.CosmosVCoreConnectionStringEnv,
+            "a live Azure Cosmos DB vCore connection string");
+        var databaseId = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.CosmosVCoreDatabaseEnv,
+            "a live Azure Cosmos DB vCore database name");
+        var collection = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.CosmosVCoreCollectionEnv,
+            "a Cosmos DB vCore container with vector search enabled");
 
-    [Fact(Skip = "requires live Azure Cosmos DB vCore with vector search")]
-    public Task Search_EmptyCollection_ReturnsEmpty() => Task.CompletedTask;
+        using var client = new CosmosClient(connectionString);
+        var store = new CosmosDbVCoreStore(client, databaseId);
+        var id = LiveVectorStoreTestSupport.UniqueName("cosmos_roundtrip");
 
-    [Fact(Skip = "requires live Azure Cosmos DB vCore with vector search")]
-    public Task UpsertBatch_MultipleRecords() => Task.CompletedTask;
+        try
+        {
+            await store.EnsureCollectionAsync(collection, 3);
+            await store.UpsertAsync(collection, new VectorRecord(id, [1f, 0f, 0f], "hello"));
 
-    [Fact(Skip = "requires live Azure Cosmos DB vCore with vector search")]
-    public Task Delete_RemovesRecord() => Task.CompletedTask;
+            var got = await store.GetAsync(collection, id);
+            Assert.NotNull(got);
+            Assert.Equal(id, got!.Id);
+            Assert.Equal("hello", got.Text);
+        }
+        finally
+        {
+            try { await store.DeleteAsync(collection, id); } catch { }
+        }
+    }
+
+    [RequiresEnvironmentFact(
+        LiveVectorStoreTestSupport.CosmosVCoreConnectionStringEnv,
+        LiveVectorStoreTestSupport.CosmosVCoreDatabaseEnv,
+        LiveVectorStoreTestSupport.CosmosVCoreCollectionEnv)]
+    public async Task Search_EmptyCollection_ReturnsEmpty()
+    {
+        var connectionString = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.CosmosVCoreConnectionStringEnv,
+            "a live Azure Cosmos DB vCore connection string");
+        var databaseId = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.CosmosVCoreDatabaseEnv,
+            "a live Azure Cosmos DB vCore database name");
+        var collection = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.CosmosVCoreCollectionEnv,
+            "a Cosmos DB vCore container with vector search enabled");
+
+        using var client = new CosmosClient(connectionString);
+        var store = new CosmosDbVCoreStore(client, databaseId);
+        var results = await store.SearchAsync(collection, [9f, 9f, 9f], topK: 5, minScore: 0.999f);
+        Assert.Empty(results);
+    }
+
+    [RequiresEnvironmentFact(
+        LiveVectorStoreTestSupport.CosmosVCoreConnectionStringEnv,
+        LiveVectorStoreTestSupport.CosmosVCoreDatabaseEnv,
+        LiveVectorStoreTestSupport.CosmosVCoreCollectionEnv)]
+    public async Task UpsertBatch_MultipleRecords()
+    {
+        var connectionString = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.CosmosVCoreConnectionStringEnv,
+            "a live Azure Cosmos DB vCore connection string");
+        var databaseId = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.CosmosVCoreDatabaseEnv,
+            "a live Azure Cosmos DB vCore database name");
+        var collection = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.CosmosVCoreCollectionEnv,
+            "a Cosmos DB vCore container with vector search enabled");
+
+        using var client = new CosmosClient(connectionString);
+        var store = new CosmosDbVCoreStore(client, databaseId);
+        var idA = LiveVectorStoreTestSupport.UniqueName("cosmos_a");
+        var idB = LiveVectorStoreTestSupport.UniqueName("cosmos_b");
+
+        try
+        {
+            await store.UpsertBatchAsync(collection, [
+                new VectorRecord(idA, [1f, 0f], "alpha"),
+                new VectorRecord(idB, [0f, 1f], "beta")
+            ]);
+
+            Assert.NotNull(await store.GetAsync(collection, idA));
+            Assert.NotNull(await store.GetAsync(collection, idB));
+        }
+        finally
+        {
+            try { await store.DeleteAsync(collection, idA); } catch { }
+            try { await store.DeleteAsync(collection, idB); } catch { }
+        }
+    }
+
+    [RequiresEnvironmentFact(
+        LiveVectorStoreTestSupport.CosmosVCoreConnectionStringEnv,
+        LiveVectorStoreTestSupport.CosmosVCoreDatabaseEnv,
+        LiveVectorStoreTestSupport.CosmosVCoreCollectionEnv)]
+    public async Task Delete_RemovesRecord()
+    {
+        var connectionString = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.CosmosVCoreConnectionStringEnv,
+            "a live Azure Cosmos DB vCore connection string");
+        var databaseId = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.CosmosVCoreDatabaseEnv,
+            "a live Azure Cosmos DB vCore database name");
+        var collection = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.CosmosVCoreCollectionEnv,
+            "a Cosmos DB vCore container with vector search enabled");
+
+        using var client = new CosmosClient(connectionString);
+        var store = new CosmosDbVCoreStore(client, databaseId);
+        var id = LiveVectorStoreTestSupport.UniqueName("cosmos_delete");
+
+        await store.UpsertAsync(collection, new VectorRecord(id, [1f, 0f], "delete-me"));
+        await store.DeleteAsync(collection, id);
+
+        Assert.Null(await store.GetAsync(collection, id));
+    }
 }
 
 // ─── VD-25 — HNSWLib (in-memory) ──────────────────────────────────────────────
@@ -1811,6 +2100,37 @@ public class ScaNNStoreTests
         Assert.Empty(collections);
     }
 }
+    public class ScaNNStoreLiveTests
+    {
+        [RequiresEnvironmentFact(LiveVectorStoreTestSupport.ScaNNEndpointEnv)]
+        public async Task Live_EnsureCollection_Upsert_Search_Delete_RoundTrip()
+        {
+            using var http = LiveVectorStoreTestSupport.CreateScaNNHttpClientOrSkip();
+            var store = new ScaNNStore(http);
+            var collection = LiveVectorStoreTestSupport.UniqueName("scann_live");
+
+            try
+            {
+                await store.EnsureCollectionAsync(collection, 3);
+                await store.UpsertBatchAsync(collection, [
+                    new VectorRecord("a", [1f, 0f, 0f]),
+                    new VectorRecord("b", [0f, 1f, 0f])
+                ]);
+
+                Assert.NotNull(await store.GetAsync(collection, "a"));
+
+                var results = await store.SearchAsync(collection, [1f, 0f, 0f], topK: 5);
+                Assert.Contains(results, item => item.Id == "a");
+
+                await store.DeleteAsync(collection, "a");
+                Assert.Null(await store.GetAsync(collection, "a"));
+            }
+            finally
+            {
+                try { await store.DeleteCollectionAsync(collection); } catch { }
+            }
+        }
+    }
 
 // ─── VD-29 — RocksDB HNSW ─────────────────────────────────────────────────────
 
@@ -1830,20 +2150,20 @@ public class RocksDbHnswStoreTests : IDisposable
             Directory.Delete(_dir, recursive: true);
     }
 
-    [Fact(Skip = "requires native RocksDB library (rocksdb.dll) - install RocksDbNative package or native runtime")]
+    [RequiresRocksDbNativeFact]
     public void ProviderType_IsRocksDBHNSW()
     {
-        _store = new RocksDbHnswStore(_dir);
+        _store = LiveVectorStoreTestSupport.CreateRocksDbStoreOrSkip(_dir);
         Assert.Equal(VectorDbProviderType.RocksDBHNSW, _store.ProviderType);
     }
 
     [Fact] public async Task Constructor_EmptyPath_Throws()
         => Assert.Throws<ArgumentException>(() => new RocksDbHnswStore(""));
 
-    [Fact(Skip = "requires native RocksDB library")]
+    [RequiresRocksDbNativeFact]
     public async Task EnsureCollection_Upsert_Get_RoundTrip()
     {
-        _store = new RocksDbHnswStore(_dir);
+        _store = LiveVectorStoreTestSupport.CreateRocksDbStoreOrSkip(_dir);
         await _store.EnsureCollectionAsync("col", 3);
         var rec = new VectorRecord("r1", new float[] { 1f, 0f, 0f }, "hello");
         await _store.UpsertAsync("col", rec);
@@ -1853,19 +2173,19 @@ public class RocksDbHnswStoreTests : IDisposable
         Assert.Equal("hello", got.Text);
     }
 
-    [Fact(Skip = "requires native RocksDB library")]
+    [RequiresRocksDbNativeFact]
     public async Task Search_EmptyCollection_ReturnsEmpty()
     {
-        _store = new RocksDbHnswStore(_dir);
+        _store = LiveVectorStoreTestSupport.CreateRocksDbStoreOrSkip(_dir);
         await _store.EnsureCollectionAsync("empty", 3);
         var results = await _store.SearchAsync("empty", new float[] { 1f, 0f, 0f });
         Assert.Empty(results);
     }
 
-    [Fact(Skip = "requires native RocksDB library")]
+    [RequiresRocksDbNativeFact]
     public async Task UpsertBatch_AllRecordsRetrievable()
     {
-        _store = new RocksDbHnswStore(_dir);
+        _store = LiveVectorStoreTestSupport.CreateRocksDbStoreOrSkip(_dir);
         await _store.EnsureCollectionAsync("batch", 2);
         await _store.UpsertBatchAsync("batch", new[]
         {
@@ -1876,20 +2196,20 @@ public class RocksDbHnswStoreTests : IDisposable
         Assert.NotNull(await _store.GetAsync("batch", "b"));
     }
 
-    [Fact(Skip = "requires native RocksDB library")]
+    [RequiresRocksDbNativeFact]
     public async Task Delete_RemovesRecord()
     {
-        _store = new RocksDbHnswStore(_dir);
+        _store = LiveVectorStoreTestSupport.CreateRocksDbStoreOrSkip(_dir);
         await _store.EnsureCollectionAsync("col", 2);
         await _store.UpsertAsync("col", new VectorRecord("x", new float[] { 1f, 0f }));
         await _store.DeleteAsync("col", "x");
         Assert.Null(await _store.GetAsync("col", "x"));
     }
 
-    [Fact(Skip = "requires native RocksDB library")]
+    [RequiresRocksDbNativeFact]
     public async Task ListCollections_ReturnsCreatedCollections()
     {
-        _store = new RocksDbHnswStore(_dir);
+        _store = LiveVectorStoreTestSupport.CreateRocksDbStoreOrSkip(_dir);
         await _store.EnsureCollectionAsync("c1", 2);
         await _store.EnsureCollectionAsync("c2", 2);
         var cols = await _store.ListCollectionsAsync();
@@ -1909,20 +2229,121 @@ public class SqlServerVectorStoreTests
     [Fact] public async Task Constructor_EmptyConnectionString_Throws()
         => Assert.Throws<ArgumentException>(() => new SqlServerVectorStore(""));
 
-    [Fact(Skip = "requires live SQL Server 2025 with VECTOR support")]
-    public Task EnsureCollection_Upsert_Get_RoundTrip() => Task.CompletedTask;
+    [RequiresEnvironmentFact(LiveVectorStoreTestSupport.SqlServerVectorConnectionStringEnv)]
+    public async Task EnsureCollection_Upsert_Get_RoundTrip()
+    {
+        var connectionString = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.SqlServerVectorConnectionStringEnv,
+            "a live SQL Server 2025+ connection string with VECTOR support");
+        var store = new SqlServerVectorStore(connectionString);
+        var collection = LiveVectorStoreTestSupport.UniqueName("sqlvector");
 
-    [Fact(Skip = "requires live SQL Server 2025 with VECTOR support")]
-    public Task Search_EmptyCollection_ReturnsEmpty() => Task.CompletedTask;
+        try
+        {
+            await store.EnsureCollectionAsync(collection, 3);
+            await store.UpsertAsync(collection, new VectorRecord("r1", [1f, 0f, 0f], "hello"));
 
-    [Fact(Skip = "requires live SQL Server 2025 with VECTOR support")]
-    public Task UpsertBatch_MultipleRecords() => Task.CompletedTask;
+            var got = await store.GetAsync(collection, "r1");
+            Assert.NotNull(got);
+            Assert.Equal("r1", got!.Id);
+            Assert.Equal("hello", got.Text);
+        }
+        finally
+        {
+            try { await store.DeleteCollectionAsync(collection); } catch { }
+        }
+    }
 
-    [Fact(Skip = "requires live SQL Server 2025 with VECTOR support")]
-    public Task Delete_RemovesRecord() => Task.CompletedTask;
+    [RequiresEnvironmentFact(LiveVectorStoreTestSupport.SqlServerVectorConnectionStringEnv)]
+    public async Task Search_EmptyCollection_ReturnsEmpty()
+    {
+        var connectionString = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.SqlServerVectorConnectionStringEnv,
+            "a live SQL Server 2025+ connection string with VECTOR support");
+        var store = new SqlServerVectorStore(connectionString);
+        var collection = LiveVectorStoreTestSupport.UniqueName("sqlvector");
 
-    [Fact(Skip = "requires live SQL Server 2025 with VECTOR support")]
-    public Task ListCollections_ReturnsCollections() => Task.CompletedTask;
+        try
+        {
+            await store.EnsureCollectionAsync(collection, 3);
+            var results = await store.SearchAsync(collection, [1f, 0f, 0f], topK: 5);
+            Assert.Empty(results);
+        }
+        finally
+        {
+            try { await store.DeleteCollectionAsync(collection); } catch { }
+        }
+    }
+
+    [RequiresEnvironmentFact(LiveVectorStoreTestSupport.SqlServerVectorConnectionStringEnv)]
+    public async Task UpsertBatch_MultipleRecords()
+    {
+        var connectionString = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.SqlServerVectorConnectionStringEnv,
+            "a live SQL Server 2025+ connection string with VECTOR support");
+        var store = new SqlServerVectorStore(connectionString);
+        var collection = LiveVectorStoreTestSupport.UniqueName("sqlvector");
+
+        try
+        {
+            await store.EnsureCollectionAsync(collection, 2);
+            await store.UpsertBatchAsync(collection, [
+                new VectorRecord("a", [1f, 0f], "alpha"),
+                new VectorRecord("b", [0f, 1f], "beta")
+            ]);
+
+            Assert.NotNull(await store.GetAsync(collection, "a"));
+            Assert.NotNull(await store.GetAsync(collection, "b"));
+        }
+        finally
+        {
+            try { await store.DeleteCollectionAsync(collection); } catch { }
+        }
+    }
+
+    [RequiresEnvironmentFact(LiveVectorStoreTestSupport.SqlServerVectorConnectionStringEnv)]
+    public async Task Delete_RemovesRecord()
+    {
+        var connectionString = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.SqlServerVectorConnectionStringEnv,
+            "a live SQL Server 2025+ connection string with VECTOR support");
+        var store = new SqlServerVectorStore(connectionString);
+        var collection = LiveVectorStoreTestSupport.UniqueName("sqlvector");
+
+        try
+        {
+            await store.EnsureCollectionAsync(collection, 2);
+            await store.UpsertAsync(collection, new VectorRecord("x", [1f, 0f], "delete-me"));
+            await store.DeleteAsync(collection, "x");
+
+            Assert.Null(await store.GetAsync(collection, "x"));
+        }
+        finally
+        {
+            try { await store.DeleteCollectionAsync(collection); } catch { }
+        }
+    }
+
+    [RequiresEnvironmentFact(LiveVectorStoreTestSupport.SqlServerVectorConnectionStringEnv)]
+    public async Task ListCollections_ReturnsCollections()
+    {
+        var connectionString = LiveVectorStoreTestSupport.RequireEnvironmentVariable(
+            LiveVectorStoreTestSupport.SqlServerVectorConnectionStringEnv,
+            "a live SQL Server 2025+ connection string with VECTOR support");
+        var store = new SqlServerVectorStore(connectionString);
+        var collection = LiveVectorStoreTestSupport.UniqueName("sqlvector");
+
+        try
+        {
+            await store.EnsureCollectionAsync(collection, 2);
+            var collections = await store.ListCollectionsAsync();
+            Assert.Contains(collection, collections);
+        }
+        finally
+        {
+            try { await store.DeleteCollectionAsync(collection); } catch { }
+        }
+    }
 }
 
 internal abstract class StatefulHttpMessageHandler : HttpMessageHandler;
@@ -2270,39 +2691,70 @@ internal sealed class ChromaStatefulHandler : StatefulHttpMessageHandler
     }
 }
 
-internal sealed class ValdStatefulHandler : StatefulHttpMessageHandler
+internal sealed class InMemoryValdClient : IValdClient
 {
-    private readonly Dictionary<string, float[]> _records = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, VectorRecord> _records = new(StringComparer.Ordinal);
 
-    public ValdStatefulHandler() { }
-
-    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    public Task UpsertAsync(string collection, VectorRecord record, CancellationToken ct = default)
     {
-        var path = RequestPath(request);
-        if (request.Method == HttpMethod.Post && path == "/upsert/multi")
-        {
-            using var doc = await ReadJsonAsync(request, cancellationToken);
-            foreach (var item in doc.RootElement.GetProperty("requests").EnumerateArray())
-                _records[item.GetProperty("id").GetString() ?? string.Empty] = ReadVector(item.GetProperty("vector"));
-            return JsonResponse(new { });
-        }
-
-        if (request.Method == HttpMethod.Get && path.StartsWith("/object/", StringComparison.Ordinal))
-        {
-            var key = Uri.UnescapeDataString(path[8..]);
-            return _records.TryGetValue(key, out var vector)
-                ? JsonResponse(new { vector })
-                : JsonResponse(new { }, HttpStatusCode.NotFound);
-        }
-
-        if (request.Method == HttpMethod.Delete && path.StartsWith("/delete/", StringComparison.Ordinal))
-        {
-            _records.Remove(Uri.UnescapeDataString(path[8..]));
-            return JsonResponse(new { });
-        }
-
-        return JsonResponse(new { results = Array.Empty<object>() });
+        _records[ValdKey(collection, record.Id)] = new VectorRecord(record.Id, [.. record.Vector], record.Text);
+        return Task.CompletedTask;
     }
+
+    public Task UpsertBatchAsync(string collection, IReadOnlyList<VectorRecord> records, CancellationToken ct = default)
+    {
+        foreach (var record in records)
+        {
+            _records[ValdKey(collection, record.Id)] = new VectorRecord(record.Id, [.. record.Vector], record.Text);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task<VectorRecord?> GetAsync(string collection, string id, CancellationToken ct = default)
+        => Task.FromResult(_records.TryGetValue(ValdKey(collection, id), out var record)
+            ? new VectorRecord(record.Id, [.. record.Vector], record.Text)
+            : null);
+
+    public Task DeleteAsync(string collection, string id, CancellationToken ct = default)
+    {
+        _records.Remove(ValdKey(collection, id));
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<VectorSearchResult>> SearchAsync(string collection, float[] queryVector, int topK = 10, float minScore = 0f, CancellationToken ct = default)
+    {
+        var prefix = collection + "/";
+        var results = _records
+            .Where(pair => pair.Key.StartsWith(prefix, StringComparison.Ordinal))
+            .Select(pair =>
+            {
+                var distance = EuclideanDistance(queryVector, pair.Value.Vector);
+                var score = 1f - distance;
+                return new VectorSearchResult(pair.Value.Id, score);
+            })
+            .Where(result => result.Score >= minScore)
+            .OrderByDescending(result => result.Score)
+            .Take(topK)
+            .ToArray();
+
+        return Task.FromResult<IReadOnlyList<VectorSearchResult>>(results);
+    }
+
+    private static float EuclideanDistance(float[] left, float[] right)
+    {
+        var limit = Math.Min(left.Length, right.Length);
+        var sum = 0f;
+        for (var index = 0; index < limit; index++)
+        {
+            var delta = left[index] - right[index];
+            sum += delta * delta;
+        }
+
+        return sum;
+    }
+
+    private static string ValdKey(string collection, string id) => $"{collection}/{id}";
 }
 
 internal sealed class VespaStatefulHandler : StatefulHttpMessageHandler
@@ -2318,12 +2770,15 @@ internal sealed class VespaStatefulHandler : StatefulHttpMessageHandler
         {
             var collection = Uri.UnescapeDataString(segments[2]);
             var id = Uri.UnescapeDataString(segments[5]);
-            if (request.Method == HttpMethod.Put)
+            if (request.Method == HttpMethod.Put || request.Method == HttpMethod.Post)
             {
                 using var doc = await ReadJsonAsync(request, cancellationToken);
                 var fields = doc.RootElement.GetProperty("fields");
                 var text = fields.TryGetProperty("text_content", out var textEl) ? textEl.GetString() : null;
-                var vector = ReadVector(fields.GetProperty("embedding").GetProperty("values"));
+                var embedding = fields.GetProperty("embedding");
+                var vector = embedding.ValueKind == JsonValueKind.Object && embedding.TryGetProperty("values", out var values)
+                    ? ReadVector(values)
+                    : ReadVector(embedding);
                 GetCollection(_collections, collection)[id] = new VectorRecord(id, vector, text);
                 return JsonResponse(new { });
             }
@@ -2749,6 +3204,495 @@ public sealed class MeilisearchContainerFixture : IAsyncLifetime
     }
 }
 
+public sealed class ValdContainerFixture : IAsyncLifetime
+{
+    private IContainer? _container;
+
+    public string Endpoint { get; private set; } = "http://localhost:8081";
+
+    public async Task InitializeAsync()
+    {
+        _container = new ContainerBuilder("vdaas/vald-agent-ngt:latest")
+            .WithPortBinding(8081, true)
+            .Build();
+
+        await _container.StartAsync();
+        var port = _container.GetMappedPublicPort(8081);
+        Endpoint = $"http://{_container.Hostname}:{port}";
+        await ContainerReadiness.WaitForTcpPortAsync(_container.Hostname, port, attempts: 120);
+        await ContainerReadiness.WaitForValdAsync(Endpoint, attempts: 120);
+    }
+
+    public async Task DisposeAsync()
+    {
+        if (_container is not null)
+            await _container.DisposeAsync();
+    }
+}
+
+public sealed class VespaContainerFixture : IAsyncLifetime
+{
+    private const string VespaConfigAlias = "vespa-config";
+    private const string VespaServicesAlias = "vespa-services";
+    private const string VespaSchema = "vespatest";
+
+    private readonly string _suffix = Guid.NewGuid().ToString("N");
+    private string? _networkName;
+    private string? _configContainerName;
+    private string? _servicesContainerName;
+    private string? _appRoot;
+    private string[] _dockerTargetArgs = [];
+    private DockerCliResult? _lastDeployResult;
+    private int _lastDeployAttempts;
+
+    public string Endpoint { get; private set; } = "http://127.0.0.1:8080/";
+
+    public async Task InitializeAsync()
+    {
+        _networkName = $"agxioma-vespa-net-{_suffix}";
+        _configContainerName = $"agxioma-vespa-config-{_suffix}";
+        _servicesContainerName = $"agxioma-vespa-services-{_suffix}";
+
+        await EnsureDockerCliAvailableAsync();
+
+        var networkCreate = await RunDockerCommandAsync(TimeSpan.FromSeconds(30), "network", "create", _networkName);
+        EnsureDockerSuccess(networkCreate, "create Vespa network");
+
+        var configRun = await RunDockerCommandAsync(
+            TimeSpan.FromMinutes(2),
+            "run", "-d",
+            "--name", _configContainerName,
+            "--hostname", VespaConfigAlias,
+            "--network", _networkName,
+            "--network-alias", VespaConfigAlias,
+            "-e", $"VESPA_HOSTNAME={VespaConfigAlias}",
+            "-e", $"VESPA_CONFIGSERVERS={VespaConfigAlias}",
+            "-p", "127.0.0.1::19071",
+            "vespaengine/vespa:latest",
+            "configserver");
+        EnsureDockerSuccess(configRun, "start Vespa configserver");
+
+        var configPort = await GetMappedPortAsync(_configContainerName, 19071);
+        await ContainerReadiness.WaitForTcpPortAsync("127.0.0.1", configPort, attempts: 120);
+
+        var servicesRun = await RunDockerCommandAsync(
+            TimeSpan.FromMinutes(2),
+            "run", "-d",
+            "--name", _servicesContainerName,
+            "--hostname", VespaServicesAlias,
+            "--network", _networkName,
+            "--network-alias", VespaServicesAlias,
+            "-e", $"VESPA_HOSTNAME={VespaServicesAlias}",
+            "-e", $"VESPA_CONFIGSERVERS={VespaConfigAlias}",
+            "-p", "127.0.0.1::8080",
+            "-p", "127.0.0.1::19050",
+            "vespaengine/vespa:latest",
+            "services");
+        EnsureDockerSuccess(servicesRun, "start Vespa services");
+
+        var endpointPort = await GetMappedPortAsync(_servicesContainerName, 8080);
+        var adminPort = await GetMappedPortAsync(_servicesContainerName, 19050);
+        Endpoint = $"http://127.0.0.1:{endpointPort}/";
+        await ContainerReadiness.WaitForTcpPortAsync("127.0.0.1", endpointPort, attempts: 120);
+        await ContainerReadiness.WaitForTcpPortAsync("127.0.0.1", adminPort, attempts: 120);
+
+        _appRoot = CreateVespaApplicationPackage(VespaServicesAlias, VespaConfigAlias);
+
+        try
+        {
+            await DeployApplicationAsync();
+            await ContainerReadiness.WaitForVespaAsync(Endpoint, attempts: 120);
+        }
+        catch (Exception ex) when (ex is TimeoutException or InvalidOperationException)
+        {
+            var diagnostics = await GetVespaDiagnosticsAsync();
+            throw new InvalidOperationException(
+                $"Vespa fixture initialization failed. {ex.Message}{Environment.NewLine}{diagnostics}",
+                ex);
+        }
+    }
+
+    public async Task DisposeAsync()
+    {
+        if (_servicesContainerName is not null)
+            await TryRunDockerCommandAsync(TimeSpan.FromSeconds(10), "rm", "-f", _servicesContainerName);
+
+        if (_configContainerName is not null)
+            await TryRunDockerCommandAsync(TimeSpan.FromSeconds(10), "rm", "-f", _configContainerName);
+
+        if (_networkName is not null)
+            await TryRunDockerCommandAsync(TimeSpan.FromSeconds(10), "network", "rm", _networkName);
+
+        if (_appRoot is not null)
+        {
+            try
+            {
+                Directory.Delete(_appRoot, recursive: true);
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    private async Task DeployApplicationAsync()
+    {
+        if (_appRoot is null || _configContainerName is null)
+            throw new InvalidOperationException("Vespa fixture not initialized correctly.");
+
+        var copySource = Path.Combine(_appRoot, ".");
+        var copyResult = await RunDockerCommandAsync(
+            TimeSpan.FromMinutes(2),
+            "cp",
+            copySource,
+            $"{_configContainerName}:/tmp/agxioma-vespa-app");
+        EnsureDockerSuccess(copyResult, "copy Vespa application package");
+
+        DockerCliResult? lastResult = null;
+        for (var attempt = 0; attempt < 60; attempt++)
+        {
+            lastResult = await RunDockerCommandAsync(
+                TimeSpan.FromMinutes(2),
+                "exec",
+                _configContainerName,
+                "bash",
+                "-lc",
+                "set -e; /opt/vespa/bin/vespa-deploy prepare /tmp/agxioma-vespa-app; /opt/vespa/bin/vespa-deploy activate");
+
+            _lastDeployResult = lastResult;
+            _lastDeployAttempts = attempt + 1;
+
+            if (lastResult.Value.ExitCode == 0)
+                return;
+
+            if (attempt < 59)
+                await Task.Delay(1000);
+        }
+
+        throw new InvalidOperationException(
+            $"Vespa application deploy failed. ExitCode={lastResult?.ExitCode}, Stdout='{lastResult?.Stdout}', Stderr='{lastResult?.Stderr}'");
+    }
+
+    private async Task<string> GetVespaDiagnosticsAsync()
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("Vespa diagnostics:");
+        builder.AppendLine($"  Network: {_networkName ?? "<null>"}");
+        builder.AppendLine($"  Config container: {_configContainerName ?? "<null>"}");
+        builder.AppendLine($"  Services container: {_servicesContainerName ?? "<null>"}");
+        builder.AppendLine($"  App root: {_appRoot ?? "<null>"}");
+        builder.AppendLine($"  Endpoint: {Endpoint}");
+        builder.AppendLine($"  Last deploy attempts: {_lastDeployAttempts}");
+
+        if (_lastDeployResult is { } lastDeployResult)
+        {
+            builder.AppendLine($"  Last deploy exit code: {lastDeployResult.ExitCode}");
+            builder.AppendLine($"  Last deploy stdout: {Truncate(lastDeployResult.Stdout)}");
+            builder.AppendLine($"  Last deploy stderr: {Truncate(lastDeployResult.Stderr)}");
+        }
+
+        if (_configContainerName is not null)
+        {
+            builder.AppendLine(await RunDiagnosticCommandAsync(
+                _configContainerName,
+                "config tail vespa.log",
+                "tail -n 120 /opt/vespa/logs/vespa/vespa.log 2>&1 || true"));
+        }
+
+        if (_servicesContainerName is not null)
+        {
+            builder.AppendLine(await RunDiagnosticCommandAsync(
+                _servicesContainerName,
+                "services probe 8080 health",
+                "curl --max-time 2 -i http://localhost:8080/state/v1/health 2>&1 || true"));
+            builder.AppendLine(await RunDiagnosticCommandAsync(
+                _servicesContainerName,
+                "services probe document readiness",
+                "curl --max-time 5 -i http://localhost:8080/document/v1/vespatest/vespatest/docid/readiness-probe 2>&1 || true"));
+            builder.AppendLine(await RunDiagnosticCommandAsync(
+                _servicesContainerName,
+                "services probe vector search",
+                "curl --max-time 5 -i \"http://localhost:8080/search/?yql=select%20*%20from%20vespatest%20where%20%7BtargetHits%3A1%7DnearestNeighbor(embedding%2Cquery_embedding)&ranking=vector&hits=1&input.query(query_embedding)=tensor%3Cfloat%3E(x%5B3%5D)%3A%5B0.1%2C0.2%2C0.3%5D\" 2>&1 || true"));
+            builder.AppendLine(await RunDiagnosticCommandAsync(
+                _servicesContainerName,
+                "services probe 19050 health",
+                "curl --max-time 2 -i http://localhost:19050/state/v1/health 2>&1 || true"));
+            builder.AppendLine(await RunDiagnosticCommandAsync(
+                _servicesContainerName,
+                "services probe ApplicationStatus",
+                "curl --max-time 2 -i http://localhost:8080/ApplicationStatus 2>&1 || true"));
+            builder.AppendLine(await RunDiagnosticCommandAsync(
+                _servicesContainerName,
+                "services process list",
+                "ps -ef 2>&1 || true"));
+            builder.AppendLine(await RunDiagnosticCommandAsync(
+                _servicesContainerName,
+                "services tail vespa.log",
+                "tail -n 120 /opt/vespa/logs/vespa/vespa.log 2>&1 || true"));
+
+            try
+            {
+                var logs = await RunDockerCommandAsync(TimeSpan.FromSeconds(10), "logs", "--tail", "120", _servicesContainerName);
+                builder.AppendLine($"[services docker logs] ExitCode={logs.ExitCode}{Environment.NewLine}STDOUT:{Environment.NewLine}{Truncate(logs.Stdout)}{Environment.NewLine}STDERR:{Environment.NewLine}{Truncate(logs.Stderr)}");
+            }
+            catch (Exception ex)
+            {
+                builder.AppendLine($"[services docker logs] diagnostic command failed: {ex.Message}");
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private async Task<string> RunDiagnosticCommandAsync(string containerName, string label, string command)
+    {
+        try
+        {
+            var result = await RunDockerCommandAsync(
+                TimeSpan.FromSeconds(30),
+                "exec",
+                containerName,
+                "bash",
+                "-lc",
+                command);
+
+            return $"[{label}] ExitCode={result.ExitCode}{Environment.NewLine}STDOUT:{Environment.NewLine}{Truncate(result.Stdout)}{Environment.NewLine}STDERR:{Environment.NewLine}{Truncate(result.Stderr)}";
+        }
+        catch (Exception ex)
+        {
+            return $"[{label}] diagnostic command failed: {ex.Message}";
+        }
+    }
+
+    private async Task EnsureDockerCliAvailableAsync()
+    {
+        _dockerTargetArgs = await ResolveDockerTargetArgsAsync();
+    }
+
+    private async Task<int> GetMappedPortAsync(string containerName, int containerPort)
+    {
+        var portResult = await RunDockerCommandAsync(TimeSpan.FromSeconds(15), "port", containerName, $"{containerPort}/tcp");
+        EnsureDockerSuccess(portResult, $"query mapped port for {containerName}:{containerPort}");
+
+        var line = portResult.Stdout
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .LastOrDefault();
+        if (line is null)
+            throw new InvalidOperationException($"Docker did not return a mapped port for {containerName}:{containerPort}.");
+
+        var separatorIndex = line.LastIndexOf(':');
+        if (separatorIndex < 0 || !int.TryParse(line[(separatorIndex + 1)..], out var mappedPort))
+            throw new InvalidOperationException($"Unable to parse mapped port from '{line}'.");
+
+        return mappedPort;
+    }
+
+    private static void EnsureDockerSuccess(DockerCliResult result, string operation)
+    {
+        if (result.ExitCode == 0)
+            return;
+
+        throw new InvalidOperationException(
+            $"Docker CLI failed to {operation}. ExitCode={result.ExitCode}, Stdout='{Truncate(result.Stdout)}', Stderr='{Truncate(result.Stderr)}'");
+    }
+
+    private async Task<DockerCliResult> RunDockerCommandAsync(TimeSpan timeout, params string[] arguments)
+    {
+        return await RunDockerCommandCoreAsync(timeout, _dockerTargetArgs, arguments);
+    }
+
+    private async Task TryRunDockerCommandAsync(TimeSpan timeout, params string[] arguments)
+    {
+        try
+        {
+            await RunDockerCommandAsync(timeout, arguments);
+        }
+        catch
+        {
+        }
+    }
+
+    private static async Task<DockerCliResult> RunDockerCommandRawAsync(TimeSpan timeout, params string[] arguments)
+    {
+        return await RunDockerCommandCoreAsync(timeout, [], arguments);
+    }
+
+    private static async Task<string[]> ResolveDockerTargetArgsAsync()
+    {
+        var candidateTargets = new[]
+        {
+            new[] { "-H", "npipe:////./pipe/dockerDesktopLinuxEngine" },
+            new[] { "-H", "npipe:////./pipe/dockerDesktopEngine" },
+            new[] { "-H", "npipe:////./pipe/docker_engine" },
+            new[] { "--context", "desktop-linux" },
+            new[] { "--context", "default" },
+            Array.Empty<string>(),
+        };
+
+        DockerCliResult? lastFailure = null;
+        foreach (var candidateTarget in candidateTargets)
+        {
+            var probe = await RunDockerCommandCoreAsync(
+                TimeSpan.FromSeconds(15),
+                candidateTarget,
+                ["version", "--format", "{{.Server.Version}}"]);
+
+            if (probe.ExitCode == 0 && !string.IsNullOrWhiteSpace(probe.Stdout))
+                return candidateTarget;
+
+            lastFailure = probe;
+        }
+
+        EnsureDockerSuccess(lastFailure ?? new DockerCliResult(1, string.Empty, "Docker probe did not run."), "query Docker server version");
+        return [];
+    }
+
+    private static async Task<DockerCliResult> RunDockerCommandCoreAsync(TimeSpan timeout, IReadOnlyList<string> dockerTargetArgs, IReadOnlyList<string> arguments)
+    {
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo("docker")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            }
+        };
+
+        process.StartInfo.Environment.Remove("DOCKER_HOST");
+        process.StartInfo.Environment.Remove("DOCKER_CONTEXT");
+
+        foreach (var argument in dockerTargetArgs)
+            process.StartInfo.ArgumentList.Add(argument);
+
+        foreach (var argument in arguments)
+            process.StartInfo.ArgumentList.Add(argument);
+
+        process.Start();
+
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
+        using var timeoutCts = new CancellationTokenSource(timeout);
+
+        try
+        {
+            await process.WaitForExitAsync(timeoutCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            try
+            {
+                if (!process.HasExited)
+                    process.Kill(entireProcessTree: true);
+            }
+            catch
+            {
+            }
+
+            var timedOutStdout = await stdoutTask;
+            var timedOutStderr = await stderrTask;
+            throw new TimeoutException(
+                $"Docker command timed out after {timeout.TotalSeconds:N0}s. Args: {string.Join(' ', dockerTargetArgs.Concat(arguments))}. Stdout='{Truncate(timedOutStdout)}', Stderr='{Truncate(timedOutStderr)}'");
+        }
+
+        var stdout = await stdoutTask;
+        var stderr = await stderrTask;
+        return new DockerCliResult(process.ExitCode, stdout, stderr);
+    }
+
+    private static string Truncate(string? value, int maxLength = 4000)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "<empty>";
+
+        var normalized = value.Replace("\r", string.Empty).Trim();
+        return normalized.Length <= maxLength
+            ? normalized
+            : normalized[..maxLength] + "...<truncated>";
+    }
+
+    private readonly record struct DockerCliResult(int ExitCode, string Stdout, string Stderr);
+
+        private static string CreateVespaApplicationPackage(string servicesHostName, string configHostName)
+        {
+                var root = Path.Combine(Path.GetTempPath(), $"agxioma_vespa_{Guid.NewGuid():N}");
+                Directory.CreateDirectory(root);
+                Directory.CreateDirectory(Path.Combine(root, "schemas"));
+
+                File.WriteAllText(Path.Combine(root, "services.xml"),
+                        """
+                        <services version="1.0">
+                            <admin version="2.0">
+                                <adminserver hostalias="config1" />
+                                <cluster-controllers>
+                                    <cluster-controller hostalias="node1" />
+                                </cluster-controllers>
+                            </admin>
+                            <container id="default" version="1.0">
+                                <search />
+                                <document-api />
+                                <nodes>
+                                    <node hostalias="node1" />
+                                </nodes>
+                            </container>
+                            <content id="content" version="1.0">
+                                <redundancy>1</redundancy>
+                                <documents>
+                                    <document type="vespatest" mode="index" />
+                                </documents>
+                                <nodes>
+                                    <node distribution-key="0" hostalias="node1" />
+                                </nodes>
+                            </content>
+                        </services>
+                        """);
+
+                File.WriteAllText(Path.Combine(root, "hosts.xml"),
+                        $"""
+                        <hosts>
+                            <host name="{configHostName}">
+                                <alias>config1</alias>
+                            </host>
+                            <host name="{servicesHostName}">
+                                <alias>node1</alias>
+                            </host>
+                        </hosts>
+                        """);
+
+                File.WriteAllText(Path.Combine(root, "schemas", $"{VespaSchema}.sd"),
+                        """
+                        schema vespatest {
+                            document vespatest {
+                                field id type string {
+                                    indexing: attribute | summary
+                                }
+                                field text_content type string {
+                                    indexing: index | summary
+                                }
+                                field embedding type tensor<float>(x[3]) {
+                                    indexing: attribute | index
+                                    attribute {
+                                        distance-metric: euclidean
+                                    }
+                                }
+                            }
+
+                            rank-profile vector inherits default {
+                                inputs {
+                                    query(query_embedding) tensor<float>(x[3])
+                                }
+                                first-phase {
+                                    expression: closeness(field, embedding)
+                                }
+                            }
+                        }
+                        """);
+
+                return root;
+        }
+}
+
 public sealed class PgVectorContainerFixture : IAsyncLifetime
 {
     private IContainer? _container;
@@ -2880,6 +3824,82 @@ internal static class ContainerReadiness
         }
 
         throw new TimeoutException($"Meilisearch endpoint {endpoint} did not become ready in time.");
+    }
+
+    public static async Task WaitForValdAsync(string endpoint, int attempts = 40)
+    {
+        for (var attempt = 0; attempt < attempts; attempt++)
+        {
+            try
+            {
+                var store = new ValdStore(endpoint);
+                _ = await store.GetAsync("readiness", Guid.NewGuid().ToString("N"));
+                return;
+            }
+            catch when (attempt < attempts - 1)
+            {
+            }
+
+            if (attempt < attempts - 1)
+                await Task.Delay(500);
+        }
+
+        throw new TimeoutException($"Vald endpoint {endpoint} did not become ready in time.");
+    }
+
+    public static async Task WaitForVespaAsync(string endpoint, int attempts = 40)
+    {
+        using var client = new HttpClient
+        {
+            BaseAddress = new Uri(endpoint),
+            Timeout = TimeSpan.FromSeconds(5)
+        };
+        string? lastPayload = null;
+        for (var attempt = 0; attempt < attempts; attempt++)
+        {
+            try
+            {
+                using var response = await client.GetAsync("state/v1/health");
+                lastPayload = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    if (attempt < attempts - 1)
+                        await Task.Delay(1000);
+
+                    continue;
+                }
+
+                using var documentResponse = await client.GetAsync("document/v1/vespatest/vespatest/docid/readiness-probe");
+                lastPayload = $"document probe status={(int)documentResponse.StatusCode} body='{await documentResponse.Content.ReadAsStringAsync()}'";
+                if (documentResponse.StatusCode != HttpStatusCode.NotFound)
+                {
+                    if (attempt < attempts - 1)
+                        await Task.Delay(1000);
+
+                    continue;
+                }
+
+                using var searchResponse = await client.GetAsync(
+                    "search/?yql=select%20*%20from%20vespatest%20where%20%7BtargetHits%3A1%7DnearestNeighbor(embedding%2Cquery_embedding)&ranking=vector&hits=1&input.query(query_embedding)=tensor%3Cfloat%3E(x%5B3%5D)%3A%5B0.1%2C0.2%2C0.3%5D");
+                lastPayload = $"search probe status={(int)searchResponse.StatusCode} body='{await searchResponse.Content.ReadAsStringAsync()}'";
+                if (searchResponse.IsSuccessStatusCode)
+                    return;
+            }
+            catch (TaskCanceledException ex)
+            {
+                lastPayload = $"probe timeout: {ex.Message}";
+            }
+            catch (Exception ex)
+            {
+                lastPayload = $"probe exception ({ex.GetType().Name}): {ex.Message}";
+            }
+
+            if (attempt < attempts - 1)
+                await Task.Delay(1000);
+        }
+
+        throw new TimeoutException(
+            $"Vespa endpoint {endpoint} did not become ready in time. Last payload='{lastPayload ?? "<empty>"}'");
     }
 
     public static async Task WaitForWeaviateAsync(string endpoint, int attempts = 40)
@@ -3632,6 +4652,177 @@ internal static class MeilisearchLiveTestCases
             await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collectionA);
             await VectorStoreLiveCleanup.TryDeleteCollectionAsync(store, collectionB);
         }
+    }
+}
+
+internal static class ValdLiveTestCases
+{
+    private const int ValdDimensions = 100;
+
+    public static async Task EnsureCollectionUpsertGetRoundTripAsync(Func<IVectorStore> createStore)
+    {
+        var collection = $"f5_vald_roundtrip_{Guid.NewGuid():N}";
+        var recordId = Guid.NewGuid().ToString();
+        var store = createStore();
+        try
+        {
+            await store.EnsureCollectionAsync(collection, ValdDimensions);
+            await store.UpsertAsync(collection, new VectorRecord(recordId, BasisVector(0), "hello"));
+
+            await LiveTestRetry.EventuallyAsync(async () =>
+            {
+                var got = await store.GetAsync(collection, recordId);
+                return got is not null && got.Vector.Length == ValdDimensions && got.Vector[0] == 1f;
+            }, attempts: 60, delayMs: 500);
+        }
+        finally
+        {
+            await TryDeleteAsync(store, collection, recordId);
+        }
+    }
+
+    public static async Task SearchEmptyCollectionReturnsEmptyAsync(Func<IVectorStore> createStore)
+    {
+        var collection = $"f5_vald_empty_{Guid.NewGuid():N}";
+        var store = createStore();
+        await store.EnsureCollectionAsync(collection, ValdDimensions);
+        Assert.Empty(await store.SearchAsync(collection, BasisVector(0), topK: 5));
+    }
+
+    public static async Task UpsertBatchMultipleRecordsAsync(Func<IVectorStore> createStore)
+    {
+        var collection = $"f5_vald_batch_{Guid.NewGuid():N}";
+        var recordA = Guid.NewGuid().ToString();
+        var recordB = Guid.NewGuid().ToString();
+        var store = createStore();
+        try
+        {
+            await store.EnsureCollectionAsync(collection, ValdDimensions);
+            await store.UpsertBatchAsync(collection, [
+                new VectorRecord(recordA, BasisVector(0), "alpha"),
+                new VectorRecord(recordB, BasisVector(1), "beta")
+            ]);
+
+            await LiveTestRetry.EventuallyAsync(async () =>
+                await store.GetAsync(collection, recordA) is not null
+                && await store.GetAsync(collection, recordB) is not null,
+                attempts: 60,
+                delayMs: 500);
+        }
+        finally
+        {
+            await TryDeleteAsync(store, collection, recordA, recordB);
+        }
+    }
+
+    public static async Task DeleteRemovesRecordAsync(Func<IVectorStore> createStore)
+    {
+        var collection = $"f5_vald_delete_{Guid.NewGuid():N}";
+        var recordId = Guid.NewGuid().ToString();
+        var store = createStore();
+        await store.EnsureCollectionAsync(collection, ValdDimensions);
+        await store.UpsertAsync(collection, new VectorRecord(recordId, BasisVector(2), "delete-me"));
+        await LiveTestRetry.EventuallyAsync(async () => await store.GetAsync(collection, recordId) is not null, attempts: 60, delayMs: 500);
+
+        await store.DeleteAsync(collection, recordId);
+        await LiveTestRetry.EventuallyAsync(async () => await store.GetAsync(collection, recordId) is null, attempts: 60, delayMs: 500);
+    }
+
+    private static float[] BasisVector(int hotIndex)
+    {
+        var vector = new float[ValdDimensions];
+        vector[hotIndex] = 1f;
+        return vector;
+    }
+
+    private static async Task TryDeleteAsync(IVectorStore store, string collection, params string[] ids)
+    {
+        foreach (var id in ids)
+        {
+            try
+            {
+                await store.DeleteAsync(collection, id);
+            }
+            catch
+            {
+            }
+        }
+    }
+}
+
+internal static class VespaLiveTestCases
+{
+    private const string Collection = "vespatest";
+
+    public static async Task EnsureCollectionUpsertGetRoundTripAsync(Func<IVectorStore> createStore)
+    {
+        var recordId = Guid.NewGuid().ToString();
+        var store = createStore();
+
+        await store.UpsertAsync(Collection, new VectorRecord(recordId, [1f, 0f, 0f], "hello"));
+        await LiveTestRetry.EventuallyAsync(async () =>
+        {
+            var got = await store.GetAsync(Collection, recordId);
+            return got is not null && got.Text == "hello";
+        }, attempts: 60, delayMs: 500);
+        await store.DeleteAsync(Collection, recordId);
+    }
+
+    public static async Task SearchReturnsNormalizedIdsAsync(Func<IVectorStore> createStore)
+    {
+        var recordId = Guid.NewGuid().ToString();
+        var store = createStore();
+        try
+        {
+            await store.UpsertAsync(Collection, new VectorRecord(recordId, [1f, 0f, 0f], "search-me"));
+            await LiveTestRetry.EventuallyAsync(async () => await store.GetAsync(Collection, recordId) is not null, attempts: 60, delayMs: 500);
+
+            await LiveTestRetry.EventuallyAsync(async () =>
+            {
+                var results = await store.SearchAsync(Collection, [1f, 0f, 0f], topK: 3);
+                return results.Any(r => r.Id == recordId);
+            }, attempts: 60, delayMs: 500);
+        }
+        finally
+        {
+            await store.DeleteAsync(Collection, recordId);
+        }
+    }
+
+    public static async Task UpsertBatchMultipleRecordsAsync(Func<IVectorStore> createStore)
+    {
+        var recordA = Guid.NewGuid().ToString();
+        var recordB = Guid.NewGuid().ToString();
+        var store = createStore();
+        try
+        {
+            await store.UpsertBatchAsync(Collection, [
+                new VectorRecord(recordA, [1f, 0f, 0f], "alpha"),
+                new VectorRecord(recordB, [0f, 1f, 0f], "beta")
+            ]);
+
+            await LiveTestRetry.EventuallyAsync(async () =>
+                await store.GetAsync(Collection, recordA) is not null
+                && await store.GetAsync(Collection, recordB) is not null,
+                attempts: 60,
+                delayMs: 500);
+        }
+        finally
+        {
+            await store.DeleteAsync(Collection, recordA);
+            await store.DeleteAsync(Collection, recordB);
+        }
+    }
+
+    public static async Task DeleteRemovesRecordAsync(Func<IVectorStore> createStore)
+    {
+        var recordId = Guid.NewGuid().ToString();
+        var store = createStore();
+        await store.UpsertAsync(Collection, new VectorRecord(recordId, [0f, 0f, 1f], "delete-me"));
+        await LiveTestRetry.EventuallyAsync(async () => await store.GetAsync(Collection, recordId) is not null, attempts: 60, delayMs: 500);
+
+        await store.DeleteAsync(Collection, recordId);
+        await LiveTestRetry.EventuallyAsync(async () => await store.GetAsync(Collection, recordId) is null, attempts: 60, delayMs: 500);
     }
 }
 

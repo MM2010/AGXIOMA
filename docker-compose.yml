@@ -25,6 +25,23 @@ services:
       timeout: 3s
       retries: 3
 
+  agxiome-ocr:
+    build:
+      context: .
+      dockerfile: apps/agxioma-ocr-service/Dockerfile
+    ports:
+      - "8081:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Ocr__DefaultLanguage=${AGXIOME_OCR_DEFAULT_LANGUAGE:-eng}
+      - Ocr__MaxFileBytes=${AGXIOME_OCR_MAX_FILE_BYTES:-10485760}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
   postgres:
     image: pgvector/pgvector:pg17
     environment:

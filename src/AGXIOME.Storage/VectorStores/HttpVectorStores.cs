@@ -21,7 +21,6 @@ namespace AGXIOME.Storage.VectorStores;
 //   VD-12  WeaviateSelfHostedStore    (same protocol, custom endpoint)
 //   VD-13  MilvusSelfHostedStore      (same protocol, custom endpoint)
 //   VD-14  ChromaDbSelfHostedStore    (same protocol, custom endpoint)
-//   VD-17  ValdStore                  (Vald REST Gateway API)
 //   VD-18  VespaStore                 (Vespa Document + Query REST API)
 //   VD-20  LanceDbStore               (LanceDB HTTP server mode)
 //   VD-28  ScaNNStore                 (ScaNN gRPC/HTTP wrapper — HTTP endpoint)
@@ -672,82 +671,6 @@ public sealed class ChromaDbSelfHostedStore : ChromaVectorStoreBase
     public ChromaDbSelfHostedStore(HttpClient http) : base(http) { }
 }
 
-// ─── VD-17 — Vald ────────────────────────────────────────────────────────────
-
-/// <summary>VD-17 — Vald cloud-native distributed ANN vector store (REST Gateway API).
-/// HttpClient base address must point to the Vald gateway (e.g. http://vald-gateway:8080/).
-/// Collection is mapped to an index name prefix in object ID ("collection/id").</summary>
-public sealed class ValdStore : IVectorStore
-{
-    private readonly HttpClient _http;
-    public VectorDbProviderType ProviderType => VectorDbProviderType.Vald;
-
-    public ValdStore(HttpClient http)
-        => _http = http ?? throw new ArgumentNullException(nameof(http));
-
-    // Vald indices are declared at deployment time; no runtime collection management.
-    public Task EnsureCollectionAsync(string collection, int dimensions, CancellationToken ct = default) => Task.CompletedTask;
-    public Task DeleteCollectionAsync(string collection, CancellationToken ct = default) => Task.CompletedTask;
-    public Task<IReadOnlyList<string>> ListCollectionsAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
-
-    private static string ValdId(string collection, string id) => $"{collection}/{id}";
-
-    public async Task UpsertAsync(string collection, VectorRecord record, CancellationToken ct = default)
-    {
-        var body = new { id = ValdId(collection, record.Id), vector = record.Vector };
-        var resp = await _http.PostAsJsonAsync("upsert", body, Json.Opts, ct);
-        resp.EnsureSuccessStatusCode();
-    }
-
-    public async Task UpsertBatchAsync(string collection, IReadOnlyList<VectorRecord> records, CancellationToken ct = default)
-    {
-        var body = new { requests = records.Select(r => new { id = ValdId(collection, r.Id), vector = r.Vector }) };
-        var resp = await _http.PostAsJsonAsync("upsert/multi", body, Json.Opts, ct);
-        resp.EnsureSuccessStatusCode();
-    }
-
-    public async Task<VectorRecord?> GetAsync(string collection, string id, CancellationToken ct = default)
-    {
-        var resp = await _http.GetAsync($"object/{Uri.EscapeDataString(ValdId(collection, id))}", ct);
-        if (resp.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
-        resp.EnsureSuccessStatusCode();
-        using var doc = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-        var vec = doc.RootElement.TryGetProperty("vector", out var v)
-            ? v.EnumerateArray().Select(e => e.GetSingle()).ToArray() : Array.Empty<float>();
-        return new VectorRecord(id, vec);
-    }
-
-    public async Task DeleteAsync(string collection, string id, CancellationToken ct = default)
-    {
-        var resp = await _http.DeleteAsync($"delete/{Uri.EscapeDataString(ValdId(collection, id))}", ct);
-        resp.EnsureSuccessStatusCode();
-    }
-
-    public async Task<IReadOnlyList<VectorSearchResult>> SearchAsync(
-        string collection, float[] queryVector, int topK = 10, float minScore = 0f,
-        VectorFilter? filter = null, CancellationToken ct = default)
-    {
-        var body = new { vector = queryVector, size = topK };
-        var resp = await _http.PostAsJsonAsync("search", body, Json.Opts, ct);
-        resp.EnsureSuccessStatusCode();
-        using var doc = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-        var results = new List<VectorSearchResult>();
-        if (!doc.RootElement.TryGetProperty("results", out var res)) return results;
-        foreach (var item in res.EnumerateArray())
-        {
-            var dist = item.TryGetProperty("distance", out var d) ? d.GetSingle() : 0f;
-            var score = 1f - dist;
-            if (score < minScore) continue;
-            var rawId = item.TryGetProperty("id", out var idEl) ? idEl.GetString() ?? "" : "";
-            // Strip collection prefix if present.
-            var rid = rawId.StartsWith(collection + "/", StringComparison.Ordinal)
-                ? rawId[(collection.Length + 1)..] : rawId;
-            results.Add(new VectorSearchResult(rid, score));
-        }
-        return results;
-    }
-}
-
 // ─── VD-18 — Vespa ───────────────────────────────────────────────────────────
 
 /// <summary>VD-18 — Vespa big data + vector search store (Document and Query REST API).
@@ -772,15 +695,17 @@ public sealed class VespaStore : IVectorStore
         {
             fields = new
             {
-                id = record.Id,
-                embedding = new { values = record.Vector },
+                embedding = new
+                {
+                    values = record.Vector,
+                },
                 text_content = record.Text,
             }
         };
-        var resp = await _http.PutAsJsonAsync(
+        var resp = await _http.PostAsJsonAsync(
             $"document/v1/{Uri.EscapeDataString(collection)}/{Uri.EscapeDataString(collection)}/docid/{Uri.EscapeDataString(record.Id)}",
             body, Json.Opts, ct);
-        resp.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(resp, $"upsert '{record.Id}'", ct);
     }
 
     public async Task UpsertBatchAsync(string collection, IReadOnlyList<VectorRecord> records, CancellationToken ct = default)
@@ -793,11 +718,12 @@ public sealed class VespaStore : IVectorStore
         var resp = await _http.GetAsync(
             $"document/v1/{Uri.EscapeDataString(collection)}/{Uri.EscapeDataString(collection)}/docid/{Uri.EscapeDataString(id)}", ct);
         if (resp.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
-        resp.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(resp, $"get '{id}'", ct);
         using var doc = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
         if (!doc.RootElement.TryGetProperty("fields", out var fields)) return null;
-        var vec = fields.TryGetProperty("embedding", out var emb) && emb.TryGetProperty("values", out var vals)
-            ? vals.EnumerateArray().Select(e => e.GetSingle()).ToArray() : Array.Empty<float>();
+        var vec = fields.TryGetProperty("embedding", out var emb)
+            ? ReadVespaVector(emb)
+            : Array.Empty<float>();
         return new VectorRecord(id, vec,
             fields.TryGetProperty("text_content", out var t) ? t.GetString() : null);
     }
@@ -806,7 +732,7 @@ public sealed class VespaStore : IVectorStore
     {
         var resp = await _http.DeleteAsync(
             $"document/v1/{Uri.EscapeDataString(collection)}/{Uri.EscapeDataString(collection)}/docid/{Uri.EscapeDataString(id)}", ct);
-        resp.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(resp, $"delete '{id}'", ct);
     }
 
     public async Task<IReadOnlyList<VectorSearchResult>> SearchAsync(
@@ -815,9 +741,10 @@ public sealed class VespaStore : IVectorStore
     {
         var yql = $"select * from {collection} where {{targetHits:{topK}}}nearestNeighbor(embedding,query_embedding)";
         var vecStr = "[" + string.Join(",", queryVector.Select(f => f.ToString(System.Globalization.CultureInfo.InvariantCulture))) + "]";
-        var url = $"search/?yql={Uri.EscapeDataString(yql)}&hits={topK}&input.query(query_embedding)={Uri.EscapeDataString(vecStr)}";
+        var tensorValue = $"tensor<float>(x[{queryVector.Length}]):{vecStr}";
+        var url = $"search/?yql={Uri.EscapeDataString(yql)}&ranking=vector&hits={topK}&input.query(query_embedding)={Uri.EscapeDataString(tensorValue)}";
         var resp = await _http.GetAsync(url, ct);
-        resp.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(resp, $"search '{collection}'", ct);
         using var doc = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
         var results = new List<VectorSearchResult>();
         if (!doc.RootElement.TryGetProperty("root", out var root)
@@ -826,10 +753,59 @@ public sealed class VespaStore : IVectorStore
         {
             var score = hit.TryGetProperty("relevance", out var rel) ? rel.GetSingle() : 0f;
             if (score < minScore) continue;
-            var rid = hit.TryGetProperty("id", out var idEl) ? idEl.GetString() ?? "" : "";
+            var rid = hit.TryGetProperty("id", out var idEl) ? NormalizeVespaDocumentId(idEl.GetString()) : "";
             results.Add(new VectorSearchResult(rid, score));
         }
         return results;
+    }
+
+    private static string NormalizeVespaDocumentId(string? rawId)
+    {
+        if (string.IsNullOrWhiteSpace(rawId))
+            return string.Empty;
+
+        var separatorIndex = rawId.LastIndexOf("::", StringComparison.Ordinal);
+        return separatorIndex >= 0 && separatorIndex + 2 < rawId.Length
+            ? rawId[(separatorIndex + 2)..]
+            : rawId;
+    }
+
+    private static float[] ReadVespaVector(JsonElement embedding)
+    {
+        if (embedding.ValueKind == JsonValueKind.Array)
+            return embedding.EnumerateArray().Select(e => e.GetSingle()).ToArray();
+
+        if (embedding.ValueKind == JsonValueKind.Object
+            && embedding.TryGetProperty("values", out var values)
+            && values.ValueKind == JsonValueKind.Array)
+        {
+            return values.EnumerateArray().Select(e => e.GetSingle()).ToArray();
+        }
+
+        return Array.Empty<float>();
+    }
+
+    private static async Task EnsureSuccessAsync(HttpResponseMessage response, string operation, CancellationToken ct)
+    {
+        if (response.IsSuccessStatusCode)
+            return;
+
+        var body = await response.Content.ReadAsStringAsync(ct);
+        throw new HttpRequestException(
+            $"Vespa {operation} failed with {(int)response.StatusCode} ({response.ReasonPhrase}). Body: {TruncateForError(body)}",
+            null,
+            response.StatusCode);
+    }
+
+    private static string TruncateForError(string? value, int maxLength = 2000)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "<empty>";
+
+        var normalized = value.Replace("\r", string.Empty).Trim();
+        return normalized.Length <= maxLength
+            ? normalized
+            : normalized[..maxLength] + "...<truncated>";
     }
 }
 

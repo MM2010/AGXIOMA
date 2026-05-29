@@ -3,7 +3,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY src/AGXIOME.slnx .
+COPY src/AGXIOMA.slnx .
 COPY src/AGXIOME.Shared/ AGXIOME.Shared/
 COPY src/AGXIOME.Interfaces/ AGXIOME.Interfaces/
 COPY src/AGXIOME.LLMWIKY/ AGXIOME.LLMWIKY/
@@ -13,13 +13,13 @@ COPY src/AGXIOME.CLI/ AGXIOME.CLI/
 COPY src/AGXIOME.Telemetry/ AGXIOME.Telemetry/
 COPY src/AGXIOME.Security/ AGXIOME.Security/
 COPY src/AGXIOME.Realtime/ AGXIOME.Realtime/
+COPY src/AGXIOME.DynamicRuntime/ AGXIOME.DynamicRuntime/
 COPY src/AGXIOME.Runtime/ AGXIOME.Runtime/
 COPY src/AGXIOME.Orchestration/ AGXIOME.Orchestration/
 COPY src/AGXIOME.Toolkits/ AGXIOME.Toolkits/
 COPY src/AGXIOME.Embedders/ AGXIOME.Embedders/
 COPY src/AGXIOME.Readers/ AGXIOME.Readers/
 COPY src/AGXIOME.XLink/ AGXIOME.XLink/
-COPY src/AGXIOME.Learner/ AGXIOME.Learner/
 
 RUN dotnet restore AGXIOME.CLI/AGXIOME.CLI.csproj
 RUN dotnet publish AGXIOME.CLI/AGXIOME.CLI.csproj -c Release -o /app/publish --no-restore
@@ -27,6 +27,11 @@ RUN dotnet publish AGXIOME.CLI/AGXIOME.CLI.csproj -c Release -o /app/publish --n
 # Stage 2: Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 8080
 EXPOSE 8443

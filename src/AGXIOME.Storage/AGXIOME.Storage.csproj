@@ -5,6 +5,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Protobuf Include="Protos\vald-minimal.proto" GrpcServices="Client" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="AWSSDK.DynamoDBv2" Version="*" />
     <PackageReference Include="AWSSDK.S3" Version="*" />
     <PackageReference Include="Azure.Storage.Blobs" Version="*" />
@@ -22,6 +26,7 @@
     <PackageReference Include="YamlDotNet" Version="17.1.0" />
     <PackageReference Include="Qdrant.Client" Version="*" />
     <PackageReference Include="RocksDbSharp" Version="*" />
+    <PackageReference Include="RocksDbNative" Version="6.2.2" />
     <PackageReference Include="ClickHouse.Client" Version="*" />
     <PackageReference Include="CouchbaseNetClient" Version="3.9.2" />
     <PackageReference Include="Dapper" Version="2.1.72" />
@@ -29,6 +34,13 @@
     <PackageReference Include="DuckDB.NET.Data.Full" Version="*" />
     <PackageReference Include="Elastic.Clients.Elasticsearch" Version="*" />
     <PackageReference Include="Google.Cloud.Firestore" Version="*" />
+    <PackageReference Include="Google.Protobuf" Version="*" />
+    <PackageReference Include="Grpc.Core.Api" Version="*" />
+    <PackageReference Include="Grpc.Net.Client" Version="*" />
+    <PackageReference Include="Grpc.Tools" Version="*">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Hazelcast.Net" Version="*" />
     <PackageReference Include="InfluxDB.Client" Version="*" />
     <PackageReference Include="Meilisearch" Version="*" />

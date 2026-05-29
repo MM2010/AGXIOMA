@@ -41,29 +41,32 @@
 | VD-15 | **Elasticsearch Dense** | Search+vector | `Elastic.Clients.Elasticsearch` | ✅ |
 | VD-16 | **Meilisearch vector** | Search+vector | `Meilisearch` | ✅ |
 | VD-17 | **Vald** | Cloud native | gRPC client | ⚠️ |
-| VD-18 | **Vespa** | Big data | `Vespa.Net` | ⚠️ |
+| VD-18 | **Vespa** | Big data | `Vespa.Net` | ✅ |
 
 ### 🟡 Wave 3 — SQL-Embedded Vector (6)
 
 | # | Provider | Engine | Package | NuGet |
 |---|----------|--------|---------|-------|
-| VD-19 | **SQLite + sqlite-vec** | Embedded | `sqlite-vec` | ⚠️ |
-| VD-20 | **LanceDB** | Embedded | `LanceDb.Client` | ⚠️ |
+| VD-19 | **SQLite + sqlite-vec** | Embedded | `sqlite-vec` | ✅ |
+| VD-20 | **LanceDB** | Embedded | `LanceDb.Client` | ✅ |
 | VD-21 | **DuckDB + vector** | Analytical | `DuckDB.NET` | ✅ |
 | VD-22 | **Redis Stack** | KV+vector | `StackExchange.Redis` | ✅ |
-| VD-23 | **MongoDB Atlas** | Doc+vector | `MongoDB.Driver` | ✅ |
-| VD-24 | **Cosmos DB vCore** | Vector search | `Microsoft.Azure.Cosmos` | ✅ |
+| VD-23 | **MongoDB Atlas** | Doc+vector | `MongoDB.Driver` | ⚠️ |
+| VD-24 | **Cosmos DB vCore** | Vector search | `Microsoft.Azure.Cosmos` | ⚠️ |
 
 ### 🟢 Wave 4 — Specialized & Emerging (6)
 
 | # | Provider | Engine | Package | NuGet |
 |---|----------|--------|---------|-------|
-| VD-25 | **HNSWLib** | In-memory HNSW | embedding DLL | ⚠️ |
+| VD-25 | **HNSWLib** | In-memory HNSW | embedding DLL | ✅ |
 | VD-26 | **FAISS** | ANN library | `Microsoft.ML.OnnxRuntime` | ✅ |
-| VD-27 | **Annoy** | Approx NN | C# binding | ⚠️ |
+| VD-27 | **Annoy** | Approx NN | C# binding | ✅ |
 | VD-28 | **ScaNN** | ANN (Google) | gRPC | ⚠️ |
 | VD-29 | **RocksDB + HNSW** | Embedded KV | `RocksDB` | ✅ |
-| VD-30 | **SQL Server + vector** | Enterprise | `Microsoft.Data.SqlClient` | ✅ |
+| VD-30 | **SQL Server + vector** | Enterprise | `Microsoft.Data.SqlClient` | ⚠️ |
+
+Nota operativa:
+`VD-23`, `VD-24`, `VD-28` e `VD-30` restano backlog futuro perché la chiusura onesta richiede ambienti esterni reali o feature/runtime non presenti localmente.
 
 ---
 

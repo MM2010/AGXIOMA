@@ -1,4 +1,5 @@
 using System.Net;
+using System.IO.Compression;
 using System.Text;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
@@ -7,6 +8,201 @@ using NSubstitute;
 using Xunit;
 
 namespace AGXIOME.Tests;
+
+internal static class LiveDocumentReaderTestSupport
+{
+    internal const string WebsiteUrlEnv = "AGXIOME_WEBSITE_TEST_URL";
+    internal const string WebsiteMissingUrlEnv = "AGXIOME_WEBSITE_TEST_404_URL";
+    internal const string WebsiteRedirectUrlEnv = "AGXIOME_WEBSITE_TEST_REDIRECT_URL";
+    internal const string WikipediaTitleEnv = "AGXIOME_WIKIPEDIA_TEST_TITLE";
+    internal const string WikipediaUriEnv = "AGXIOME_WIKIPEDIA_TEST_URI";
+    internal const string WikipediaLangUriEnv = "AGXIOME_WIKIPEDIA_TEST_LANG_URI";
+    internal const string PubMedPmidEnv = "AGXIOME_PUBMED_TEST_PMID";
+    internal const string PubMedUriEnv = "AGXIOME_PUBMED_TEST_URI";
+    internal const string PubMedInvalidPmidEnv = "AGXIOME_PUBMED_TEST_INVALID_PMID";
+    internal const string YouTubeVideoIdEnv = "AGXIOME_YOUTUBE_TEST_VIDEO_ID";
+    internal const string YouTubeUriEnv = "AGXIOME_YOUTUBE_TEST_URI";
+    internal const string YouTubeNoCaptionVideoIdEnv = "AGXIOME_YOUTUBE_TEST_NO_CAPTION_VIDEO_ID";
+    internal const string FirecrawlApiKeyEnv = "AGXIOME_FIRECRAWL_API_KEY";
+    internal const string FirecrawlTargetUrlEnv = "AGXIOME_FIRECRAWL_TEST_URL";
+    internal const string FirecrawlBaseUrlEnv = "AGXIOME_FIRECRAWL_BASE_URL";
+    internal const string AwsS3RegionEnv = "AGXIOME_AWS_S3_REGION";
+    internal const string AwsS3TestUriEnv = "AGXIOME_AWS_S3_TEST_URI";
+    internal const string AwsS3MissingUriEnv = "AGXIOME_AWS_S3_MISSING_URI";
+    internal const string AzureBlobConnectionStringEnv = "AGXIOME_AZURE_BLOB_CONNECTION_STRING";
+    internal const string AzureBlobTestUriEnv = "AGXIOME_AZURE_BLOB_TEST_URI";
+    internal const string AzureBlobMissingUriEnv = "AGXIOME_AZURE_BLOB_MISSING_URI";
+    internal const string GcsCredentialsPathEnv = "GOOGLE_APPLICATION_CREDENTIALS";
+    internal const string GcsTestUriEnv = "AGXIOME_GCS_TEST_URI";
+    internal const string GcsMissingUriEnv = "AGXIOME_GCS_MISSING_URI";
+    internal const string GitHubTestUriEnv = "AGXIOME_GITHUB_TEST_URI";
+    internal const string GitHubPrivateUriEnv = "AGXIOME_GITHUB_PRIVATE_URI";
+    internal const string GitHubMissingUriEnv = "AGXIOME_GITHUB_MISSING_URI";
+    internal const string GitHubTokenEnv = "AGXIOME_GITHUB_TOKEN";
+    internal const string SharePointTestUriEnv = "AGXIOME_SHAREPOINT_TEST_URI";
+    internal const string SharePointAccessTokenEnv = "AGXIOME_SHAREPOINT_ACCESS_TOKEN";
+    internal const string WhisperApiKeyEnv = "AGXIOME_WHISPER_API_KEY";
+    internal const string WhisperAudioFileEnv = "AGXIOME_WHISPER_AUDIO_FILE";
+    internal const string WhisperBaseUrlEnv = "AGXIOME_WHISPER_BASE_URL";
+    internal const string NotionTokenEnv = "AGXIOME_NOTION_TOKEN";
+    internal const string NotionPageIdEnv = "AGXIOME_NOTION_PAGE_ID";
+    internal const string ConfluenceTokenEnv = "AGXIOME_CONFLUENCE_TOKEN";
+    internal const string ConfluenceInstanceEnv = "AGXIOME_CONFLUENCE_INSTANCE";
+    internal const string ConfluencePageUriEnv = "AGXIOME_CONFLUENCE_PAGE_URI";
+
+    internal static string RequireEnvironmentVariable(string envName, string requirement)
+    {
+        var value = Environment.GetEnvironmentVariable(envName);
+        if (!string.IsNullOrWhiteSpace(value))
+            return value;
+
+        throw new InvalidOperationException($"Missing required environment variable {envName} for {requirement}.");
+    }
+
+    internal static HttpClient CreateLiveHttpClient(bool allowAutoRedirect = true)
+        => new(new HttpClientHandler
+        {
+            AllowAutoRedirect = allowAutoRedirect,
+        });
+
+    internal static HttpClient CreateLiveFirecrawlHttpClient(bool includeAuthorization)
+    {
+        var baseUrl = Environment.GetEnvironmentVariable(FirecrawlBaseUrlEnv);
+        var client = new HttpClient
+        {
+            BaseAddress = new Uri(
+                string.IsNullOrWhiteSpace(baseUrl) ? "https://api.firecrawl.dev/" : baseUrl,
+                UriKind.Absolute),
+        };
+
+        if (includeAuthorization)
+        {
+            var apiKey = RequireEnvironmentVariable(FirecrawlApiKeyEnv, "a live Firecrawl API key");
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+        }
+
+        return client;
+    }
+
+    internal static Amazon.S3.IAmazonS3 CreateLiveAwsS3Client()
+    {
+        var region = RequireEnvironmentVariable(AwsS3RegionEnv, "a live AWS region");
+        var regionEndpoint = Amazon.RegionEndpoint.GetBySystemName(region);
+        var hasExplicitAwsCredentials =
+            !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID")) ||
+            !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AWS_PROFILE"));
+
+        return hasExplicitAwsCredentials
+            ? new Amazon.S3.AmazonS3Client(regionEndpoint)
+            : new Amazon.S3.AmazonS3Client(new Amazon.Runtime.AnonymousAWSCredentials(), regionEndpoint);
+    }
+
+    internal static Azure.Storage.Blobs.BlobServiceClient CreateLiveAzureBlobClient()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(AzureBlobConnectionStringEnv);
+        if (!string.IsNullOrWhiteSpace(connectionString))
+            return new Azure.Storage.Blobs.BlobServiceClient(connectionString);
+
+        var candidateUri =
+            Environment.GetEnvironmentVariable(AzureBlobTestUriEnv) ??
+            Environment.GetEnvironmentVariable(AzureBlobMissingUriEnv);
+
+        if (string.IsNullOrWhiteSpace(candidateUri))
+            throw new InvalidOperationException($"Missing required environment variable {AzureBlobConnectionStringEnv} or a public Azure Blob URI for anonymous access.");
+
+        var blobUri = new Uri(candidateUri, UriKind.Absolute);
+        var serviceUri = new Uri($"{blobUri.Scheme}://{blobUri.Host}", UriKind.Absolute);
+        return new Azure.Storage.Blobs.BlobServiceClient(serviceUri);
+    }
+
+    internal static Google.Cloud.Storage.V1.StorageClient CreateLiveGcsClient()
+    {
+        var credentialsPath = Environment.GetEnvironmentVariable(GcsCredentialsPathEnv);
+        if (string.IsNullOrWhiteSpace(credentialsPath))
+            return Google.Cloud.Storage.V1.StorageClient.CreateUnauthenticated();
+
+        var credential = Google.Apis.Auth.OAuth2.GoogleCredential.FromFile(credentialsPath);
+        return Google.Cloud.Storage.V1.StorageClient.Create(credential);
+    }
+
+    internal static HttpClient CreateLiveGitHubHttpClient(bool includeAuthorization)
+    {
+        var client = CreateLiveHttpClient();
+
+        if (includeAuthorization)
+        {
+            var token = Environment.GetEnvironmentVariable(GitHubTokenEnv);
+            if (!string.IsNullOrWhiteSpace(token))
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+
+        return client;
+    }
+
+    internal static Microsoft.Graph.GraphServiceClient CreateLiveSharePointClient(bool includeAuthorization)
+    {
+        var token = includeAuthorization
+            ? RequireEnvironmentVariable(SharePointAccessTokenEnv, "a live Microsoft Graph access token")
+            : null;
+
+        return new Microsoft.Graph.GraphServiceClient(
+            CreateLiveHttpClient(),
+            new StaticBearerAuthenticationProvider(token),
+            "https://graph.microsoft.com/v1.0");
+    }
+
+    internal static HttpClient CreateLiveWhisperHttpClient(bool includeAuthorization)
+    {
+        var baseUrl = Environment.GetEnvironmentVariable(WhisperBaseUrlEnv);
+        var client = new HttpClient
+        {
+            BaseAddress = new Uri(
+                string.IsNullOrWhiteSpace(baseUrl) ? "https://api.openai.com/" : baseUrl,
+                UriKind.Absolute),
+        };
+
+        if (includeAuthorization)
+        {
+            var apiKey = RequireEnvironmentVariable(WhisperApiKeyEnv, "a live OpenAI Whisper API key");
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+        }
+
+        return client;
+    }
+}
+
+internal sealed class StaticBearerAuthenticationProvider : Microsoft.Kiota.Abstractions.Authentication.IAuthenticationProvider
+{
+    private readonly string? _accessToken;
+
+    public StaticBearerAuthenticationProvider(string? accessToken)
+        => _accessToken = accessToken;
+
+    public Task AuthenticateRequestAsync(
+        Microsoft.Kiota.Abstractions.RequestInformation request,
+        Dictionary<string, object>? additionalAuthenticationContext = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!string.IsNullOrWhiteSpace(_accessToken))
+            request.Headers.Add("Authorization", $"Bearer {_accessToken}");
+
+        return Task.CompletedTask;
+    }
+}
+
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+internal sealed class RequiresDocumentReaderEnvironmentFactAttribute : FactAttribute
+{
+    public RequiresDocumentReaderEnvironmentFactAttribute(params string[] envNames)
+    {
+        var missing = envNames
+            .Where(envName => string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(envName)))
+            .ToArray();
+
+        if (missing.Length > 0)
+            Skip = $"requires environment variables: {string.Join(", ", missing)}";
+    }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // F6 — Document Reader Tests (R-01..R-28)
@@ -78,7 +274,88 @@ internal static class TestDocContent
         return new MemoryStream(Encoding.ASCII.GetBytes(rtf));
     }
 
+    public static MemoryStream Epub()
+    {
+        var stream = new MemoryStream();
+
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            WriteZipEntry(archive, "mimetype", "application/epub+zip", System.IO.Compression.CompressionLevel.NoCompression);
+            WriteZipEntry(
+                archive,
+                "META-INF/container.xml",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+                "<container version=\"1.0\" xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\">" +
+                "<rootfiles><rootfile full-path=\"OEBPS/content.opf\" media-type=\"application/oebps-package+xml\"/></rootfiles>" +
+                "</container>");
+            WriteZipEntry(
+                archive,
+                "OEBPS/content.opf",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+                "<package xmlns=\"http://www.idpf.org/2007/opf\" version=\"2.0\" unique-identifier=\"BookId\">" +
+                "<metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\">" +
+                "<dc:title>Test EPUB</dc:title><dc:creator>Test Author</dc:creator><dc:language>en</dc:language>" +
+                "<dc:identifier id=\"BookId\">urn:test:epub</dc:identifier></metadata>" +
+                "<manifest>" +
+                "<item id=\"ncx\" href=\"toc.ncx\" media-type=\"application/x-dtbncx+xml\"/>" +
+                "<item id=\"chapter1\" href=\"chapter1.xhtml\" media-type=\"application/xhtml+xml\"/>" +
+                "<item id=\"chapter2\" href=\"chapter2.xhtml\" media-type=\"application/xhtml+xml\"/>" +
+                "</manifest>" +
+                "<spine toc=\"ncx\"><itemref idref=\"chapter1\"/><itemref idref=\"chapter2\"/></spine>" +
+                "</package>");
+            WriteZipEntry(
+                archive,
+                "OEBPS/toc.ncx",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+                "<ncx xmlns=\"http://www.daisy.org/z3986/2005/ncx/\" version=\"2005-1\">" +
+                "<head><meta name=\"dtb:uid\" content=\"urn:test:epub\"/></head>" +
+                "<docTitle><text>Test EPUB</text></docTitle><navMap>" +
+                "<navPoint id=\"navPoint-1\" playOrder=\"1\"><navLabel><text>Chapter 1</text></navLabel><content src=\"chapter1.xhtml\"/></navPoint>" +
+                "<navPoint id=\"navPoint-2\" playOrder=\"2\"><navLabel><text>Chapter 2</text></navLabel><content src=\"chapter2.xhtml\"/></navPoint>" +
+                "</navMap></ncx>");
+            WriteZipEntry(
+                archive,
+                "OEBPS/chapter1.xhtml",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?><html xmlns=\"http://www.w3.org/1999/xhtml\"><body><h1>Chapter 1</h1><p>Hello EPUB chapter one.</p></body></html>");
+            WriteZipEntry(
+                archive,
+                "OEBPS/chapter2.xhtml",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?><html xmlns=\"http://www.w3.org/1999/xhtml\"><body><h1>Chapter 2</h1><p>Hello EPUB chapter two.</p></body></html>");
+        }
+
+        stream.Position = 0;
+        return stream;
+    }
+
     public static MemoryStream Empty() => new MemoryStream();
+
+    // Generates a real PNG with "HELLO OCR" text on white background.
+    // Used by ImageOcrReaderTests when Tesseract is available.
+    // Relies on SkiaSharp for cross-platform image generation.
+    public static void GenerateOcrSamplePng(string path)
+    {
+        using var surface = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo(420, 140));
+        var canvas = surface.Canvas;
+        canvas.Clear(SkiaSharp.SKColors.White);
+        using var paint = new SkiaSharp.SKPaint
+        {
+            Color = SkiaSharp.SKColors.Black,
+            IsAntialias = true,
+        };
+        using var font = new SkiaSharp.SKFont(SkiaSharp.SKTypeface.FromFamilyName("Arial"), 30);
+        canvas.DrawText("HELLO OCR", 20, 70, font, paint);
+        using var image = surface.Snapshot();
+        using var data = image.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+        using var fs = File.Create(path);
+        data.SaveTo(fs);
+    }
+
+    private static void WriteZipEntry(ZipArchive archive, string name, string content, System.IO.Compression.CompressionLevel compressionLevel = System.IO.Compression.CompressionLevel.Optimal)
+    {
+        var entry = archive.CreateEntry(name, compressionLevel);
+        using var writer = new StreamWriter(entry.Open(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        writer.Write(content);
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -639,9 +916,45 @@ public class WebsiteReaderTests
         Assert.NotNull(result);
     }
 
-    [Fact(Skip = "requires live HTTP endpoint")] public Task ReadAsync_LiveUrl_ReturnsContent() => Task.CompletedTask;
-    [Fact(Skip = "requires live HTTP endpoint")] public Task ReadAsync_404_Throws() => Task.CompletedTask;
-    [Fact(Skip = "requires live HTTP endpoint")] public Task ReadAsync_Redirects_Follows() => Task.CompletedTask;
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.WebsiteUrlEnv)]
+    public async Task ReadAsync_LiveUrl_ReturnsContent()
+    {
+        var reader = new WebsiteReader(LiveDocumentReaderTestSupport.CreateLiveHttpClient());
+        var url = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.WebsiteUrlEnv,
+            "a live website reader proof URL");
+
+        var result = await reader.ReadAsync(url);
+
+        Assert.Equal(DocumentReaderType.Website, result.ReaderType);
+        Assert.NotEmpty(result.RawText);
+        Assert.NotEmpty(result.Sections);
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.WebsiteMissingUrlEnv)]
+    public async Task ReadAsync_404_Throws()
+    {
+        var reader = new WebsiteReader(LiveDocumentReaderTestSupport.CreateLiveHttpClient());
+        var url = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.WebsiteMissingUrlEnv,
+            "a live website reader 404 proof URL");
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => reader.ReadAsync(url));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.WebsiteRedirectUrlEnv)]
+    public async Task ReadAsync_Redirects_Follows()
+    {
+        var reader = new WebsiteReader(LiveDocumentReaderTestSupport.CreateLiveHttpClient());
+        var url = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.WebsiteRedirectUrlEnv,
+            "a live website reader redirect proof URL");
+
+        var result = await reader.ReadAsync(url);
+
+        Assert.Equal(DocumentReaderType.Website, result.ReaderType);
+        Assert.NotEmpty(result.RawText);
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new WebsiteReader(MockHttp()));
@@ -673,9 +986,53 @@ public class WikipediaReaderTests
         await Assert.ThrowsAsync<NotSupportedException>(() => reader.ReadFromStreamAsync(ms));
     }
 
-    [Fact(Skip = "requires live Wikipedia API")] public Task ReadAsync_ValidTitle_ReturnsContent() => Task.CompletedTask;
-    [Fact(Skip = "requires live Wikipedia API")] public Task ReadAsync_WikipediaUri_Parsed() => Task.CompletedTask;
-    [Fact(Skip = "requires live Wikipedia API")] public Task ReadAsync_LangPrefix_UsedInRequest() => Task.CompletedTask;
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.WikipediaTitleEnv)]
+    public async Task ReadAsync_ValidTitle_ReturnsContent()
+    {
+        var reader = new WikipediaReader(LiveDocumentReaderTestSupport.CreateLiveHttpClient());
+        var title = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.WikipediaTitleEnv,
+            "a live Wikipedia article title");
+
+        var result = await reader.ReadAsync(title);
+
+        Assert.Equal(DocumentReaderType.Wikipedia, result.ReaderType);
+        Assert.NotEmpty(result.RawText);
+        Assert.NotEmpty(result.Sections);
+        Assert.NotNull(result.Metadata);
+        Assert.True(result.Metadata!.ContainsKey("title"));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.WikipediaUriEnv)]
+    public async Task ReadAsync_WikipediaUri_Parsed()
+    {
+        var reader = new WikipediaReader(LiveDocumentReaderTestSupport.CreateLiveHttpClient());
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.WikipediaUriEnv,
+            "a live wikipedia:// URI");
+
+        var result = await reader.ReadAsync(uri);
+
+        Assert.Equal(DocumentReaderType.Wikipedia, result.ReaderType);
+        Assert.StartsWith("wikipedia://", result.SourceUri, StringComparison.OrdinalIgnoreCase);
+        Assert.NotEmpty(result.RawText);
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.WikipediaLangUriEnv)]
+    public async Task ReadAsync_LangPrefix_UsedInRequest()
+    {
+        var reader = new WikipediaReader(LiveDocumentReaderTestSupport.CreateLiveHttpClient());
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.WikipediaLangUriEnv,
+            "a live wikipedia:// URI with language prefix");
+
+        var result = await reader.ReadAsync(uri);
+
+        Assert.Equal(DocumentReaderType.Wikipedia, result.ReaderType);
+        Assert.NotNull(result.Metadata);
+        Assert.True(result.Metadata!.TryGetValue("lang", out var lang));
+        Assert.Equal("it", lang?.ToString());
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new WikipediaReader(MockHttp()));
@@ -746,9 +1103,48 @@ public class PubMedReaderTests
         await Assert.ThrowsAsync<NotSupportedException>(() => reader.ReadFromStreamAsync(ms));
     }
 
-    [Fact(Skip = "requires live NCBI Entrez API")] public Task ReadAsync_ValidPmid_ReturnsAbstract() => Task.CompletedTask;
-    [Fact(Skip = "requires live NCBI Entrez API")] public Task ReadAsync_PubmedUri_ParsedCorrectly() => Task.CompletedTask;
-    [Fact(Skip = "requires live NCBI Entrez API")] public Task ReadAsync_InvalidPmid_Throws() => Task.CompletedTask;
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.PubMedPmidEnv)]
+    public async Task ReadAsync_ValidPmid_ReturnsAbstract()
+    {
+        var reader = new PubMedReader(LiveDocumentReaderTestSupport.CreateLiveHttpClient());
+        var pmid = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.PubMedPmidEnv,
+            "a live PubMed PMID");
+
+        var result = await reader.ReadAsync(pmid);
+
+        Assert.Equal(DocumentReaderType.PubMed, result.ReaderType);
+        Assert.NotEmpty(result.RawText);
+        Assert.NotEmpty(result.Sections);
+        Assert.NotNull(result.Metadata);
+        Assert.True(result.Metadata!.ContainsKey("pmid"));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.PubMedUriEnv)]
+    public async Task ReadAsync_PubmedUri_ParsedCorrectly()
+    {
+        var reader = new PubMedReader(LiveDocumentReaderTestSupport.CreateLiveHttpClient());
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.PubMedUriEnv,
+            "a live pubmed:// URI");
+
+        var result = await reader.ReadAsync(uri);
+
+        Assert.Equal(DocumentReaderType.PubMed, result.ReaderType);
+        Assert.StartsWith("pubmed://", result.SourceUri, StringComparison.OrdinalIgnoreCase);
+        Assert.NotEmpty(result.RawText);
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.PubMedInvalidPmidEnv)]
+    public async Task ReadAsync_InvalidPmid_Throws()
+    {
+        var reader = new PubMedReader(LiveDocumentReaderTestSupport.CreateLiveHttpClient());
+        var pmid = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.PubMedInvalidPmidEnv,
+            "an invalid live PubMed PMID");
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => reader.ReadAsync(pmid));
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new PubMedReader(MockHttp()));
@@ -781,9 +1177,44 @@ public class YoutubeTranscriptReaderTests
         await Assert.ThrowsAsync<NotSupportedException>(() => reader.ReadFromStreamAsync(ms));
     }
 
-    [Fact(Skip = "requires live YouTube timedtext API")] public Task ReadAsync_ValidVideoId_ReturnsSegments() => Task.CompletedTask;
-    [Fact(Skip = "requires live YouTube timedtext API")] public Task ReadAsync_FullYoutubeUrl_Parsed() => Task.CompletedTask;
-    [Fact(Skip = "requires live YouTube timedtext API")] public Task ReadAsync_VideoWithNoCaption_Throws() => Task.CompletedTask;
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.YouTubeVideoIdEnv)]
+    public async Task ReadAsync_ValidVideoId_ReturnsSegments()
+    {
+        var reader = new YoutubeTranscriptReader(LiveDocumentReaderTestSupport.CreateLiveHttpClient());
+        var videoId = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.YouTubeVideoIdEnv,
+            "a live YouTube video id with captions");
+
+        var result = await reader.ReadAsync($"youtube://{videoId}");
+
+        Assert.False(string.IsNullOrWhiteSpace(result.RawText));
+        Assert.NotEmpty(result.Sections);
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.YouTubeUriEnv)]
+    public async Task ReadAsync_FullYoutubeUrl_Parsed()
+    {
+        var reader = new YoutubeTranscriptReader(LiveDocumentReaderTestSupport.CreateLiveHttpClient());
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.YouTubeUriEnv,
+            "a live YouTube watch URL with captions");
+
+        var result = await reader.ReadAsync(uri);
+
+        Assert.False(string.IsNullOrWhiteSpace(result.RawText));
+        Assert.True(result.Metadata!.ContainsKey("videoId"));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.YouTubeNoCaptionVideoIdEnv)]
+    public async Task ReadAsync_VideoWithNoCaption_Throws()
+    {
+        var reader = new YoutubeTranscriptReader(LiveDocumentReaderTestSupport.CreateLiveHttpClient());
+        var videoId = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.YouTubeNoCaptionVideoIdEnv,
+            "a live YouTube video id without captions");
+
+        await Assert.ThrowsAsync<System.Text.Json.JsonException>(() => reader.ReadAsync($"youtube://{videoId}"));
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new YoutubeTranscriptReader(MockHttp()));
@@ -816,9 +1247,45 @@ public class FirecrawlReaderTests
         await Assert.ThrowsAsync<NotSupportedException>(() => reader.ReadFromStreamAsync(ms));
     }
 
-    [Fact(Skip = "requires live Firecrawl API key and endpoint")] public Task ReadAsync_ValidUrl_ReturnsMarkdown() => Task.CompletedTask;
-    [Fact(Skip = "requires live Firecrawl API key and endpoint")] public Task ReadAsync_AuthError_Throws() => Task.CompletedTask;
-    [Fact(Skip = "requires live Firecrawl API key and endpoint")] public Task ReadAsync_Metadata_HasTitle() => Task.CompletedTask;
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.FirecrawlApiKeyEnv, LiveDocumentReaderTestSupport.FirecrawlTargetUrlEnv)]
+    public async Task ReadAsync_ValidUrl_ReturnsMarkdown()
+    {
+        var reader = new FirecrawlReader(LiveDocumentReaderTestSupport.CreateLiveFirecrawlHttpClient(includeAuthorization: true));
+        var url = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.FirecrawlTargetUrlEnv,
+            "a live Firecrawl target URL");
+
+        var result = await reader.ReadAsync(url);
+
+        Assert.Equal(DocumentReaderType.Firecrawl, result.ReaderType);
+        Assert.NotEmpty(result.RawText);
+        Assert.NotEmpty(result.Sections);
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.FirecrawlTargetUrlEnv)]
+    public async Task ReadAsync_AuthError_Throws()
+    {
+        var reader = new FirecrawlReader(LiveDocumentReaderTestSupport.CreateLiveFirecrawlHttpClient(includeAuthorization: false));
+        var url = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.FirecrawlTargetUrlEnv,
+            "a live Firecrawl target URL");
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => reader.ReadAsync(url));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.FirecrawlApiKeyEnv, LiveDocumentReaderTestSupport.FirecrawlTargetUrlEnv)]
+    public async Task ReadAsync_Metadata_HasTitle()
+    {
+        var reader = new FirecrawlReader(LiveDocumentReaderTestSupport.CreateLiveFirecrawlHttpClient(includeAuthorization: true));
+        var url = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.FirecrawlTargetUrlEnv,
+            "a live Firecrawl target URL");
+
+        var result = await reader.ReadAsync(url);
+
+        Assert.NotNull(result.Metadata);
+        Assert.True(result.Metadata!.ContainsKey("title"));
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new FirecrawlReader(MockHttp()));
@@ -850,9 +1317,43 @@ public class AWSS3ReaderTests
         Assert.Contains("S3 file content", result.RawText);
     }
 
-    [Fact(Skip = "requires live AWS S3 credentials")] public Task ReadAsync_S3Uri_ReturnsObject() => Task.CompletedTask;
-    [Fact(Skip = "requires live AWS S3 credentials")] public Task ReadAsync_NotFound_Throws() => Task.CompletedTask;
-    [Fact(Skip = "requires live AWS S3 credentials")] public Task ReadAsync_Metadata_HasEtag() => Task.CompletedTask;
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.AwsS3RegionEnv, LiveDocumentReaderTestSupport.AwsS3TestUriEnv)]
+    public async Task ReadAsync_S3Uri_ReturnsObject()
+    {
+        var reader = new AWSS3Reader(LiveDocumentReaderTestSupport.CreateLiveAwsS3Client());
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.AwsS3TestUriEnv,
+            "a live AWS S3 object URI");
+
+        var result = await reader.ReadAsync(uri);
+
+        Assert.False(string.IsNullOrWhiteSpace(result.RawText));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.AwsS3RegionEnv, LiveDocumentReaderTestSupport.AwsS3MissingUriEnv)]
+    public async Task ReadAsync_NotFound_Throws()
+    {
+        var reader = new AWSS3Reader(LiveDocumentReaderTestSupport.CreateLiveAwsS3Client());
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.AwsS3MissingUriEnv,
+            "a missing AWS S3 object URI");
+
+        await Assert.ThrowsAnyAsync<Amazon.S3.AmazonS3Exception>(() => reader.ReadAsync(uri));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.AwsS3RegionEnv, LiveDocumentReaderTestSupport.AwsS3TestUriEnv)]
+    public async Task ReadAsync_Metadata_HasEtag()
+    {
+        var reader = new AWSS3Reader(LiveDocumentReaderTestSupport.CreateLiveAwsS3Client());
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.AwsS3TestUriEnv,
+            "a live AWS S3 object URI");
+
+        var result = await reader.ReadAsync(uri);
+
+        Assert.NotNull(result.Metadata);
+        Assert.True(result.Metadata!.ContainsKey("etag"));
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new AWSS3Reader(MockS3()));
@@ -885,9 +1386,43 @@ public class AzureBlobReaderTests
         Assert.Contains("Azure blob content", result.RawText);
     }
 
-    [Fact(Skip = "requires live Azure Blob Storage")] public Task ReadAsync_AzBlobUri_ReturnsContent() => Task.CompletedTask;
-    [Fact(Skip = "requires live Azure Blob Storage")] public Task ReadAsync_BlobNotFound_Throws() => Task.CompletedTask;
-    [Fact(Skip = "requires live Azure Blob Storage")] public Task ReadAsync_Metadata_HasETag() => Task.CompletedTask;
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.AzureBlobTestUriEnv)]
+    public async Task ReadAsync_AzBlobUri_ReturnsContent()
+    {
+        var reader = new AzureBlobReader(LiveDocumentReaderTestSupport.CreateLiveAzureBlobClient());
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.AzureBlobTestUriEnv,
+            "a live Azure Blob URI");
+
+        var result = await reader.ReadAsync(uri);
+
+        Assert.False(string.IsNullOrWhiteSpace(result.RawText));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.AzureBlobMissingUriEnv)]
+    public async Task ReadAsync_BlobNotFound_Throws()
+    {
+        var reader = new AzureBlobReader(LiveDocumentReaderTestSupport.CreateLiveAzureBlobClient());
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.AzureBlobMissingUriEnv,
+            "a missing Azure Blob URI");
+
+        await Assert.ThrowsAnyAsync<Azure.RequestFailedException>(() => reader.ReadAsync(uri));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.AzureBlobTestUriEnv)]
+    public async Task ReadAsync_Metadata_HasETag()
+    {
+        var reader = new AzureBlobReader(LiveDocumentReaderTestSupport.CreateLiveAzureBlobClient());
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.AzureBlobTestUriEnv,
+            "a live Azure Blob URI");
+
+        var result = await reader.ReadAsync(uri);
+
+        Assert.NotNull(result.Metadata);
+        Assert.True(result.Metadata!.ContainsKey("eTag"));
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new AzureBlobReader(MockClient()));
@@ -920,9 +1455,43 @@ public class GCSReaderTests
         Assert.Contains("GCS file content", result.RawText);
     }
 
-    [Fact(Skip = "requires live GCS credentials")] public Task ReadAsync_GcsUri_ReturnsObject() => Task.CompletedTask;
-    [Fact(Skip = "requires live GCS credentials")] public Task ReadAsync_ObjectNotFound_Throws() => Task.CompletedTask;
-    [Fact(Skip = "requires live GCS credentials")] public Task ReadAsync_Metadata_HasContentType() => Task.CompletedTask;
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.GcsTestUriEnv)]
+    public async Task ReadAsync_GcsUri_ReturnsObject()
+    {
+        var reader = new GCSReader(LiveDocumentReaderTestSupport.CreateLiveGcsClient());
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.GcsTestUriEnv,
+            "a live GCS object URI");
+
+        var result = await reader.ReadAsync(uri);
+
+        Assert.False(string.IsNullOrWhiteSpace(result.RawText));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.GcsMissingUriEnv)]
+    public async Task ReadAsync_ObjectNotFound_Throws()
+    {
+        var reader = new GCSReader(LiveDocumentReaderTestSupport.CreateLiveGcsClient());
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.GcsMissingUriEnv,
+            "a missing GCS object URI");
+
+        await Assert.ThrowsAnyAsync<Exception>(() => reader.ReadAsync(uri));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.GcsTestUriEnv)]
+    public async Task ReadAsync_Metadata_HasContentType()
+    {
+        var reader = new GCSReader(LiveDocumentReaderTestSupport.CreateLiveGcsClient());
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.GcsTestUriEnv,
+            "a live GCS object URI");
+
+        var result = await reader.ReadAsync(uri);
+
+        Assert.NotNull(result.Metadata);
+        Assert.True(result.Metadata!.ContainsKey("contentType"));
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new GCSReader(MockClient()));
@@ -957,9 +1526,40 @@ public class GitHubReaderTests
         await Assert.ThrowsAsync<NotSupportedException>(() => reader.ReadFromStreamAsync(ms));
     }
 
-    [Fact(Skip = "requires live GitHub API token")] public Task ReadAsync_ValidGithubUri_ReturnsContent() => Task.CompletedTask;
-    [Fact(Skip = "requires live GitHub API token")] public Task ReadAsync_PrivateRepo_RequiresAuth() => Task.CompletedTask;
-    [Fact(Skip = "requires live GitHub API token")] public Task ReadAsync_FileNotFound_Throws() => Task.CompletedTask;
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.GitHubTestUriEnv)]
+    public async Task ReadAsync_ValidGithubUri_ReturnsContent()
+    {
+        var reader = new GitHubReader(LiveDocumentReaderTestSupport.CreateLiveGitHubHttpClient(includeAuthorization: true));
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.GitHubTestUriEnv,
+            "a live GitHub file URI");
+
+        var result = await reader.ReadAsync(uri);
+
+        Assert.False(string.IsNullOrWhiteSpace(result.RawText));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.GitHubPrivateUriEnv)]
+    public async Task ReadAsync_PrivateRepo_RequiresAuth()
+    {
+        var reader = new GitHubReader(LiveDocumentReaderTestSupport.CreateLiveGitHubHttpClient(includeAuthorization: false));
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.GitHubPrivateUriEnv,
+            "a live GitHub private file URI");
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => reader.ReadAsync(uri));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.GitHubMissingUriEnv)]
+    public async Task ReadAsync_FileNotFound_Throws()
+    {
+        var reader = new GitHubReader(LiveDocumentReaderTestSupport.CreateLiveGitHubHttpClient(includeAuthorization: true));
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.GitHubMissingUriEnv,
+            "a missing GitHub file URI");
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => reader.ReadAsync(uri));
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new GitHubReader(MockHttp()));
@@ -1005,9 +1605,44 @@ public class SharePointReaderTests
         Assert.Equal(DocumentReaderType.SharePoint, result.ReaderType);
     }
 
-    [Fact(Skip = "requires live Microsoft Graph credentials")] public Task ReadAsync_ValidSharePointUri_ReturnsContent() => Task.CompletedTask;
-    [Fact(Skip = "requires live Microsoft Graph credentials")] public Task ReadAsync_UnauthorizedAccess_Throws() => Task.CompletedTask;
-    [Fact(Skip = "requires live Microsoft Graph credentials")] public Task ReadAsync_Metadata_HasSiteAndDrive() => Task.CompletedTask;
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.SharePointTestUriEnv, LiveDocumentReaderTestSupport.SharePointAccessTokenEnv)]
+    public async Task ReadAsync_ValidSharePointUri_ReturnsContent()
+    {
+        var reader = new SharePointReader(LiveDocumentReaderTestSupport.CreateLiveSharePointClient(includeAuthorization: true));
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.SharePointTestUriEnv,
+            "a live SharePoint drive item URI");
+
+        var result = await reader.ReadAsync(uri);
+
+        Assert.False(string.IsNullOrWhiteSpace(result.RawText));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.SharePointTestUriEnv)]
+    public async Task ReadAsync_UnauthorizedAccess_Throws()
+    {
+        var reader = new SharePointReader(LiveDocumentReaderTestSupport.CreateLiveSharePointClient(includeAuthorization: false));
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.SharePointTestUriEnv,
+            "a live SharePoint drive item URI");
+
+        await Assert.ThrowsAnyAsync<Exception>(() => reader.ReadAsync(uri));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.SharePointTestUriEnv, LiveDocumentReaderTestSupport.SharePointAccessTokenEnv)]
+    public async Task ReadAsync_Metadata_HasSiteAndDrive()
+    {
+        var reader = new SharePointReader(LiveDocumentReaderTestSupport.CreateLiveSharePointClient(includeAuthorization: true));
+        var uri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.SharePointTestUriEnv,
+            "a live SharePoint drive item URI");
+
+        var result = await reader.ReadAsync(uri);
+
+        Assert.NotNull(result.Metadata);
+        Assert.True(result.Metadata!.ContainsKey("siteId"));
+        Assert.True(result.Metadata.ContainsKey("driveId"));
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(UnsafeCreate());
@@ -1050,11 +1685,107 @@ public class ImageOcrReaderTests
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new ImageOcrReader("./tessdata"));
 
-    [Fact(Skip = "requires native Tesseract library and tessdata language packs")]
-    public Task ReadFromStream_ValidImage_ReturnsOcrText() => Task.CompletedTask;
+    [RequiresDocumentReaderEnvironmentFact("TESSDATA")]
+    public async Task ReadAsync_ValidImageFile_ReturnsOcrText()
+    {
+        var tessdata = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            "TESSDATA",
+            "a tessdata directory");
+        var reader = new ImageOcrReader(tessdata);
+        var path = Path.Combine(Path.GetTempPath(), $"agxiome-ocr-{Guid.NewGuid():N}.png");
+        try
+        {
+            TestDocContent.GenerateOcrSamplePng(path);
+            var result = await reader.ReadAsync(path);
+            Assert.False(string.IsNullOrWhiteSpace(result.RawText), "OCR should produce text for a real image");
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
 
-    [Fact(Skip = "requires native Tesseract library and tessdata language packs")]
-    public Task ReadAsync_ValidImageFile_OcrConfidenceInMetadata() => Task.CompletedTask;
+    [RequiresDocumentReaderEnvironmentFact("TESSDATA")]
+    public async Task ReadAsync_ValidImageFile_OcrConfidenceInMetadata()
+    {
+        var tessdata = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            "TESSDATA",
+            "a tessdata directory");
+        var reader = new ImageOcrReader(tessdata);
+        var path = Path.Combine(Path.GetTempPath(), $"agxiome-ocr-{Guid.NewGuid():N}.png");
+        try
+        {
+            TestDocContent.GenerateOcrSamplePng(path);
+
+            var result = await reader.ReadAsync(path);
+
+            Assert.False(string.IsNullOrWhiteSpace(result.RawText), "OCR should produce text for a real image");
+            Assert.True(result.Metadata!.ContainsKey("ocrConfidence"));
+        }
+        finally
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+    }
+}
+
+public class RemoteImageOcrReaderTests
+{
+    private static HttpClient MockHttp() => new HttpClient(
+        new TestHttpMessageHandler(HttpStatusCode.OK,
+            "{\"text\":\"HELLO OCR\",\"language\":\"eng\",\"bytes\":1806,\"stderr\":\"\"}"))
+    { BaseAddress = new Uri("http://agxiome-ocr/") };
+
+    [Fact] public async Task ReaderType_IsImageOCR()
+        => Assert.Equal(DocumentReaderType.ImageOCR, new RemoteImageOcrReader(MockHttp()).ReaderType);
+
+    [Fact] public async Task SupportedExtensions_ContainsPng()
+        => Assert.Contains(".png", new RemoteImageOcrReader(MockHttp()).SupportedExtensions);
+
+    [Fact] public async Task Constructor_NullHttp_Throws()
+        => Assert.Throws<ArgumentNullException>(() => new RemoteImageOcrReader(null!));
+
+    [Fact] public async Task SupportedExtensions_NotEmpty()
+        => Assert.NotEmpty(new RemoteImageOcrReader(MockHttp()).SupportedExtensions);
+
+    [Fact] public async Task ReaderType_ImplementsInterface()
+        => Assert.IsAssignableFrom<IDocumentReader>(new RemoteImageOcrReader(MockHttp()));
+
+    [Fact] public async Task ReadFromStream_ValidImage_ReturnsOcrText()
+    {
+        using var stream = TestDocContent.PlainText("fake-image-bytes");
+
+        var result = await new RemoteImageOcrReader(MockHttp(), engineName: "tesseract-http")
+            .ReadFromStreamAsync(stream, "image/png");
+
+        Assert.Equal("HELLO OCR", result.RawText);
+        Assert.Equal("tesseract-http", result.Metadata!["engine"]);
+        Assert.Equal("eng", result.Metadata["language"]);
+    }
+
+    [Fact] public async Task ReadAsync_ValidImageFile_MetadataHasImageBytes()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"agxiome-remote-ocr-{Guid.NewGuid():N}.png");
+        try
+        {
+            await File.WriteAllBytesAsync(path, Encoding.UTF8.GetBytes("fake-image-bytes"));
+
+            var result = await new RemoteImageOcrReader(MockHttp()).ReadAsync(path);
+
+            Assert.NotNull(result.Metadata);
+            Assert.Equal("1806", result.Metadata!["imageBytes"].ToString());
+            Assert.Equal("/ocr", result.Metadata["endpointPath"]);
+        }
+        finally
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+    }
+
+    [Fact] public async Task Constructor_EmptyEndpoint_Throws()
+        => Assert.Throws<ArgumentNullException>(() => new RemoteImageOcrReader(MockHttp(), endpointPath: ""));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1083,9 +1814,43 @@ public class AudioWhisperReaderTests
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new AudioWhisperReader(MockHttp()));
 
-    [Fact(Skip = "requires live OpenAI Whisper API key")] public Task ReadAsync_ValidAudioFile_ReturnsTranscript() => Task.CompletedTask;
-    [Fact(Skip = "requires live OpenAI Whisper API key")] public Task ReadFromStream_ValidAudio_SegmentsInSections() => Task.CompletedTask;
-    [Fact(Skip = "requires live OpenAI Whisper API key")] public Task ReadAsync_AuthError_Throws() => Task.CompletedTask;
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.WhisperApiKeyEnv, LiveDocumentReaderTestSupport.WhisperAudioFileEnv)]
+    public async Task ReadAsync_ValidAudioFile_ReturnsTranscript()
+    {
+        var reader = new AudioWhisperReader(LiveDocumentReaderTestSupport.CreateLiveWhisperHttpClient(includeAuthorization: true));
+        var path = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.WhisperAudioFileEnv,
+            "a live audio file for Whisper transcription");
+
+        var result = await reader.ReadAsync(path);
+
+        Assert.False(string.IsNullOrWhiteSpace(result.RawText));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.WhisperApiKeyEnv, LiveDocumentReaderTestSupport.WhisperAudioFileEnv)]
+    public async Task ReadFromStream_ValidAudio_SegmentsInSections()
+    {
+        var reader = new AudioWhisperReader(LiveDocumentReaderTestSupport.CreateLiveWhisperHttpClient(includeAuthorization: true));
+        var path = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.WhisperAudioFileEnv,
+            "a live audio file for Whisper transcription");
+
+        await using var stream = File.OpenRead(path);
+        var result = await reader.ReadFromStreamAsync(stream, mimeHint: "audio/wav");
+
+        Assert.NotEmpty(result.Sections);
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.WhisperAudioFileEnv)]
+    public async Task ReadAsync_AuthError_Throws()
+    {
+        var reader = new AudioWhisperReader(LiveDocumentReaderTestSupport.CreateLiveWhisperHttpClient(includeAuthorization: false));
+        var path = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.WhisperAudioFileEnv,
+            "a live audio file for Whisper transcription");
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => reader.ReadAsync(path));
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1117,11 +1882,58 @@ public class EpubReaderTests
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(_reader);
 
-    [Fact(Skip = "requires a real .epub file on disk")]
-    public Task ReadAsync_ValidEpub_OneSection_PerChapter() => Task.CompletedTask;
+    [Fact]
+    public async Task ReadAsync_ValidEpub_OneSection_PerChapter()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"agxiome-epub-{Guid.NewGuid():N}.epub");
+        try
+        {
+            await using (var file = File.Create(path))
+            await using (var epub = TestDocContent.Epub())
+            {
+                await epub.CopyToAsync(file);
+            }
 
-    [Fact(Skip = "requires a real .epub file on disk")]
-    public Task ReadAsync_ValidEpub_MetadataHasAuthor() => Task.CompletedTask;
+            var result = await _reader.ReadAsync(path);
+
+            Assert.Equal(DocumentReaderType.Epub, result.ReaderType);
+            Assert.Equal(2, result.Sections.Count);
+            Assert.Contains("Hello EPUB chapter one.", result.RawText);
+            Assert.Contains("Hello EPUB chapter two.", result.RawText);
+        }
+        finally
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task ReadAsync_ValidEpub_MetadataHasAuthor()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"agxiome-epub-{Guid.NewGuid():N}.epub");
+        try
+        {
+            await using (var file = File.Create(path))
+            await using (var epub = TestDocContent.Epub())
+            {
+                await epub.CopyToAsync(file);
+            }
+
+            var result = await _reader.ReadAsync(path);
+
+            Assert.NotNull(result.Metadata);
+            Assert.True(result.Metadata!.TryGetValue("author", out var author));
+            Assert.Equal("Test Author", author?.ToString());
+            Assert.True(result.Metadata.TryGetValue("chapterCount", out var chapterCount));
+            Assert.Equal("2", chapterCount?.ToString());
+        }
+        finally
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1152,9 +1964,50 @@ public class NotionReaderTests
         await Assert.ThrowsAsync<NotSupportedException>(() => reader.ReadFromStreamAsync(ms));
     }
 
-    [Fact(Skip = "requires live Notion integration token")] public Task ReadAsync_ValidPageId_ReturnsContent() => Task.CompletedTask;
-    [Fact(Skip = "requires live Notion integration token")] public Task ReadAsync_HeadingBlocks_BecomeSections() => Task.CompletedTask;
-    [Fact(Skip = "requires live Notion integration token")] public Task ReadAsync_Unauthorized_Throws() => Task.CompletedTask;
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.NotionTokenEnv, LiveDocumentReaderTestSupport.NotionPageIdEnv)]
+    public async Task ReadAsync_ValidPageId_ReturnsContent()
+    {
+        var token = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.NotionTokenEnv, "a live Notion integration token");
+        var pageId = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.NotionPageIdEnv, "a live Notion page ID");
+        var http = LiveDocumentReaderTestSupport.CreateLiveHttpClient();
+        http.BaseAddress = new Uri("https://api.notion.com/");
+        http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        http.DefaultRequestHeaders.Add("Notion-Version", "2022-06-28");
+
+        var result = await new NotionReader(http).ReadAsync(pageId);
+
+        Assert.False(string.IsNullOrWhiteSpace(result.RawText));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.NotionTokenEnv, LiveDocumentReaderTestSupport.NotionPageIdEnv)]
+    public async Task ReadAsync_HeadingBlocks_BecomeSections()
+    {
+        var token = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.NotionTokenEnv, "a live Notion integration token");
+        var pageId = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.NotionPageIdEnv, "a live Notion page ID");
+        var http = LiveDocumentReaderTestSupport.CreateLiveHttpClient();
+        http.BaseAddress = new Uri("https://api.notion.com/");
+        http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        http.DefaultRequestHeaders.Add("Notion-Version", "2022-06-28");
+
+        var result = await new NotionReader(http).ReadAsync(pageId);
+
+        Assert.NotEmpty(result.Sections);
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.NotionPageIdEnv)]
+    public async Task ReadAsync_Unauthorized_Throws()
+    {
+        var pageId = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.NotionPageIdEnv, "a live Notion page ID");
+        var http = LiveDocumentReaderTestSupport.CreateLiveHttpClient();
+        http.BaseAddress = new Uri("https://api.notion.com/");
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => new NotionReader(http).ReadAsync(pageId));
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new NotionReader(MockHttp()));
@@ -1188,9 +2041,60 @@ public class ConfluenceReaderTests
         await Assert.ThrowsAsync<NotSupportedException>(() => reader.ReadFromStreamAsync(ms));
     }
 
-    [Fact(Skip = "requires live Confluence Cloud credentials")] public Task ReadAsync_ValidUri_ReturnsContent() => Task.CompletedTask;
-    [Fact(Skip = "requires live Confluence Cloud credentials")] public Task ReadAsync_SpaceAndTitle_ReturnsPage() => Task.CompletedTask;
-    [Fact(Skip = "requires live Confluence Cloud credentials")] public Task ReadAsync_PageId_ReturnsDirectly() => Task.CompletedTask;
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.ConfluenceTokenEnv, LiveDocumentReaderTestSupport.ConfluenceInstanceEnv, LiveDocumentReaderTestSupport.ConfluencePageUriEnv)]
+    public async Task ReadAsync_ValidUri_ReturnsContent()
+    {
+        var instance = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.ConfluenceInstanceEnv, "a live Confluence Cloud instance URL (e.g. https://myinstance.atlassian.net)");
+        var pageUri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.ConfluencePageUriEnv, "a live Confluence page URI (e.g. confluence://SPACE/Title or confluence://PAGE_ID)");
+        var token = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.ConfluenceTokenEnv, "a live Confluence API token");
+        var http = LiveDocumentReaderTestSupport.CreateLiveHttpClient();
+        http.BaseAddress = new Uri(instance.TrimEnd('/') + "/");
+        http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        var result = await new ConfluenceReader(http).ReadAsync(pageUri);
+
+        Assert.False(string.IsNullOrWhiteSpace(result.RawText));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.ConfluenceTokenEnv, LiveDocumentReaderTestSupport.ConfluenceInstanceEnv, LiveDocumentReaderTestSupport.ConfluencePageUriEnv)]
+    public async Task ReadAsync_SpaceAndTitle_ReturnsPage()
+    {
+        var instance = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.ConfluenceInstanceEnv, "a live Confluence Cloud instance URL");
+        var pageUri = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.ConfluencePageUriEnv, "a live Confluence page URI");
+        var token = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.ConfluenceTokenEnv, "a live Confluence API token");
+        var http = LiveDocumentReaderTestSupport.CreateLiveHttpClient();
+        http.BaseAddress = new Uri(instance.TrimEnd('/') + "/");
+        http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        var result = await new ConfluenceReader(http).ReadAsync(pageUri);
+
+        Assert.False(string.IsNullOrWhiteSpace(result.RawText));
+    }
+
+    [RequiresDocumentReaderEnvironmentFact(LiveDocumentReaderTestSupport.ConfluenceTokenEnv, LiveDocumentReaderTestSupport.ConfluenceInstanceEnv)]
+    public async Task ReadAsync_PageId_ReturnsDirectly()
+    {
+        var instance = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.ConfluenceInstanceEnv, "a live Confluence Cloud instance URL");
+        var token = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.ConfluenceTokenEnv, "a live Confluence API token");
+        var http = LiveDocumentReaderTestSupport.CreateLiveHttpClient();
+        http.BaseAddress = new Uri(instance.TrimEnd('/') + "/");
+        http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        var parse = LiveDocumentReaderTestSupport.RequireEnvironmentVariable(
+            LiveDocumentReaderTestSupport.ConfluencePageUriEnv, "a live Confluence page URI").Split(new[] { "//" }, StringSplitOptions.None);
+        var pageId = parse.Length >= 2 ? parse[1] : parse[0];
+
+        var result = await new ConfluenceReader(http).ReadAsync(pageId);
+
+        Assert.False(string.IsNullOrWhiteSpace(result.RawText));
+    }
 
     [Fact] public async Task ReaderType_ImplementsInterface()
         => Assert.IsAssignableFrom<IDocumentReader>(new ConfluenceReader(MockHttp()));

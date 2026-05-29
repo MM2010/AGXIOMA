@@ -2,6 +2,7 @@ using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using Tesseract;
 
 namespace AGXIOME.Storage.Readers;
@@ -74,6 +75,108 @@ public sealed class ImageOcrReader : IDocumentReader
         };
 
         return Task.FromResult(new DocumentContent("stream://image-ocr", DocumentReaderType.ImageOCR, text, sections, meta));
+    }
+}
+
+/// <summary>Remote adapter for OCR services exposed over HTTP.
+/// This keeps OCR out of process so the caller can target different engines behind one contract.
+/// Expected response shape: { "text": "...", "language": "eng", "bytes": 1234, "stderr": "" }.
+/// Example engines behind the endpoint: local Tesseract service, PaddleOCR service, EasyOCR,
+/// Azure AI Vision OCR, Google Vision OCR, AWS Textract gateway.</summary>
+public sealed class RemoteImageOcrReader : IDocumentReader
+{
+    private readonly HttpClient _http;
+    private readonly string _endpointPath;
+    private readonly string _defaultLanguage;
+    private readonly string _engineName;
+
+    public DocumentReaderType ReaderType => DocumentReaderType.ImageOCR;
+    public IReadOnlyList<string> SupportedExtensions { get; } = new[] { ".png", ".jpg", ".jpeg", ".tiff", ".tif", ".bmp", ".gif" };
+
+    public RemoteImageOcrReader(
+        HttpClient http,
+        string endpointPath = "ocr",
+        string defaultLanguage = "eng",
+        string engineName = "remote-ocr")
+    {
+        _http = http ?? throw new ArgumentNullException(nameof(http));
+
+        if (string.IsNullOrWhiteSpace(endpointPath)) throw new ArgumentNullException(nameof(endpointPath));
+        if (string.IsNullOrWhiteSpace(defaultLanguage)) throw new ArgumentNullException(nameof(defaultLanguage));
+        if (string.IsNullOrWhiteSpace(engineName)) throw new ArgumentNullException(nameof(engineName));
+
+        _endpointPath = endpointPath.TrimStart('/');
+        _defaultLanguage = defaultLanguage;
+        _engineName = engineName;
+    }
+
+    public async Task<DocumentContent> ReadAsync(string uri, CancellationToken ct = default)
+    {
+        await using var stream = File.OpenRead(uri);
+        var mimeHint = Path.GetExtension(uri).ToLowerInvariant() switch
+        {
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".tif" or ".tiff" => "image/tiff",
+            ".bmp" => "image/bmp",
+            ".gif" => "image/gif",
+            _ => "application/octet-stream",
+        };
+
+        return await ReadFromStreamAsync(stream, mimeHint, ct);
+    }
+
+    public async Task<DocumentContent> ReadFromStreamAsync(Stream stream, string? mimeHint = null, CancellationToken ct = default)
+    {
+        var ms = new MemoryStream();
+        await stream.CopyToAsync(ms, ct);
+        ms.Position = 0;
+
+        using var form = new MultipartFormDataContent();
+        using var imageContent = new StreamContent(ms);
+        imageContent.Headers.ContentType = new MediaTypeHeaderValue(mimeHint ?? "application/octet-stream");
+        form.Add(imageContent, "file", "image.bin");
+        form.Add(new StringContent(_defaultLanguage), "language");
+
+        using var resp = await _http.PostAsync(_endpointPath, form, ct);
+        resp.EnsureSuccessStatusCode();
+
+        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
+        var root = doc.RootElement;
+
+        var text = root.TryGetProperty("text", out var textProp)
+            ? textProp.GetString() ?? string.Empty
+            : string.Empty;
+
+        var language = root.TryGetProperty("language", out var languageProp)
+            ? languageProp.GetString() ?? _defaultLanguage
+            : _defaultLanguage;
+
+        var imageBytes = root.TryGetProperty("bytes", out var bytesProp) && bytesProp.TryGetInt64(out var parsedBytes)
+            ? parsedBytes
+            : ms.Length;
+
+        var meta = new Dictionary<string, object>
+        {
+            ["language"] = language,
+            ["imageBytes"] = imageBytes,
+            ["engine"] = _engineName,
+            ["endpointPath"] = "/" + _endpointPath,
+        };
+
+        if (root.TryGetProperty("stderr", out var stderrProp))
+        {
+            var stderr = stderrProp.GetString();
+            if (!string.IsNullOrWhiteSpace(stderr))
+                meta["stderr"] = stderr;
+        }
+
+        var sections = new List<DocumentSection>
+        {
+            new(null, text, 0),
+        };
+
+        return new DocumentContent("stream://remote-image-ocr", DocumentReaderType.ImageOCR, text, sections, meta);
     }
 }
 

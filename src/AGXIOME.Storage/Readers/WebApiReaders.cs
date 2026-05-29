@@ -92,6 +92,7 @@ public sealed class WebsiteReader : IDocumentReader
 public sealed class WikipediaReader : IDocumentReader
 {
     private readonly HttpClient _http;
+    private const string DefaultUserAgent = "AGXIOME/1.0 (+https://example.com; wikipedia-reader)";
     public DocumentReaderType ReaderType => DocumentReaderType.Wikipedia;
     public IReadOnlyList<string> SupportedExtensions { get; } = Array.Empty<string>();
 
@@ -106,7 +107,8 @@ public sealed class WikipediaReader : IDocumentReader
 
         // Wikipedia REST API: page summary
         var summaryUrl = $"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{encoded}";
-        using var resp = await _http.GetAsync(summaryUrl, ct);
+        using var summaryRequest = CreateRequest(summaryUrl);
+        using var resp = await _http.SendAsync(summaryRequest, ct);
         resp.EnsureSuccessStatusCode();
 
         using var doc = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
@@ -125,7 +127,8 @@ public sealed class WikipediaReader : IDocumentReader
         try
         {
             var sectionsUrl = $"https://{lang}.wikipedia.org/w/api.php?action=parse&page={encoded}&prop=sections&format=json";
-            using var secResp = await _http.GetAsync(sectionsUrl, ct);
+            using var sectionsRequest = CreateRequest(sectionsUrl);
+            using var secResp = await _http.SendAsync(sectionsRequest, ct);
             if (secResp.IsSuccessStatusCode)
             {
                 using var secDoc = await JsonDocument.ParseAsync(await secResp.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
@@ -165,6 +168,14 @@ public sealed class WikipediaReader : IDocumentReader
             return parts.Length == 2 ? (parts[0], parts[1]) : ("en", parts[0]);
         }
         return ("en", uri);
+    }
+
+    private static HttpRequestMessage CreateRequest(string url)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.TryAddWithoutValidation("User-Agent", DefaultUserAgent);
+        request.Headers.TryAddWithoutValidation("Accept", "application/json");
+        return request;
     }
 }
 
@@ -247,6 +258,7 @@ public sealed class ArxivReader : IDocumentReader
 public sealed class PubMedReader : IDocumentReader
 {
     private readonly HttpClient _http;
+    private const string DefaultUserAgent = "AGXIOME/1.0 (+https://example.com; pubmed-reader)";
     public DocumentReaderType ReaderType => DocumentReaderType.PubMed;
     public IReadOnlyList<string> SupportedExtensions { get; } = Array.Empty<string>();
 
@@ -258,27 +270,26 @@ public sealed class PubMedReader : IDocumentReader
         var pmid = uri.StartsWith("pubmed://", StringComparison.OrdinalIgnoreCase)
             ? uri["pubmed://".Length..] : uri;
 
-        var apiUrl = $"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id={HttpUtility.UrlEncode(pmid)}&rettype=abstract&retmode=json";
-        using var resp = await _http.GetAsync(apiUrl, ct);
+        var apiUrl = $"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id={HttpUtility.UrlEncode(pmid)}&rettype=abstract&retmode=xml";
+        using var request = CreateRequest(apiUrl);
+        using var resp = await _http.SendAsync(request, ct);
         resp.EnsureSuccessStatusCode();
+        var xml = await resp.Content.ReadAsStringAsync(ct);
 
-        using var doc = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-        var result = doc.RootElement;
-        // PubMed Entrez JSON structure: PubmedArticleSet.PubmedArticle[0].MedlineCitation
-        var articleSet = result.TryGetProperty("PubmedArticleSet", out var pas) ? pas : result;
-        var article    = articleSet.ValueKind == JsonValueKind.Array ? articleSet[0] : articleSet;
-        var citation   = article.TryGetProperty("MedlineCitation", out var cit) ? cit : default;
-        var articleInfo = citation.ValueKind != JsonValueKind.Undefined && citation.TryGetProperty("Article", out var art) ? art : default;
+        var xdoc = XDocument.Parse(xml);
+        var article = xdoc.Descendants("PubmedArticle").FirstOrDefault();
+        if (article is null)
+            return new DocumentContent($"pubmed://{pmid}", DocumentReaderType.PubMed, "", Array.Empty<DocumentSection>());
 
-        var titleStr   = articleInfo.ValueKind != JsonValueKind.Undefined && articleInfo.TryGetProperty("ArticleTitle", out var t) ? t.GetString() ?? "" : "";
-        var abstractStr = "";
-        if (articleInfo.ValueKind != JsonValueKind.Undefined && articleInfo.TryGetProperty("Abstract", out var abs) &&
-            abs.TryGetProperty("AbstractText", out var absText))
-        {
-            abstractStr = absText.ValueKind == JsonValueKind.String
-                ? absText.GetString() ?? ""
-                : string.Join(" ", absText.EnumerateArray().Select(a => a.GetString() ?? ""));
-        }
+        var articleInfo = article.Descendants("Article").FirstOrDefault();
+        var titleStr = articleInfo?.Element("ArticleTitle")?.Value?.Trim() ?? "";
+        var abstractStr = string.Join(
+            " ",
+            articleInfo?
+                .Descendants("AbstractText")
+                .Select(element => element.Value.Trim())
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+            ?? Enumerable.Empty<string>());
 
         var sections = new List<DocumentSection>
         {
@@ -297,6 +308,14 @@ public sealed class PubMedReader : IDocumentReader
 
     public Task<DocumentContent> ReadFromStreamAsync(Stream stream, string? mimeHint = null, CancellationToken ct = default)
         => throw new NotSupportedException("PubMedReader does not support stream input. Use ReadAsync with a pubmed:// URI.");
+
+    private static HttpRequestMessage CreateRequest(string url)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.TryAddWithoutValidation("User-Agent", DefaultUserAgent);
+        request.Headers.TryAddWithoutValidation("Accept", "application/xml, text/xml");
+        return request;
+    }
 }
 
 // ─── R-17 — YouTube Transcript ────────────────────────────────────────────────

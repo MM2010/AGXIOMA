@@ -8,6 +8,7 @@ using Elastic.Clients.Elasticsearch.Mapping;
 using Elastic.Transport;
 using Meilisearch;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace AGXIOME.Storage.VectorStores;
 
@@ -22,13 +23,28 @@ namespace AGXIOME.Storage.VectorStores;
 // ─── VD-15 — Elasticsearch Dense kNN ─────────────────────────────────────────
 
 /// <summary>VD-15 — Elasticsearch dense vector store using kNN (HNSW) search.
-/// Requires Elasticsearch 8.x with the dense_vector mapping type.
+/// Requires an Elasticsearch version that supports dense_vector and matches the Elastic client major version.
 /// Collection = Elasticsearch index name.
 /// Vectors stored with dot_product similarity; pre-normalize vectors for cosine behaviour.</summary>
 public sealed class ElasticsearchDenseStore : IVectorStore
 {
     private readonly ElasticsearchClient _client;
     public VectorDbProviderType ProviderType => VectorDbProviderType.ElasticsearchDense;
+
+    private sealed class ElasticsearchVectorDocument
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; init; } = string.Empty;
+
+        [JsonPropertyName("vector")]
+        public float[] Vector { get; init; } = Array.Empty<float>();
+
+        [JsonPropertyName("text_content")]
+        public string? TextContent { get; init; }
+
+        [JsonPropertyName("metadata")]
+        public Dictionary<string, object>? Metadata { get; init; }
+    }
 
     public ElasticsearchDenseStore(ElasticsearchClient client)
         => _client = client ?? throw new ArgumentNullException(nameof(client));
@@ -79,13 +95,7 @@ public sealed class ElasticsearchDenseStore : IVectorStore
 
     public async Task UpsertAsync(string collection, VectorRecord record, CancellationToken ct = default)
     {
-        var doc = new
-        {
-            id = record.Id,
-            vector = record.Vector,
-            text_content = record.Text,
-            metadata = record.Metadata,
-        };
+        var doc = ToDocument(record);
         var response = await _client.IndexAsync(doc, idx => idx.Index(collection).Id(record.Id).Refresh(Refresh.WaitFor), ct);
         if (!response.IsValidResponse)
         {
@@ -96,24 +106,32 @@ public sealed class ElasticsearchDenseStore : IVectorStore
 
     public async Task UpsertBatchAsync(string collection, IReadOnlyList<VectorRecord> records, CancellationToken ct = default)
     {
-        var ops = records.Select(r => new { id = r.Id, vector = r.Vector, text_content = r.Text, metadata = r.Metadata });
-        var bulk = await _client.BulkAsync(b => b.Index(collection).IndexMany(ops).Refresh(Refresh.WaitFor), ct);
-        if (!bulk.IsValidResponse)
+        foreach (var record in records)
         {
-            bulk.TryGetOriginalException(out var ex);
-            throw AgxiomeStorageException.ProviderOperationFailed("Elasticsearch", "BulkUpsert", collection, ex, isRetryable: true);
+            var response = await _client.IndexAsync(ToDocument(record), idx => idx.Index(collection).Id(record.Id), ct);
+            if (!response.IsValidResponse)
+            {
+                response.TryGetOriginalException(out var ex);
+                throw AgxiomeStorageException.ProviderOperationFailed("Elasticsearch", "BulkUpsert", $"{collection}/{record.Id}", ex, isRetryable: true);
+            }
+        }
+
+        var refresh = await _client.Indices.RefreshAsync(collection, cancellationToken: ct);
+        if (!refresh.IsValidResponse)
+        {
+            refresh.TryGetOriginalException(out var ex);
+            throw AgxiomeStorageException.ProviderOperationFailed("Elasticsearch", "BulkRefresh", collection, ex, isRetryable: true);
         }
     }
 
     public async Task<VectorRecord?> GetAsync(string collection, string id, CancellationToken ct = default)
     {
-        var resp = await _client.GetAsync<System.Text.Json.JsonElement>(new GetRequest(collection, id), ct);
+        var resp = await _client.GetAsync<ElasticsearchVectorDocument>(new GetRequest(collection, id), ct);
         if (!resp.Found) return null;
         var src = resp.Source;
-        var vec = src.TryGetProperty("vector", out var v)
-            ? v.EnumerateArray().Select(e => e.GetSingle()).ToArray() : Array.Empty<float>();
-        return new VectorRecord(id, vec,
-            src.TryGetProperty("text_content", out var t) ? t.GetString() : null);
+        return src is null
+            ? null
+            : new VectorRecord(src.Id, src.Vector, src.TextContent, src.Metadata);
     }
 
     public async Task DeleteAsync(string collection, string id, CancellationToken ct = default)
@@ -130,7 +148,7 @@ public sealed class ElasticsearchDenseStore : IVectorStore
         string collection, float[] queryVector, int topK = 10, float minScore = 0f,
         VectorFilter? filter = null, CancellationToken ct = default)
     {
-        var resp = await _client.SearchAsync<System.Text.Json.JsonElement>(s => s
+        var resp = await _client.SearchAsync<ElasticsearchVectorDocument>(s => s
             .Indices(collection)
             .Knn(k => k
                 .Field("vector")
@@ -145,11 +163,20 @@ public sealed class ElasticsearchDenseStore : IVectorStore
             {
                 var src = h.Source;
                 return new VectorSearchResult(
-                    h.Id ?? "",
+                    h.Id ?? src?.Id ?? "",
                     (float)(h.Score ?? 0f),
-                    src.TryGetProperty("text_content", out var t) ? t.GetString() : null);
+                    src?.TextContent);
             }).ToList();
     }
+
+    private static ElasticsearchVectorDocument ToDocument(VectorRecord record)
+        => new()
+        {
+            Id = record.Id,
+            Vector = record.Vector,
+            TextContent = record.Text,
+            Metadata = record.Metadata,
+        };
 
 }
 
