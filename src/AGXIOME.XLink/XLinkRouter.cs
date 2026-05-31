@@ -65,5 +65,17 @@ public sealed class XLinkRouter : IXLinkRouter
     }
 
     private static T Deserialize<T>(byte[] data)
-        => System.Text.Json.JsonSerializer.Deserialize<T>(data)!;
+    {
+        // Detect Gzip magic bytes (0x1F 0x8B) and decompress before JSON deserialization.
+        // Compression is applied transparently by the router; subscribers always receive typed values.
+        if (data.Length >= 2 && data[0] == 0x1F && data[1] == 0x8B)
+        {
+            using var ms   = new MemoryStream(data);
+            using var gz   = new System.IO.Compression.GZipStream(ms, System.IO.Compression.CompressionMode.Decompress);
+            using var outMs = new MemoryStream();
+            gz.CopyTo(outMs);
+            data = outMs.ToArray();
+        }
+        return System.Text.Json.JsonSerializer.Deserialize<T>(data)!;
+    }
 }

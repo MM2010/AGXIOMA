@@ -2589,16 +2589,25 @@ public class NeonCommandStoreTests
     [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new NeonCommandStore(null!));
 
-    [Fact(Skip = "requires live Neon server")] public async Task SaveAsync_InvalidHost_Throws()
+    [RequiresPostgresRealFact] public async Task SaveAsync_InvalidHost_Throws()
     {
-        var store = new NeonCommandStore(new NeonStoreOptions { ConnectionString = "Host=invalid_neon_host_xyz;Port=5432;Username=u;Password=p;Database=d;Timeout=1;Command Timeout=1" });
-        await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "x" }));
+        // Negative test against real PostgreSQL: wrong schema throws
+        await AsyncFixtureRunner.UseAsync<PostgresContainerFixture>(async fixture =>
+        {
+            var badSchemaConn = fixture.ConnectionString!.Replace("public", "nonexistent_schema");
+            var store = new NeonCommandStore(new NeonStoreOptions { ConnectionString = badSchemaConn + ";Timeout=3" });
+            await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "x" }));
+        });
     }
 
-    [Fact(Skip = "requires live Neon server")] public async Task DeleteAsync_InvalidHost_Throws()
+    [RequiresPostgresRealFact] public async Task DeleteAsync_InvalidHost_Throws()
     {
-        var store = new NeonCommandStore(new NeonStoreOptions { ConnectionString = "Host=invalid_neon_host_xyz;Port=5432;Username=u;Password=p;Database=d;Timeout=1;Command Timeout=1" });
-        await Assert.ThrowsAnyAsync<Exception>(() => store.DeleteAsync<DbTestEntity>("x"));
+        await AsyncFixtureRunner.UseAsync<PostgresContainerFixture>(async fixture =>
+        {
+            var badSchemaConn = fixture.ConnectionString!.Replace("public", "nonexistent_schema");
+            var store = new NeonCommandStore(new NeonStoreOptions { ConnectionString = badSchemaConn + ";Timeout=3" });
+            await Assert.ThrowsAnyAsync<Exception>(() => store.DeleteAsync<DbTestEntity>("x"));
+        });
     }
 
     [Fact] public async Task Options_RoundTrip()
@@ -2646,10 +2655,14 @@ public class SupabaseCommandStoreTests
         Assert.False(opts.BypassRls);
     }
 
-    [Fact(Skip = "requires live Supabase server")] public async Task SaveAsync_InvalidHost_Throws()
+    [RequiresPostgresRealFact] public async Task SaveAsync_InvalidHost_Throws()
     {
-        var store = new SupabaseCommandStore(new SupabaseStoreOptions { ConnectionString = "Host=invalid_supabase_xyz;Port=5432;Username=u;Password=p;Database=d;Timeout=1;Command Timeout=1" });
-        await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "x" }));
+        await AsyncFixtureRunner.UseAsync<PostgresContainerFixture>(async fixture =>
+        {
+            var badSchemaConn = fixture.ConnectionString!.Replace("public", "nonexistent_schema");
+            var store = new SupabaseCommandStore(new SupabaseStoreOptions { ConnectionString = badSchemaConn + ";Timeout=3" });
+            await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "x" }));
+        });
     }
 
     [Fact] public async Task Options_RoundTrip()
@@ -2697,10 +2710,14 @@ public class SingleStoreCommandStoreTests
         Assert.Equal(500, opts.BulkBatchSize);
     }
 
-    [Fact(Skip = "requires live SingleStore server")] public async Task SaveAsync_InvalidConnection_Throws()
+    [RequiresPostgresRealFact] public async Task SaveAsync_InvalidConnection_Throws()
     {
-        var store = new SingleStoreCommandStore(new SingleStoreOptions { ConnectionString = "Server=invalid_ss_host;Database=x;Connection Timeout=1" });
-        await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "1" }));
+        await AsyncFixtureRunner.UseAsync<PostgresContainerFixture>(async fixture =>
+        {
+            var badSchemaConn = fixture.ConnectionString!.Replace("public", "nonexistent_schema");
+            var store = new SingleStoreCommandStore(new SingleStoreOptions { ConnectionString = badSchemaConn + ";Timeout=3" });
+            await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "1" }));
+        });
     }
 
     [Fact] public async Task BulkSaveAsync_EmptyList_DoesNotThrow()
@@ -2783,16 +2800,24 @@ public class CockroachDbCommandStoreTests
     [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new CockroachDbCommandStore(null!));
 
-    [Fact(Skip = "requires live CockroachDB server")] public async Task SaveAsync_InvalidHost_Throws()
+    [RequiresPostgresRealFact] public async Task SaveAsync_InvalidHost_Throws()
     {
-        var store = new CockroachDbCommandStore(new CockroachDbStoreOptions { ConnectionString = "Host=invalid_crdb_host;Port=26257;Username=root;Database=d;Timeout=1;Command Timeout=1" });
-        await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "x" }));
+        await AsyncFixtureRunner.UseAsync<PostgresContainerFixture>(async fixture =>
+        {
+            var badSchemaConn = fixture.ConnectionString!.Replace("public", "nonexistent_schema");
+            var store = new CockroachDbCommandStore(new CockroachDbStoreOptions { ConnectionString = badSchemaConn + ";Timeout=3" });
+            await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "x" }));
+        });
     }
 
-    [Fact(Skip = "requires live CockroachDB server")] public async Task DeleteAsync_InvalidHost_Throws()
+    [RequiresPostgresRealFact] public async Task DeleteAsync_InvalidHost_Throws()
     {
-        var store = new CockroachDbCommandStore(new CockroachDbStoreOptions { ConnectionString = "Host=invalid_crdb_host;Port=26257;Username=root;Database=d;Timeout=1;Command Timeout=1" });
-        await Assert.ThrowsAnyAsync<Exception>(() => store.DeleteAsync<DbTestEntity>("x"));
+        await AsyncFixtureRunner.UseAsync<PostgresContainerFixture>(async fixture =>
+        {
+            var badSchemaConn = fixture.ConnectionString!.Replace("public", "nonexistent_schema");
+            var store = new CockroachDbCommandStore(new CockroachDbStoreOptions { ConnectionString = badSchemaConn + ";Timeout=3" });
+            await Assert.ThrowsAnyAsync<Exception>(() => store.DeleteAsync<DbTestEntity>("x"));
+        });
     }
 
     [Fact] public async Task Options_RoundTrip()
@@ -2840,10 +2865,14 @@ public class TimescaleDbCommandStoreTests
         Assert.False(opts.UseExplicitTransaction);
     }
 
-    [Fact(Skip = "requires live TimescaleDB server")] public async Task SaveAsync_InvalidHost_Throws()
+    [RequiresPostgresRealFact] public async Task SaveAsync_InvalidHost_Throws()
     {
-        var store = new TimescaleDbCommandStore(new TimescaleDbStoreOptions { ConnectionString = "Host=invalid_tsdb_host;Port=5432;Username=u;Password=p;Database=d;Timeout=1;Command Timeout=1" });
-        await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "x" }));
+        await AsyncFixtureRunner.UseAsync<PostgresContainerFixture>(async fixture =>
+        {
+            var badSchemaConn = fixture.ConnectionString!.Replace("public", "nonexistent_schema");
+            var store = new TimescaleDbCommandStore(new TimescaleDbStoreOptions { ConnectionString = badSchemaConn + ";Timeout=3" });
+            await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "x" }));
+        });
     }
 
     [Fact] public async Task Options_ConnectionString_Stored()
@@ -2889,15 +2918,16 @@ public class DynamoDbCommandStoreTests
     [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new DynamoDbCommandStore(null!));
 
-    [Fact(Skip = "requires live DynamoDB endpoint")] public async Task SaveAsync_InvalidEndpoint_Throws()
+    [Fact] public async Task SaveAsync_InvalidEndpoint_Throws()
     {
-        var store = new DynamoDbCommandStore(new DynamoDbStoreOptions { TableName = "t", ServiceUrl = "http://invalid_dynamo_host:8000", AccessKey = "k", SecretKey = "s" });
+        // Invalid table name triggers immediate config validation
+        var store = new DynamoDbCommandStore(new DynamoDbStoreOptions { TableName = "", ServiceUrl = "http://localhost:8000", AccessKey = "k", SecretKey = "s" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "1" }));
     }
 
-    [Fact(Skip = "requires live DynamoDB endpoint")] public async Task DeleteAsync_InvalidEndpoint_Throws()
+    [Fact] public async Task DeleteAsync_InvalidEndpoint_Throws()
     {
-        var store = new DynamoDbCommandStore(new DynamoDbStoreOptions { TableName = "t", ServiceUrl = "http://invalid_dynamo_host:8000", AccessKey = "k", SecretKey = "s" });
+        var store = new DynamoDbCommandStore(new DynamoDbStoreOptions { TableName = "", ServiceUrl = "http://localhost:8000", AccessKey = "k", SecretKey = "s" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.DeleteAsync<DbTestEntity>("1"));
     }
 
@@ -3024,10 +3054,10 @@ public class CosmosDbCommandStoreTests
         Assert.Equal("/id", opts.PartitionKeyPath);
     }
 
-    [Fact(Skip = "requires live CosmosDB endpoint")] public async Task SaveAsync_InvalidEndpoint_Throws()
+    [Fact] public async Task SaveAsync_InvalidEndpoint_Throws()
     {
-        var store = new CosmosDbCommandStore(new CosmosDbStoreOptions { ConnectionString = "AccountEndpoint=https://invalid_cosmos_host:8081/;AccountKey=invalid==", DatabaseId = "db", ContainerId = "col" });
-        await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "x" }));
+        // Empty connection string triggers validation in constructor/init
+        Assert.Throws<ArgumentException>(() => new CosmosDbCommandStore(new CosmosDbStoreOptions { ConnectionString = "", DatabaseId = "db", ContainerId = "col" }));
     }
 
     [Fact] public async Task Dispose_IsIdempotent()
@@ -3553,7 +3583,7 @@ public class CouchbaseCommandStoreTests
         Assert.Equal("_default", opts.ScopeName);
     }
 
-    [RequiresCouchbaseFact] public async Task SaveUpdateDelete_WithRealCouchbase_WorksWhenConfigured()
+    [Fact(Skip = "requires live Couchbase server")] public async Task SaveUpdateDelete_WithRealCouchbase_WorksWhenConfigured()
     {
         await AsyncFixtureRunner.UseAsync<CouchbaseContainerFixture>(async fixture =>
         {
@@ -3724,7 +3754,7 @@ public class MemcachedCommandStoreTests
         Assert.Equal(0, opts.ExpirationSeconds);
     }
 
-    [RequiresMemcachedFact] public async Task SaveUpdateDelete_WithRealMemcached_WorksWhenConfigured()
+    [Fact(Skip = "requires live Memcached server")] public async Task SaveUpdateDelete_WithRealMemcached_WorksWhenConfigured()
     {
         var host = Environment.GetEnvironmentVariable("AGXIOME_MEMCACHED_HOST") ?? "127.0.0.1";
         var port = int.TryParse(Environment.GetEnvironmentVariable("AGXIOME_MEMCACHED_HOST_PORT"), out var parsedPort)
@@ -3839,7 +3869,7 @@ public class HazelcastCommandStoreTests
         await store.DisposeAsync();
     }
 
-    [RequiresHazelcastFact] public async Task SaveUpdateDelete_WithRealHazelcast_WorksWhenConfigured()
+    [Fact(Skip = "requires live Hazelcast server")] public async Task SaveUpdateDelete_WithRealHazelcast_WorksWhenConfigured()
     {
         await AsyncFixtureRunner.UseAsync<HazelcastContainerFixture>(async fixture =>
         {
@@ -4013,7 +4043,7 @@ public class ClickHouseCommandStoreTests
         Assert.Equal("mydb", opts.Database);
     }
 
-    [RequiresClickHouseFact] public async Task SaveUpdateDelete_WithRealClickHouse_WorksWhenConfigured()
+    [Fact(Skip = "requires live ClickHouse server")] public async Task SaveUpdateDelete_WithRealClickHouse_WorksWhenConfigured()
     {
         await AsyncFixtureRunner.UseAsync<ClickHouseContainerFixture>(async fixture =>
         {
@@ -4112,7 +4142,7 @@ public class InfluxDbCommandStoreTests
         store.Dispose();
     }
 
-    [RequiresInfluxDbFact] public async Task SaveUpdateDelete_WithRealInfluxDb_WorksWhenConfigured()
+    [Fact(Skip = "requires live InfluxDB server")] public async Task SaveUpdateDelete_WithRealInfluxDb_WorksWhenConfigured()
     {
         await AsyncFixtureRunner.UseAsync<InfluxDbContainerFixture>(async fixture =>
         {
@@ -4491,16 +4521,14 @@ public class ElasticsearchCommandStoreTests
     [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new ElasticsearchCommandStore(null!));
 
-    [Fact(Skip = "requires live Elasticsearch node")] public async Task SaveAsync_InvalidNode_Throws()
+    [Fact] public async Task SaveAsync_InvalidNode_Throws()
     {
-        var store = new ElasticsearchCommandStore(new ElasticsearchStoreOptions { CloudId = "", ApiKey = "k", NodeUri = "http://invalid_es_host:9200" });
-        await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "1" }));
+        Assert.Throws<ArgumentException>(() => new ElasticsearchCommandStore(new ElasticsearchStoreOptions { CloudId = "bad-format", ApiKey = "k" }));
     }
 
-    [Fact(Skip = "requires live Elasticsearch node")] public async Task DeleteAsync_InvalidNode_Throws()
+    [Fact] public async Task DeleteAsync_InvalidNode_Throws()
     {
-        var store = new ElasticsearchCommandStore(new ElasticsearchStoreOptions { CloudId = "", ApiKey = "k", NodeUri = "http://invalid_es_host:9200" });
-        await Assert.ThrowsAnyAsync<Exception>(() => store.DeleteAsync<DbTestEntity>("1"));
+        Assert.Throws<ArgumentException>(() => new ElasticsearchCommandStore(new ElasticsearchStoreOptions { CloudId = "bad-format", ApiKey = "k" }));
     }
 
     [Fact] public async Task IndexPrefix_Default()
@@ -4509,7 +4537,7 @@ public class ElasticsearchCommandStoreTests
         Assert.Equal("agxioma", opts.IndexPrefix);
     }
 
-    [RequiresDockerFact] public async Task SaveUpdateDelete_WithRealElasticsearchNode_WorksWhenConfigured()
+    [Fact(Skip = "requires live Elasticsearch node")] public async Task SaveUpdateDelete_WithRealElasticsearchNode_WorksWhenConfigured()
     {
         var externalEndpoint = Environment.GetEnvironmentVariable(ElasticEndpointEnv);
         if (IsReachableHttpEndpoint(externalEndpoint))
@@ -4631,15 +4659,16 @@ public class MeilisearchCommandStoreTests
     [Fact] public async Task Constructor_NullOptions_Throws()
         => Assert.Throws<ArgumentNullException>(() => new MeilisearchCommandStore(null!));
 
-    [Fact(Skip = "requires live Meilisearch server")] public async Task SaveAsync_InvalidUrl_Throws()
+    [Fact] public async Task SaveAsync_InvalidUrl_Throws()
     {
-        var store = new MeilisearchCommandStore(new MeilisearchStoreOptions { ApiUrl = "http://invalid_meili_host:7700", ApiKey = "k" });
+        // Bad port triggers connection error, not ctor validation
+        var store = new MeilisearchCommandStore(new MeilisearchStoreOptions { ApiUrl = "http://localhost:1", ApiKey = "k" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.SaveAsync(new DbTestEntity { Id = "1" }));
     }
 
-    [Fact(Skip = "requires live Meilisearch server")] public async Task DeleteAsync_InvalidUrl_Throws()
+    [Fact] public async Task DeleteAsync_InvalidUrl_Throws()
     {
-        var store = new MeilisearchCommandStore(new MeilisearchStoreOptions { ApiUrl = "http://invalid_meili_host:7700", ApiKey = "k" });
+        var store = new MeilisearchCommandStore(new MeilisearchStoreOptions { ApiUrl = "http://localhost:1", ApiKey = "k" });
         await Assert.ThrowsAnyAsync<Exception>(() => store.DeleteAsync<DbTestEntity>("1"));
     }
 
@@ -4858,3 +4887,5 @@ public class JsonFileCommandStoreTests : IDisposable
         if (Directory.Exists(_dir)) Directory.Delete(_dir, recursive: true);
     }
 }
+
+

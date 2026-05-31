@@ -1,0 +1,263 @@
+                    
+                    
+┌──────────────────┐
+│ 31 Code Findings │
+└──────────────────┘
+                                                     
+    /src/apps/agxioma-legal-email/frontend/Dockerfile
+   ❯❯❱ dockerfile.security.missing-user.missing-user
+          ❰❰ Blocking ❱❱
+          By not specifying a USER, a program in the container may run as 'root'. This is a security hazard.
+          If an attacker can control a process running as root, they may have control over the container.   
+          Ensure that the last USER in a Dockerfile is a USER other than 'root'.                            
+          Details: https://sg.run/Gbvn                                                                      
+                                                                                                            
+           ▶▶┆ Autofix ▶ USER non-root CMD ["nginx", "-g", "daemon off;"]
+           12┆ CMD ["nginx", "-g", "daemon off;"]
+                                                     
+    /src/apps/agxioma-legal-email/frontend/nginx.conf
+    ❯❱ generic.nginx.security.possible-h2c-smuggling.possible-nginx-h2c-smuggling
+          ❰❰ Blocking ❱❱
+          Conditions for Nginx H2C smuggling identified. H2C smuggling allows upgrading HTTP/1.1 connections 
+          to lesser-known HTTP/2 over cleartext (h2c) connections which can allow a bypass of reverse proxy  
+          access controls, and lead to long-lived, unrestricted HTTP traffic directly to back-end servers. To
+          mitigate: WebSocket support required: Allow only the value websocket for HTTP/1.1 upgrade headers  
+          (e.g., Upgrade: websocket). WebSocket support not required: Do not forward Upgrade headers.        
+          Details: https://sg.run/ploZ                                                                       
+                                                                                                             
+           13┆ proxy_http_version 1.1;
+           14┆ proxy_set_header Upgrade $http_upgrade;
+           15┆ proxy_set_header Connection "upgrade";
+                                            
+    /src/apps/agxioma-support-hub/Dockerfile
+   ❯❯❱ dockerfile.security.missing-user-entrypoint.missing-user-entrypoint
+          ❰❰ Blocking ❱❱
+          By not specifying a USER, a program in the container may run as 'root'. This is a security hazard.
+          If an attacker can control a process running as root, they may have control over the container.   
+          Ensure that the last USER in a Dockerfile is a USER other than 'root'.                            
+          Details: https://sg.run/k281                                                                      
+                                                                                                            
+           ▶▶┆ Autofix ▶ USER non-root ENTRYPOINT ["dotnet", "AgxiomaSupportHub.dll"]
+           20┆ ENTRYPOINT ["dotnet", "AgxiomaSupportHub.dll"]
+                                              
+    /src/security-reports/gitleaks-report.json
+   ❯❯❱ generic.secrets.security.detected-jwt-token.detected-jwt-token
+          ❰❰ Blocking ❱❱
+          JWT token detected          
+          Details: https://sg.run/05N5
+                                      
+          109┆ "Match":                                                                                 
+               "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c\"",
+            ⋮┆----------------------------------------
+          110┆ "Secret":                                                                              
+               "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+                                                
+    /src/src/AGXIOME.Core/Skills/SkillManager.cs
+    ❯❱ csharp.lang.security.regular-expression-dos.regular-expression-dos.regular-expression-dos
+          ❰❰ Blocking ❱❱
+          When using `System.Text.RegularExpressions` to process untrusted input, pass a timeout.  A malicious
+          user can provide input to `RegularExpressions` that abuses the backtracking behaviour of this       
+          regular expression engine. This will lead to excessive CPU usage, causing a Denial-of-Service attack
+          Details: https://sg.run/RPyY                                                                        
+                                                                                                              
+          197┆ public static (Dictionary<string, string> Frontmatter, string Description)
+               ParseFrontmatter(string content)                                          
+          198┆ {
+          199┆     var frontmatter = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+          200┆     var match = Regex.Match(content, @"^---\s*\n(.*?)\n---\s*\n(.*)",
+               RegexOptions.Singleline);                                            
+          201┆     if (!match.Success)
+          202┆         return (frontmatter, content);
+          203┆
+          204┆     foreach (var line in match.Groups[1].Value.Split('\n',
+               StringSplitOptions.RemoveEmptyEntries))                   
+          205┆     {
+          206┆         var parts = line.Split(':', 2, StringSplitOptions.TrimEntries);
+             [hid 6 additional lines, adjust with --max-lines-per-finding] 
+                                                                
+    /src/src/AGXIOME.DynamicRuntime/Compilation/AgentCompiler.cs
+    ❯❱ csharp.lang.security.filesystem.unsafe-path-combine.unsafe-path-combine
+          ❰❰ Blocking ❱❱
+          String argument binPath is used to read or write data from a file via Path.Combine without direct
+          sanitization via Path.GetFileName. If the path is user-supplied data this can lead to path       
+          traversal.                                                                                       
+          Details: https://sg.run/1RvG                                                                     
+                                                                                                           
+          115┆ await File.WriteAllBytesAsync(dllPath, ms.ToArray(), ct);
+            ⋮┆----------------------------------------
+          116┆ await File.WriteAllTextAsync(hashPath, hash, ct);
+                                                                  
+    /src/src/AGXIOME.DynamicRuntime/Persistence/AgentCacheStore.cs
+    ❯❱ csharp.lang.security.filesystem.unsafe-path-combine.unsafe-path-combine
+          ❰❰ Blocking ❱❱
+          String argument userId is used to read or write data from a file via Path.Combine without direct
+          sanitization via Path.GetFileName. If the path is user-supplied data this can lead to path      
+          traversal.                                                                                      
+          Details: https://sg.run/1RvG                                                                    
+                                                                                                          
+           56┆ var cachedHash = (await File.ReadAllTextAsync(hashPath, ct)).Trim();
+            ⋮┆----------------------------------------
+           58┆ await File.ReadAllTextAsync(srcFile, ct));
+                                                       
+    /src/src/AGXIOME.Runtime/Controllers/Controllers.cs
+    ❯❱ csharp.dotnet.security.mvc-missing-antiforgery.mvc-missing-antiforgery
+          ❰❰ Blocking ❱❱
+          Create is a state-changing MVC method that does not validate the antiforgery token or do strict     
+          content-type checking. State-changing controller methods should either enforce antiforgery tokens or
+          do strict content-type checking to prevent simple HTTP request types from bypassing CORS preflight  
+          controls.                                                                                           
+          Details: https://sg.run/Y0Jy                                                                        
+                                                                                                              
+          127┆ [HttpPost]
+          128┆ public IActionResult Create([FromBody] CreateAgentRequest req)
+          129┆ {
+          130┆     var check = _sanitizer.Sanitize(req.Name, SanitizationRules.AgentNameR);
+          131┆     if (!check.IsValid) return ApiErrors.InvalidArguments(
+          132┆         $"Agent name rejected by sanitizer: {check.ViolationDetail ?? "Invalid name"}.",
+          133┆         check.ViolationDetail ?? "Nome agente non valido.");
+          134┆
+          135┆     var id    = Guid.NewGuid().ToString("N")[..12];
+          136┆     var agent = new AgentDto(id, check.SanitizedValue, req.Description, req.Model,
+               DateTimeOffset.UtcNow);                                                           
+             [hid 3 additional lines, adjust with --max-lines-per-finding] 
+    ❯❱ csharp.dotnet.security.mvc-missing-antiforgery.mvc-missing-antiforgery
+          ❰❰ Blocking ❱❱
+          Start is a state-changing MVC method that does not validate the antiforgery token or do strict      
+          content-type checking. State-changing controller methods should either enforce antiforgery tokens or
+          do strict content-type checking to prevent simple HTTP request types from bypassing CORS preflight  
+          controls.                                                                                           
+          Details: https://sg.run/Y0Jy                                                                        
+                                                                                                              
+          175┆ [HttpPost]
+          176┆ public IActionResult Start([FromBody] StartRunRequest req)
+          177┆ {
+          178┆     var runId = Guid.NewGuid().ToString("N")[..12];
+          179┆     var run   = new RunDto(runId, req.AgentId, "running", DateTimeOffset.UtcNow, null,
+               null);                                                                                
+          180┆     _runs[runId] = run;
+          181┆     return Accepted(run);
+          182┆ }
+            ⋮┆----------------------------------------
+    ❯❱ csharp.dotnet.security.mvc-missing-antiforgery.mvc-missing-antiforgery
+          ❰❰ Blocking ❱❱
+          Create is a state-changing MVC method that does not validate the antiforgery token or do strict     
+          content-type checking. State-changing controller methods should either enforce antiforgery tokens or
+          do strict content-type checking to prevent simple HTTP request types from bypassing CORS preflight  
+          controls.                                                                                           
+          Details: https://sg.run/Y0Jy                                                                        
+                                                                                                              
+          247┆ [HttpPost]
+          248┆ public IActionResult Create([FromBody] SessionDto req)
+          249┆ {
+          250┆     var id = Guid.NewGuid().ToString("N")[..12];
+          251┆     var s  = req with { SessionId = id, CreatedAt = DateTimeOffset.UtcNow };
+          252┆     _sessions[id] = s;
+          253┆     return Created($"/api/sessions/{id}", s);
+          254┆ }
+            ⋮┆----------------------------------------
+          285┆ [HttpPost]
+          286┆ public IActionResult Create([FromBody] CreateTeamRequest req)
+          287┆ {
+          288┆     var id   = Guid.NewGuid().ToString("N")[..12];
+          289┆     var team = new TeamDto(id, req.Name, req.AgentIds);
+          290┆     _teams[id] = team;
+          291┆     return Created($"/api/teams/{id}", team);
+          292┆ }
+            ⋮┆----------------------------------------
+          332┆ [HttpPost]
+          333┆ public IActionResult Create([FromBody] CreateWorkflowRequest req)
+          334┆ {
+          335┆     var id = Guid.NewGuid().ToString("N")[..12];
+          336┆     _wf[id] = new WorkflowDto(id, req.Name, req.StepIds, "idle");
+          337┆     return Created($"/api/workflows/{id}", _wf[id]);
+          338┆ }
+                                                      
+    /src/src/AGXIOME.Storage/Stores/ClickHouseStore.cs
+   ❯❯❱ csharp.lang.security.sqli.csharp-sqli.csharp-sqli
+          ❰❰ Blocking ❱❱
+          Detected a formatted string in a SQL statement. This could lead to SQL injection if variables in the
+          SQL statement are not properly sanitized. Use a prepared statements instead. You can obtain a       
+          PreparedStatement using 'SqlCommand' and 'SqlParameter'.                                            
+          Details: https://sg.run/d2Xd                                                                        
+                                                                                                              
+           60┆ cmd.CommandText = sql;
+            ⋮┆----------------------------------------
+           70┆ cmd.CommandText = sql;
+                                                  
+    /src/src/AGXIOME.Storage/Stores/DuckDbStore.cs
+   ❯❯❱ csharp.lang.security.sqli.csharp-sqli.csharp-sqli
+          ❰❰ Blocking ❱❱
+          Detected a formatted string in a SQL statement. This could lead to SQL injection if variables in the
+          SQL statement are not properly sanitized. Use a prepared statements instead. You can obtain a       
+          PreparedStatement using 'SqlCommand' and 'SqlParameter'.                                            
+          Details: https://sg.run/d2Xd                                                                        
+                                                                                                              
+           53┆ cmd.CommandText = $"DELETE FROM \"{TableName<T>()}\" WHERE \"Id\" = '{EscapeStr(id)}'";
+            ⋮┆----------------------------------------
+           71┆ cmd.CommandText = $"CREATE TABLE IF NOT EXISTS \"{TableName<T>()}\" ({cols})";
+                                                                    
+    /src/src/AGXIOME.Storage/VectorStores/SqlEmbeddedVectorStores.cs
+   ❯❯❱ csharp.lang.security.sqli.csharp-sqli.csharp-sqli
+          ❰❰ Blocking ❱❱
+          Detected a formatted string in a SQL statement. This could lead to SQL injection if variables in the
+          SQL statement are not properly sanitized. Use a prepared statements instead. You can obtain a       
+          PreparedStatement using 'SqlCommand' and 'SqlParameter'.                                            
+          Details: https://sg.run/d2Xd                                                                        
+                                                                                                              
+          186┆ cmd.CommandText = $@"CREATE TABLE IF NOT EXISTS ""{collection}"" (
+          187┆     ""id""           VARCHAR   NOT NULL PRIMARY KEY,
+          188┆     ""vector_json""  VARCHAR   NOT NULL,
+          189┆     ""text_content"" VARCHAR,
+          190┆     ""metadata""     VARCHAR
+          191┆ );";
+            ⋮┆----------------------------------------
+          199┆ cmd.CommandText = $@"DROP TABLE IF EXISTS ""{collection}"";";
+            ⋮┆----------------------------------------
+          219┆ cmd.CommandText = $@"INSERT INTO ""{collection}"" (id, vector_json, text_content, metadata)
+          220┆        VALUES ('{Escape(record.Id)}', '{Escape(vecJson)}', {Lit(record.Text)},
+               {Lit(metaJson)})                                                              
+          221┆        ON CONFLICT(""id"") DO UPDATE SET
+          222┆          ""vector_json""  = excluded.""vector_json"",
+          223┆          ""text_content"" = excluded.""text_content"",
+          224┆          ""metadata""     = excluded.""metadata"";";
+            ⋮┆----------------------------------------
+          237┆ cmd.CommandText = $@"SELECT vector_json, text_content, metadata FROM ""{collection}"" WHERE
+               id = '{Escape(id)}';";                                                                     
+            ⋮┆----------------------------------------
+          249┆ cmd.CommandText = $@"DELETE FROM ""{collection}"" WHERE id = '{Escape(id)}';";
+            ⋮┆----------------------------------------
+          259┆ cmd.CommandText = $@"SELECT id, vector_json, text_content FROM ""{collection}"";";
+                                                   
+    /src/src/AGXIOME.Tests/F10SecurityAuditTests.cs
+   ❯❯❱ generic.secrets.security.detected-jwt-token.detected-jwt-token
+          ❰❰ Blocking ❱❱
+          JWT token detected          
+          Details: https://sg.run/05N5
+                                      
+          422┆ const string jwt =                                                                     
+               "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+                                            
+    /src/src/AGXIOME.Tests/F4DbStoreTests.cs
+   ❯❯❱ csharp.lang.security.sqli.csharp-sqli.csharp-sqli
+          ❰❰ Blocking ❱❱
+          Detected a formatted string in a SQL statement. This could lead to SQL injection if variables in the
+          SQL statement are not properly sanitized. Use a prepared statements instead. You can obtain a       
+          PreparedStatement using 'SqlCommand' and 'SqlParameter'.                                            
+          Details: https://sg.run/d2Xd                                                                        
+                                                                                                              
+          1532┆ createDb.CommandText = $"CREATE DATABASE IF NOT EXISTS `{database}`; USE `{database}`;";
+            ⋮┆----------------------------------------
+          2443┆ create.CommandText = $"""
+          2444┆     CREATE TABLE IF NOT EXISTS "{tableName}" (
+          2445┆         "Id" text PRIMARY KEY,
+          2446┆         "Name" text NOT NULL,
+          2447┆         "Score" integer NOT NULL
+          2448┆     );
+          2449┆     """;
+            ⋮┆----------------------------------------
+          2453┆ cleanup.CommandText = $"DELETE FROM \"{tableName}\" WHERE \"Id\" = @Id";
+            ⋮┆----------------------------------------
+          2464┆ verifyUpdated.CommandText = $"SELECT \"Name\", \"Score\" FROM \"{tableName}\" WHERE \"Id\"
+               = @Id";                                                                                    
+            ⋮┆----------------------------------------
+          2478┆ verifyDelete.CommandText = $"SELECT COUNT(*) FROM \"{tableName}\" WHERE \"Id\" = @Id";

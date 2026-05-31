@@ -1,0 +1,18 @@
+title = "AGXIOME Gitleaks config"
+
+# Dev/test passwords and emulator keys — not real secrets
+[allowlist]
+description = "Test/dev credentials and emulator keys used in test fixtures"
+regexes = [
+  '(?i)agxiome_f4_pw',
+  '(?i)C2y6yDjf5/R\\+ob0N8A7Cgv30VRDJIWEHLM\\+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw',
+  '(?i)sk-e233360b9fd24494861ee970e96fefc5',
+  '(?i)019e3bde06da74909ae89942f93ac848',
+  '(?i)eyJhbGciOiJSUzI1NiJ9\\.eyJzdWIiOiJ1c2VyIn0\\.',
+  '(?i)AccountKey=C2y6yDjf5/R\\+ob0N8A7Cgv30VRDJIWEHLM',
+]
+paths = [
+  'security-reports/',
+  'TestResults/',
+  'docs/SECURITY_',
+]

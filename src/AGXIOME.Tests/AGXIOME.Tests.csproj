@@ -57,6 +57,9 @@
     <ProjectReference Include="..\..\apps\agxioma-support-hub\AgxiomaSupportHub.csproj" Aliases="supporthub" />
     <ProjectReference Include="..\..\apps\agxioma-research-agent\AgxiomaResearchAgent.csproj" Aliases="researchagent" />
     <ProjectReference Include="..\..\apps\agxioma-stock-tracker\AgxiomaStockTracker.csproj" Aliases="stocktracker" />
+    <ProjectReference Include="..\..\apps\OpenClaw.Tools\OpenClaw.Tools.csproj" Aliases="global,openclawtls" />
+    <ProjectReference Include="..\..\apps\OpenClaw.Skills\OpenClaw.Skills.csproj" Aliases="global,openclawskls" />
+    <ProjectReference Include="..\..\apps\OpenClaw\OpenClaw.csproj" Aliases="global,openclaw" />
   </ItemGroup>
 
 </Project>

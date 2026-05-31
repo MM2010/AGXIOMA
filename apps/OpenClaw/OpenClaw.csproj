@@ -1,6 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.8" />
     <ProjectReference Include="..\..\src\AGXIOME.Core\AGXIOME.Core.csproj" />
     <ProjectReference Include="..\..\src\AGXIOME.LLMWIKY\AGXIOME.LLMWIKY.csproj" />
     <ProjectReference Include="..\..\src\AGXIOME.Storage\AGXIOME.Storage.csproj" />

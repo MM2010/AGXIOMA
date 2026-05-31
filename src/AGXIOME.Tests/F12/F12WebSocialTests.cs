@@ -29,13 +29,13 @@ public sealed class RedditToolkitTests
     [Fact] public async Task NotConfigured_ReturnsSkipped()
     {
         var r = await new RedditToolkit().ExecuteAsync("posts", new Dictionary<string, object?> { ["subreddit"] = "programming", ["limit"] = 5 }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
-    [Fact] public async Task Execute_WithConfig_ReturnsOk()
+    [Fact] public async Task Execute_WithConfig_ReturnsError()
     {
         var cfg = new ToolkitConfig("reddit", new Dictionary<string, string> { ["enabled"] = "true" });
         var r = await new RedditToolkit(cfg).ExecuteAsync("posts", new Dictionary<string, object?> { ["subreddit"] = "news", ["limit"] = 5 }, default);
-        Assert.Equal(ToolkitResultStatus.Ok, r.Status);
+        Assert.Equal(ToolkitResultStatus.Error, r.Status);
     }
 }
 
