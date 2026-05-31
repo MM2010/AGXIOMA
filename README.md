@@ -1,6 +1,11 @@
-# AGXIOME
+# AGXIOME v0.0.1-beta
 
 **Agentic Generative C# X-Linked Integrated Orchestration Memory Architecture**
+
+[![NuGet](https://img.shields.io/badge/nuget-v0.0.1--beta-blue)](https://www.nuget.org/packages/AGXIOME.Core)
+[![.NET](https://img.shields.io/badge/.NET-10.0-purple)](https://dotnet.microsoft.com/)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-3190%20passed-brightgreen)]()
 
 Framework .NET 10 per orchestrazione agentic AI.  
 Ispirato ad [Agno](https://docs.agno.com/), esteso con Zero Trust security, CQRS persistence,
@@ -8,24 +13,15 @@ realtime SignalR, resilience enterprise-grade, e sistema errori strutturato.
 
 > **AGXIOME è il corpo. LLMWIKY è la mente. .NET 10 è il sistema nervoso.**
 
----
+## 📦 Installazione
 
-## Indice
+```bash
+# Richiede flag --prerelease per pacchetti beta
+dotnet add package AGXIOME.Core --prerelease
+dotnet add package AGXIOME.Shared --prerelease
+```
 
-- [Quick Start](#quick-start)
-- [Architettura](#architettura)
-- [Feature](#feature)
-- [Provider LLM](#provider-llm)
-- [Errori e Resilience](#errori-e-resilience)
-- [Logging](#logging)
-- [Documentazione](#documentazione)
-- [Build & Test](#build--test)
-
----
-
-## Quick Start
-
-### Con engine di test (nessuna API key)
+## ⚡ Quick Start
 
 ```csharp
 using AGXIOME.Core.Agent;
@@ -33,44 +29,12 @@ using AGXIOME.Shared.Models;
 
 var agent = AgentFactory.CreateTestAgent("demo");
 var result = await agent.RunAsync(new AgentRequest("Ciao!"));
-Console.WriteLine(result.Content); // "Test response"
+Console.WriteLine(result.Content);
 ```
 
-### Con LLM reale (OpenAI)
+[→ Guida completa](docs/GETTING_STARTED.md)
 
-```csharp
-using AGXIOME.Core.Agent;
-using AGXIOME.Shared.Config;
-using AGXIOME.Shared.Models;
-
-var agent = AgentFactory.Create("assistente", cfg =>
-{
-    cfg.ReasoningEngine = new LLMWIKYConfig
-    {
-        Provider = "OpenAI",
-        Model = "gpt-4o-mini",
-        ApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
-    };
-});
-
-var result = await agent.RunAsync(new AgentRequest("Qual è la capitale d'Italia?"));
-Console.WriteLine(result.Content); // "Roma"
-```
-
-### Con Ollama (locale)
-
-```csharp
-cfg.ReasoningEngine = new LLMWIKYConfig
-{
-    Provider = "Ollama",
-    Model = "llama3.2",
-    Endpoint = "http://localhost:11434"
-};
-```
-
----
-
-## Architettura
+## 🏗 Architettura
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -124,7 +88,7 @@ cfg.ReasoningEngine = new LLMWIKYConfig
 | **Resilience** | Retry (429/500/502/503), exponential backoff, circuit breaker, fallback | ✅ |
 | **Errors** | 70+ codici strutturati, stack trace mai esposto all'utente | ✅ |
 | **Telemetry** | OpenTelemetry metrics, OpenTelemetry Protocol export | ✅ |
-| **Testing** | 164 test, 0 falliti — unità, edge, concorrenza, resilience | ✅ |
+| **Testing** | 3.190 test, 0 falliti — unità, edge, concorrenza, resilience, real-world E2E | ✅ |
 
 ---
 
@@ -247,13 +211,64 @@ factory.Configure(config);
 
 ---
 
-## Build & Test
+## 📚 Documentazione
+
+| Documento | Descrizione |
+|-----------|-------------|
+| [Getting Started](docs/GETTING_STARTED.md) | Guida rapida: primo agente in 5 minuti |
+| [API Reference](docs/API.md) | API completa con link ai sorgenti |
+| [Core Concepts](docs/CORE_CONCEPTS.md) | Concetti fondamentali: Agent, Team, Workflow |
+| [Architecture](docs/ARCHITECTURE.md) | Design patterns e decisioni architetturali |
+| [Providers](docs/PROVIDERS.md) | Tutti i provider: LLM, DB, Vector, Embedder |
+| [Storage](docs/STORAGE.md) | CQRS, Unit of Work, multi-model persistence |
+| [Security](docs/SECURITY.md) | Zero Trust, Crypto, Audit, RBAC |
+| [Realtime](docs/REALTIME.md) | SignalR hubs, backplane, reconnect |
+| [Error Handling](docs/ERROR_HANDLING.md) | Codici errore strutturati, resilience |
+| [Logging](docs/LOGGING.md) | Provider logging, livelli, pseudonimizzazione |
+| [Testing](docs/TESTING.md) | Strategia test, coverage, CI/CD |
+| [Roadmap](docs/ROADMAP.md) | Prossime feature e milestone |
+
+### Generazione documentazione API da XML doc
 
 ```bash
-cd src
-dotnet restore
-dotnet build          # 0 errors
-dotnet test           # 164 passed, 0 failed
+# Il file XML viene generato automaticamente ad ogni build Release
+# si trova in: src/AGXIOME.Shared/bin/Release/net10.0/AGXIOME.Shared.xml
+# Per generare documentazione HTML installare docfx:
+dotnet tool install -g docfx
+docfx init
+docfx build
+```
+
+## 📊 Numeri del progetto
+
+| Metrica | Valore |
+|---------|--------|
+| Progetti .NET | 17 |
+| Test totali | 3.276 (3.190 passati, 82 skipped, 0 falliti) |
+| Provider LLM | 50+ |
+| Provider DB | 25 |
+| Vector DB | 30 |
+| Embedder | 25 |
+| Document Reader | 28 |
+| Chunker | 12 |
+| Reranker | 8 |
+| Toolkit prebuilt | 161 |
+| Interfacce pubbliche | 30+ |
+| XML documentation | 100% tipi pubblici |
+| Versione | 0.0.1-beta |
+| Target | .NET 10 |
+
+## 🛠 Build & Test
+
+```bash
+# Build
+dotnet build
+
+# Test (richiede Docker per integration test)
+dotnet test AGXIOME.Tests
+
+# Pack NuGet
+dotnet pack AGXIOME.Core -c Release -o ./artifacts
 ```
 
 Per i rerun che usano `Microsoft.AspNetCore.Mvc.Testing`, in alcuni ambienti Windows il file
