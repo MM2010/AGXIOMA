@@ -3,6 +3,7 @@ namespace AGXIOME.Shared.Models;
 // ─────────────────────────────────────────────────────────────────────────────
 // LLM / Model providers — 50 providers, zero hardcoded strings in routing code
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Supported LLM provider types (50+ providers: OpenAI, Anthropic, Gemini, Ollama, local, regional, etc.).</summary>
 public enum LLMProviderType
 {
     // Existing 8
@@ -71,6 +72,7 @@ public enum LLMProviderType
 // ─────────────────────────────────────────────────────────────────────────────
 // Storage / DB providers — 25 providers
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Supported storage and database provider types (PostgreSQL, SQLite, SQL Server, Redis, MongoDB, etc. — 25 providers).</summary>
 public enum StorageProviderType
 {
     // Existing 5
@@ -111,6 +113,7 @@ public enum StorageProviderType
 // ─────────────────────────────────────────────────────────────────────────────
 // Vector DB providers — 30 providers
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Supported vector database provider types (Pinecone, Qdrant, Milvus, Chroma, Weaviate, Vespa, pgvector, etc. — 30 providers).</summary>
 public enum VectorDbProviderType
 {
     // Existing 1
@@ -152,6 +155,7 @@ public enum VectorDbProviderType
 // ─────────────────────────────────────────────────────────────────────────────
 // Embedder types — 25 embedders
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Supported embedding model provider types (OpenAI, Cohere, ONNX, Ollama, HuggingFace, etc. — 25 embedders).</summary>
 public enum EmbedderType
 {
     OpenAISmall = 0,      // text-embedding-3-small 1536d
@@ -184,6 +188,7 @@ public enum EmbedderType
 // ─────────────────────────────────────────────────────────────────────────────
 // Document Reader types — 28 readers
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Supported document reader types (PDF, DOCX, XLSX, Markdown, HTML, YouTube, EPUB, etc. — 28 readers).</summary>
 public enum DocumentReaderType
 {
     Pdf = 0,
@@ -219,6 +224,7 @@ public enum DocumentReaderType
 // ─────────────────────────────────────────────────────────────────────────────
 // Chunker types — 12 chunkers
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Supported text chunking strategy types (Recursive, Semantic, Agentic, Code, SlidingWindow, Hybrid, etc. — 12 chunkers).</summary>
 public enum ChunkerType
 {
     // Existing 3
@@ -241,6 +247,7 @@ public enum ChunkerType
 // ─────────────────────────────────────────────────────────────────────────────
 // Reranker types — 8 rerankers
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Supported reranker model types (Cohere English/Multilingual, Jina, Voyage, BGE ONNX, CrossEncoder, MixedBread, LLM-based — 8 rerankers).</summary>
 public enum RerankerType
 {
     CohereEnglish = 0,
@@ -256,6 +263,7 @@ public enum RerankerType
 // ─────────────────────────────────────────────────────────────────────────────
 // Toolkit category — 12 categories
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Categories for organizing prebuilt toolkits (Communication, Productivity, Development, Finance, Enterprise, etc. — 12 categories).</summary>
 public enum ToolkitCategory
 {
     Communication = 0,
@@ -275,6 +283,7 @@ public enum ToolkitCategory
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth / Security types
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Supported authentication scheme types (JWT, API Key, OAuth2, JWE Encrypted).</summary>
 public enum AuthSchemeType
 {
     Jwt = 0,
@@ -283,6 +292,7 @@ public enum AuthSchemeType
     JweEncrypted = 3,
 }
 
+/// <summary>Role-Based Access Control roles (Admin, Operator, Developer, ReadOnly).</summary>
 public enum RbacRole
 {
     Admin = 0,
@@ -291,6 +301,7 @@ public enum RbacRole
     ReadOnly = 3,
 }
 
+/// <summary>RBAC action types for permission checks (Read, Write, Execute, Delete, Admin).</summary>
 public enum RbacAction
 {
     Read = 0,
@@ -300,6 +311,7 @@ public enum RbacAction
     Admin = 4,
 }
 
+/// <summary>RBAC resource types for access control (Agent, Session, Team, Workflow, Knowledge, Tool, Metrics, Config).</summary>
 public enum RbacResource
 {
     Agent = 0,
@@ -315,6 +327,7 @@ public enum RbacResource
 // ─────────────────────────────────────────────────────────────────────────────
 // Background job / runtime types
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Types of background jobs managed by the runtime (RunExecution, SessionCleanup, TokenRotation, KnowledgeIngest).</summary>
 public enum BackgroundJobType
 {
     RunExecution = 0,
@@ -323,6 +336,7 @@ public enum BackgroundJobType
     KnowledgeIngest = 3,
 }
 
+/// <summary>Background job execution status (Queued, Running, Completed, Failed, Cancelled, Retrying).</summary>
 public enum BackgroundJobStatus
 {
     Queued = 0,
@@ -333,6 +347,7 @@ public enum BackgroundJobStatus
     Retrying = 5,
 }
 
+/// <summary>Strategies for resuming interrupted agent/workflow runs (Restart, ContinueFromCheckpoint, SkipFailed).</summary>
 public enum ResumeStrategy
 {
     Restart = 0,
@@ -343,6 +358,7 @@ public enum ResumeStrategy
 // ─────────────────────────────────────────────────────────────────────────────
 // Response cache / token counting
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Cache backend strategies for LLM response caching (None, InMemory, Redis, Hybrid).</summary>
 public enum CacheStrategy
 {
     None = 0,
@@ -351,6 +367,7 @@ public enum CacheStrategy
     Hybrid = 3,
 }
 
+/// <summary>Tokenizer algorithms for accurate token counting across model families (cl100k, o200k, Llama, Mistral, Gemini, Generic).</summary>
 public enum TokenizerAlgorithm
 {
     Cl100kBase = 0,   // GPT-4 / GPT-3.5
@@ -365,6 +382,7 @@ public enum TokenizerAlgorithm
 // ─────────────────────────────────────────────────────────────────────────────
 // CLI command types
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>CLI command types for the AGXIOME command-line interface (Run, List, Session, Admin, Config).</summary>
 public enum CliCommand
 {
     Run = 0,
@@ -374,6 +392,7 @@ public enum CliCommand
     Config = 4,
 }
 
+/// <summary>CLI output format options (Plain, Json, Table).</summary>
 public enum CliOutputFormat
 {
     Plain = 0,
@@ -384,6 +403,7 @@ public enum CliOutputFormat
 // ─────────────────────────────────────────────────────────────────────────────
 // Model compatibility / deprecation
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Model compatibility and lifecycle status (Supported, Deprecated, Removed, Preview).</summary>
 public enum ModelCompatibilityStatus
 {
     Supported = 0,
@@ -395,6 +415,7 @@ public enum ModelCompatibilityStatus
 // ─────────────────────────────────────────────────────────────────────────────
 // Multi-framework bridge types
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>External AI framework bridge types for interoperability (LangChain, SemanticKernel, ClaudeSDK).</summary>
 public enum BridgeFramework
 {
     LangChain = 0,
