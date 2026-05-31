@@ -1,3 +1,4 @@
+﻿/// <summary>Session, team, and workflow records: Session with history, TeamContext/Response, WorkflowContext, StepResult/Type, WorkflowResult.</summary>
 using AGXIOME.Shared.Interfaces;
 
 namespace AGXIOME.Shared.Models;

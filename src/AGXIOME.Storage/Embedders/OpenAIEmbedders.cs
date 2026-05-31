@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
@@ -73,6 +73,7 @@ internal sealed class OpenAICompatEmbedderClient : IDisposable
 // E-02 — OpenAI text-embedding-3-large (3072 dims)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// <summary>Data transfer record for the AGXIOME framework.</summary>
 public sealed record OpenAIEmbedderOptions
 {
     public required string ApiKey  { get; init; }

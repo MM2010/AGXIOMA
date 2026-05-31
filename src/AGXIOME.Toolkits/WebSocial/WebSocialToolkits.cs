@@ -1,4 +1,4 @@
-// T-102..T-119 — Web & Social Toolkits
+﻿// T-102..T-119 — Web & Social Toolkits
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -15,6 +15,7 @@ file static class Http
 
 // T-107 — Twitter/X (Bearer token required)
 [Toolkit("twitter","Twitter/X",ToolkitCategory.WebSocial)]
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class TwitterToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override string Id=>"twitter";public override string Name=>"Twitter/X";
     public override ToolkitCategory Category=>ToolkitCategory.WebSocial;

@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
@@ -10,6 +10,7 @@ namespace AGXIOME.Storage.Embedders;
 // POST v1/embeddings — proprietary schema, not OpenAI-compat.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// <summary>Data transfer record for the AGXIOME framework.</summary>
 public sealed record VoyageEmbedderOptions
 {
     public required string ApiKey { get; init; }

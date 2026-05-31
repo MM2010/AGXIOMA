@@ -1,8 +1,9 @@
-using AGXIOME.Shared.Interfaces;
+﻿using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
 namespace AGXIOME.Core.Workflows;
 
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class AgxiomeWorkflow : IAgxiomeWorkflow
 {
     public string Id { get; }

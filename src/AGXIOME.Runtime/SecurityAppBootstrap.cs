@@ -1,4 +1,4 @@
-using AGXIOME.Runtime.Middleware;
+﻿using AGXIOME.Runtime.Middleware;
 using AGXIOME.Security.ApiKey;
 using AGXIOME.Security.Audit;
 using AGXIOME.Security.Keys;
@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AGXIOME.Runtime;
 
+/// <summary>Data transfer record for the AGXIOME framework.</summary>
 public sealed record AgxiomePermissionMetadata(AgxiomePermission Permission);
 
 public sealed record AgxiomeRateLimitMetadata(RateLimitPolicy Policy);

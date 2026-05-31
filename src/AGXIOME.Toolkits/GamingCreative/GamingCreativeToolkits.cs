@@ -1,4 +1,4 @@
-// T-142..T-149 — Gaming & Creative Toolkits
+﻿// T-142..T-149 — Gaming & Creative Toolkits
 using System.Net.Http.Json;
 using System.Text.Json;
 using AGXIOME.Shared.Errors;
@@ -10,6 +10,7 @@ file static class Http { internal static readonly HttpClient Client = new() { Ti
 
 // T-142 — Steam Web API (api_key required for some endpoints)
 [Toolkit("steam","Steam",ToolkitCategory.GamingCreative)]
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class SteamToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override string Id=>"steam";public override string Name=>"Steam";
     public override ToolkitCategory Category=>ToolkitCategory.GamingCreative;

@@ -1,4 +1,4 @@
-// SA-08 — Secrets Scanner
+﻿// SA-08 — Secrets Scanner
 // Prevents accidental exposure of credentials, tokens, keys, and connection strings
 // in log output, serialized payloads, and structured error responses.
 // Uses pattern-based detection + fixed masking ("***REDACTED***").
@@ -10,6 +10,7 @@ namespace AGXIOME.Security.Secrets;
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
+/// <summary>Enumeration type for the AGXIOME framework.</summary>
 public enum SecretCategory
 {
     ApiKey         = 0,

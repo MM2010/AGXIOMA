@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
@@ -10,6 +10,7 @@ namespace AGXIOME.Storage.Embedders;
 // OpenAI-compatible /v1/embeddings endpoint.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// <summary>Data transfer record for the AGXIOME framework.</summary>
 public sealed record MistralEmbedderOptions
 {
     public required string ApiKey { get; init; }

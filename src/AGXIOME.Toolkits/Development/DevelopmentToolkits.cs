@@ -1,4 +1,4 @@
-// T-48..T-67 — Development Toolkits
+﻿// T-48..T-67 — Development Toolkits
 using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text;
@@ -15,6 +15,7 @@ file static class Http
 
 // T-48 — GitHub REST API (token required for write ops; public repos work without)
 [Toolkit("github","GitHub",ToolkitCategory.Development)]
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class GitHubToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override string Id=>"github";public override string Name=>"GitHub";
     public override ToolkitCategory Category=>ToolkitCategory.Development;

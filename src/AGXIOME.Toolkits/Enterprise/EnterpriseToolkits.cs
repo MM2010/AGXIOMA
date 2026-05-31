@@ -1,4 +1,4 @@
-// T-150..T-161 — Enterprise Toolkits
+﻿// T-150..T-161 — Enterprise Toolkits
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -11,6 +11,7 @@ file static class Http { internal static readonly HttpClient Client = new() { Ti
 
 // T-150 — Salesforce REST API (OAuth2 access_token + instance_url required)
 [Toolkit("salesforce","Salesforce",ToolkitCategory.Enterprise)]
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class SalesforceToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override string Id=>"salesforce";public override string Name=>"Salesforce";
     public override ToolkitCategory Category=>ToolkitCategory.Enterprise;

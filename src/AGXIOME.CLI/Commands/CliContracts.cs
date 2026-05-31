@@ -1,4 +1,4 @@
-// MU-01..MU-05 — CLI Command Contracts
+﻿// MU-01..MU-05 — CLI Command Contracts
 // All commands are unit-testable via injectable IAgxiomeApiClient + ICliOutput.
 // No blocking I/O in the command layer; all ExecuteAsync → ValueTask.
 
@@ -6,6 +6,7 @@ namespace AGXIOME.CLI.Commands;
 
 // ── Core result ──────────────────────────────────────────────────────────────
 
+/// <summary>Data transfer record for the AGXIOME framework.</summary>
 public sealed record CliResult(bool Success, string Output, string? Error = null, int ExitCode = 0)
 {
     public static CliResult Ok(string output)          => new(true,  output, null, 0);

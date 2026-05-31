@@ -1,5 +1,6 @@
-namespace AGXIOME.Core.Generator;
+﻿namespace AGXIOME.Core.Generator;
 
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class ModuleDependencyPlanner
 {
     private readonly IReadOnlyList<ModuleSpec> _modules;

@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Amazon.DynamoDBv2;
@@ -15,6 +15,7 @@ namespace AGXIOME.Storage.Stores;
 // Billing: PAY_PER_REQUEST (on-demand) by default.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// <summary>Data transfer record for the AGXIOME framework.</summary>
 public sealed record DynamoDbStoreOptions
 {
     public required string TableName { get; init; }

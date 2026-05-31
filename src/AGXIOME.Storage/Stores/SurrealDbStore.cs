@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -14,6 +14,7 @@ namespace AGXIOME.Storage.Stores;
 // Table name is derived from entity type (lowercase plural).
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// <summary>Data transfer record for the AGXIOME framework.</summary>
 public sealed record SurrealDbStoreOptions
 {
     public required string BaseUrl   { get; init; }  // e.g., "http://localhost:8000"

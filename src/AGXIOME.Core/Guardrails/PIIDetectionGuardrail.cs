@@ -1,9 +1,10 @@
-using AGXIOME.Shared.Interfaces;
+﻿using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 using System.Text.RegularExpressions;
 
 namespace AGXIOME.Core.Guardrails;
 
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class PIIDetectionGuardrail : IGuardrail
 {
     public string Name => "pii_detection";

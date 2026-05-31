@@ -1,3 +1,4 @@
+﻿/// <summary>Miscellaneous shared records: XLink envelope/header/options, Guardrail/Hook/Approval contexts and results, Audit events.</summary>
 using AGXIOME.Shared.Config;
 
 namespace AGXIOME.Shared.Models;

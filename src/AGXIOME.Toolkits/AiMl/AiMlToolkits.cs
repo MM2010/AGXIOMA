@@ -1,4 +1,4 @@
-// T-68..T-79 — AI/ML Toolkits
+﻿// T-68..T-79 — AI/ML Toolkits
 using System.Net.Http.Json;
 using System.Text.RegularExpressions;
 using System.Text.Json;
@@ -28,6 +28,7 @@ file static class Http
 
 // T-68 — OpenAI Vision (GPT-4o / gpt-4-vision — api_key required)
 [Toolkit("openai_vision","OpenAI Vision",ToolkitCategory.AiMl)]
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class OpenAiVisionToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override string Id=>"openai_vision";public override string Name=>"OpenAI Vision";
     public override ToolkitCategory Category=>ToolkitCategory.AiMl;

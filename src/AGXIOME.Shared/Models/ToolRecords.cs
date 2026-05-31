@@ -1,3 +1,4 @@
+﻿/// <summary>Tool-related records: ToolContext (inputs, agent, session), ToolResult (success/failure with data), ToolCallLimit, ToolResultCache.</summary>
 using AGXIOME.Shared.Interfaces;
 
 namespace AGXIOME.Shared.Models;

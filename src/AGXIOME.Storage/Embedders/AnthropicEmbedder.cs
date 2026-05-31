@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
@@ -12,6 +12,7 @@ namespace AGXIOME.Storage.Embedders;
 // endpoint ships (target: /v1/embeddings, Bearer auth, same schema as OpenAI).
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// <summary>Data transfer record for the AGXIOME framework.</summary>
 public sealed record AnthropicEmbedderOptions
 {
     public required string ApiKey { get; init; }

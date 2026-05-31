@@ -1,3 +1,4 @@
+﻿/// <summary>LLM completion request: model, messages, optional tools, temperature, max tokens.</summary>
 namespace AGXIOME.Shared.Models;
 
 public record LLMWIKYRequest(

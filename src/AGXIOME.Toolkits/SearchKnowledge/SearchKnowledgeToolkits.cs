@@ -1,4 +1,4 @@
-// T-120..T-131 — Search & Knowledge Toolkits
+﻿// T-120..T-131 — Search & Knowledge Toolkits
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -16,6 +16,7 @@ file static class Http
 
 // T-120 — Google Custom Search (requires cx + api_key)
 [Toolkit("google_search","Google Search",ToolkitCategory.SearchKnowledge)]
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class GoogleSearchToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override string Id=>"google_search";public override string Name=>"Google Search";
     public override ToolkitCategory Category=>ToolkitCategory.SearchKnowledge;

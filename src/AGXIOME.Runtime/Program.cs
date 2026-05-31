@@ -1,4 +1,4 @@
-// RT-01 — AgentOS Runtime — Middleware pipeline, DI, config
+﻿// RT-01 — AgentOS Runtime — Middleware pipeline, DI, config
 // Full ASP.NET Core 10 host for AGXIOME realtime + REST gateway.
 // Middleware order: SecurityHeaders → Auth → RBAC → RateLimit → ErrorHandler → Controllers/Hubs
 
@@ -114,4 +114,5 @@ app.MapGet("/health", () => Results.Ok(new { Status = "healthy", Ts = DateTimeOf
 app.Run();
 
 // Make the implicit Program class accessible for WebApplicationFactory in tests
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public partial class Program { }

@@ -14,7 +14,6 @@ public abstract class AgxiomeFunction : IAgxiomeTool, IAgxiomeExecutableTool
 
     public System.Text.Json.Nodes.JsonObject ToJsonSchema()
     {
-        // Reflection-based schema generation from [ToolParameter] props
         var schema = new System.Text.Json.Nodes.JsonObject
         {
             ["name"] = Name,

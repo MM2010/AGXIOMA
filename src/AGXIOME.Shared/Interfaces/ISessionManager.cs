@@ -1,7 +1,9 @@
-using AGXIOME.Shared.Models;
+﻿using AGXIOME.Shared.Models;
 
 namespace AGXIOME.Shared.Interfaces;
 
+/// <summary>Manages agent session lifecycle: create, persist, resume, and delete sessions with full chat history and mutable session state. Sessions survive across agent restarts.</summary>
+/// <remarks>Sessions store conversation history, session state (key-value), and an auto-generated summary. Backed by the configured database provider.</remarks>
 public interface ISessionManager
 {
     Task<Session> CreateSessionAsync(string userId, string componentId, SessionType type, SessionOptions? options = null, CancellationToken ct = default);
@@ -16,6 +18,7 @@ public interface ISessionManager
     Task DeleteSessionAsync(string sessionId, CancellationToken ct = default);
 }
 
+/// <summary>Mutable key-value state store scoped to a single session. Thread-safe. Values are serialized as JSON.</summary>
 public interface ISessionState
 {
     T? Get<T>(string key);

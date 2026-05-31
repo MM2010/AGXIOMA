@@ -1,4 +1,4 @@
-// T-90..T-101 — Cloud & Infrastructure Toolkits
+﻿// T-90..T-101 — Cloud & Infrastructure Toolkits
 // Most cloud vendor SDKs are heavy. These toolkits delegate to their respective CLI tools
 // (aws, az, gcloud) when available, or provide informative stubs for SDK-only operations.
 using System.Net.Http.Json;
@@ -12,6 +12,7 @@ file static class Http { internal static readonly HttpClient Client = new() { Ti
 
 // T-90 — AWS S3 (delegates to aws CLI — or use AWSSDK.S3)
 [Toolkit("aws_s3","AWS S3",ToolkitCategory.CloudInfra)]
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class AwsS3Toolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override string Id=>"aws_s3";public override string Name=>"AWS S3";
     public override ToolkitCategory Category=>ToolkitCategory.CloudInfra;

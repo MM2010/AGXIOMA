@@ -1,4 +1,4 @@
-// T-80..T-89 — Finance Toolkits
+﻿// T-80..T-89 — Finance Toolkits
 using System.Net.Http.Json;
 using System.Text.Json;
 using AGXIOME.Shared.Errors;
@@ -13,6 +13,7 @@ file static class Http
 
 // T-80 — Yahoo Finance (unofficial public JSON API — no auth needed)
 [Toolkit("yahoo_finance","Yahoo Finance",ToolkitCategory.Finance)]
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class YahooFinanceToolkit(ToolkitConfig? cfg=null):ToolkitBase(cfg){
     public override string Id=>"yahoo_finance";public override string Name=>"Yahoo Finance";
     public override ToolkitCategory Category=>ToolkitCategory.Finance;

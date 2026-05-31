@@ -1,9 +1,10 @@
-using AGXIOME.Shared.Config;
+﻿using AGXIOME.Shared.Config;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
 namespace AGXIOME.Core.Learning;
 
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class LearningMachine : ILearningMachine
 {
     private readonly LearningConfig _config;

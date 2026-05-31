@@ -1,8 +1,9 @@
-using AGXIOME.Shared.Interfaces;
+﻿using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
 namespace AGXIOME.Core.Hooks;
 
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class DelegateHook : IAgentHook
 {
     private readonly Func<HookContext, CancellationToken, Task> _handler;

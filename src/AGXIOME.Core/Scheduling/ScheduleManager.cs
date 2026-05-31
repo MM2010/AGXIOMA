@@ -1,9 +1,10 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
 namespace AGXIOME.Core.Scheduling;
 
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class ScheduleManager : IWorkflowScheduler
 {
     private readonly ConcurrentDictionary<string, Schedule> _schedules = new();

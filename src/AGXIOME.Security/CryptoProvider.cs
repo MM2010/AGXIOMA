@@ -1,10 +1,11 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 using System.Collections.Concurrent;
 
 namespace AGXIOME.Security;
 
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class CryptoProvider : IAgxiomeCrypto
 {
     private static readonly ECCurve Curva = ECCurve.NamedCurves.nistP256;

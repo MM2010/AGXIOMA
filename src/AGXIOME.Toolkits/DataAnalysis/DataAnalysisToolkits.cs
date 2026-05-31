@@ -1,4 +1,4 @@
-// T-34..T-47 — Data Analysis Toolkits
+﻿// T-34..T-47 — Data Analysis Toolkits
 using System.Data;
 using System.Globalization;
 using System.Text.Json;
@@ -14,6 +14,7 @@ namespace AGXIOME.Toolkits.DataAnalysis;
 
 // T-34 — Generic SQL (delegates to provider-specific toolkits; base stub)
 [Toolkit("sql","SQL",ToolkitCategory.DataAnalysis)]
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class SqlToolkit(ToolkitConfig? config=null):ToolkitBase(config){
     public override string Id=>"sql"; public override string Name=>"SQL";
     public override ToolkitCategory Category=>ToolkitCategory.DataAnalysis;

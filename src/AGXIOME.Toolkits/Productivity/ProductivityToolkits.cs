@@ -1,4 +1,4 @@
-// T-16..T-33 — Productivity Toolkits
+﻿// T-16..T-33 — Productivity Toolkits
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -11,6 +11,7 @@ file static class Http { internal static readonly HttpClient Client = new() { Ti
 
 // T-16 — Google Calendar (OAuth2 access_token required)
 [Toolkit("google_calendar","Google Calendar",ToolkitCategory.Productivity)]
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class GoogleCalendarToolkit(ToolkitConfig? config=null):ToolkitBase(config){
     public override string Id=>"google_calendar"; public override string Name=>"Google Calendar";
     public override ToolkitCategory Category=>ToolkitCategory.Productivity;

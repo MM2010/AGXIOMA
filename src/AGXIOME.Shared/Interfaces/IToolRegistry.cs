@@ -1,5 +1,6 @@
-namespace AGXIOME.Shared.Interfaces;
+﻿namespace AGXIOME.Shared.Interfaces;
 
+/// <summary>Central registry for discovering and resolving tools by name or category. Agents query this to build their function-calling schemas before LLM inference.</summary>
 public interface IToolRegistry
 {
     void Register<T>() where T : IAgxiomeTool;

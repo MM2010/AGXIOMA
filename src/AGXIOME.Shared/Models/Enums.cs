@@ -1,4 +1,4 @@
-namespace AGXIOME.Shared.Models;
+﻿namespace AGXIOME.Shared.Models;
 
 public enum GuardrailType { Input, Output }
 public enum GuardrailSeverity { Log, Flag, Block }
@@ -11,8 +11,11 @@ public enum HookPoint
     StreamChunk,
     BackgroundPost
 }
+/// <summary>Learning mode: Always (auto-save after every run), Agentic (agent decides via tool), Propose (agent proposes, user confirms).</summary>
 public enum LearningMode { Always, Agentic, Propose }
+/// <summary>Session context mode: Summary (summarize), Planning (track goals).</summary>
 public enum LearningSessionMode { Summary, Planning }
+/// <summary>Type of entity memory: Fact, Event, or Relationship.</summary>
 public enum EntityMemoryType { Fact, Event, Relationship }
 public enum HITLRequirementType { Confirmation, UserInput, ExternalExecution, Audit }
 public enum HITLStatus { Pending, Approved, Rejected, Expired }

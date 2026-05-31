@@ -1,4 +1,4 @@
-using AGXIOME.Shared.Interfaces;
+﻿using AGXIOME.Shared.Interfaces;
 using AGXIOME.Shared.Models;
 
 namespace AGXIOME.Storage.Embedders;
@@ -16,6 +16,7 @@ namespace AGXIOME.Storage.Embedders;
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── E-19 — Multilingual E5 (multilingual-e5-large, 1024 dims) ────────────────
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class MultilingualE5Embedder : OnnxEmbedderBase
 {
     private readonly string _modelPath;

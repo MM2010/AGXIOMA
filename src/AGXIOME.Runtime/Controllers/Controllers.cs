@@ -1,4 +1,4 @@
-// RT-06..RT-14 — REST API Controllers
+﻿// RT-06..RT-14 — REST API Controllers
 // Each controller maps to a domain area. All responses are JSON.
 // Auth + RBAC is enforced upstream in middleware.
 
@@ -15,6 +15,7 @@ namespace AGXIOME.Runtime.Controllers;
 // Shared DTOs
 // ═══════════════════════════════════════════════════════════════
 
+/// <summary>Data transfer record for the AGXIOME framework.</summary>
 public sealed record AgentDto(string Id, string Name, string? Description, string? Model, DateTimeOffset CreatedAt);
 public sealed record CreateAgentRequest(string Name, string? Description, string? Model);
 public sealed record RunDto(string RunId, string AgentId, string Status, DateTimeOffset StartedAt, DateTimeOffset? EndedAt, int? Score);

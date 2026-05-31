@@ -2,6 +2,10 @@ using AGXIOME.Shared.Models;
 
 namespace AGXIOME.Shared.Interfaces;
 
+/// <summary>
+/// DAG-based workflow engine. Steps are connected by transitions with optional conditions.
+/// Supports both code steps (lambda handlers) and agent steps (delegating to agents).
+/// </summary>
 public interface IAgxiomeWorkflow
 {
     string Id { get; }
@@ -12,6 +16,7 @@ public interface IAgxiomeWorkflow
     Task<WorkflowResult> ExecuteAsync(WorkflowContext context, CancellationToken ct = default);
 }
 
+/// <summary>A single step within a workflow. Can be a code step or agent step.</summary>
 public interface IWorkflowStep
 {
     string Name { get; }

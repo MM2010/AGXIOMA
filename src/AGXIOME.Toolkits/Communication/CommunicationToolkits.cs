@@ -1,4 +1,4 @@
-// T-01..T-15 — Communication Toolkits
+﻿// T-01..T-15 — Communication Toolkits
 using System.Net;
 using System.Net.Http.Json;
 using System.Net.Mail;
@@ -16,6 +16,7 @@ file static class Http
 
 // T-01 — Slack (token required)
 [Toolkit("slack", "Slack", ToolkitCategory.Communication)]
+/// <summary>Core implementation for the AGXIOME agentic orchestration framework.</summary>
 public sealed class SlackToolkit(ToolkitConfig? config = null) : ToolkitBase(config)
 {
     public override string Id       => "slack";
