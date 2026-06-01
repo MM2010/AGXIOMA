@@ -12,13 +12,13 @@
 
   <!-- ── NuGet common package metadata ── -->
   <PropertyGroup>
-    <VersionPrefix>0.0.2</VersionPrefix>
-    <VersionSuffix></VersionSuffix>
-    <PackageVersion>0.0.2-beta</PackageVersion>
+    <VersionPrefix>0.0.3</VersionPrefix>
+    <VersionSuffix>beta</VersionSuffix>
+    <PackageVersion>0.0.3-beta</PackageVersion>
     <Authors>AGXIOME Team</Authors>
     <Company>AGXIOME</Company>
     <PackageProjectUrl>https://agxiome.com</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/AGXIOME/AGXIOMA</RepositoryUrl>
+    <RepositoryUrl>https://github.com/MM2010/AGXIOMA</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <PackageReadmeFile>README.NuGet.md</PackageReadmeFile>
