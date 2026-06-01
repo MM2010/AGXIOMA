@@ -1,11 +1,16 @@
-# AGXIOME v0.0.1-beta
+# AGXIOME v0.0.2-beta
+
+<p align="center">
+  <img src="docs/agxiome-logo.png" alt="AGXIOME" width="400"/>
+</p>
 
 **Agentic Generative C# X-Linked Integrated Orchestration Memory Architecture**
 
-[![NuGet](https://img.shields.io/badge/nuget-v0.0.1--beta-blue)](https://www.nuget.org/packages/AGXIOME.Core)
+[![NuGet](https://img.shields.io/badge/nuget-v0.0.2--beta-blue)](https://www.nuget.org/packages/AGXIOME.Core)
 [![.NET](https://img.shields.io/badge/.NET-10.0-purple)](https://dotnet.microsoft.com/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![License](https://img.shields.io/badge/license-Proprietary-red)](LICENSE.md)
 [![Tests](https://img.shields.io/badge/tests-3190%20passed-brightgreen)]()
+[![Website](https://img.shields.io/badge/website-agxiome.com-blue)](https://agxiome.com)
 
 Framework .NET 10 per orchestrazione agentic AI.  
 Ispirato ad [Agno](https://docs.agno.com/), esteso con Zero Trust security, CQRS persistence,
@@ -211,12 +216,20 @@ factory.Configure(config);
 
 ---
 
-## 📚 Documentazione
+## 📚 Documentation
 
-| Documento | Descrizione |
-|-----------|-------------|
-| [Getting Started](docs/GETTING_STARTED.md) | Guida rapida: primo agente in 5 minuti |
-| [API Reference](docs/API.md) | API completa con link ai sorgenti |
+**English** · **Italiano**
+
+| Document | Description |
+|----------|-------------|
+| [📖 Full Documentation](docs/INDEX.md) | **Complete English docs** — 50+ pages covering every concept |
+| [🍳 Cookbook](cookbook/README.md) | Ready-to-run code recipes linked to 18 demo apps |
+| [🚀 Quick Start](docs/getting-started/quickstart.md) | First agent in 5 minutes |
+| [🏗 Agent Lifecycle](docs/core-concepts/agent-lifecycle.md) | Full pipeline: hooks → guardrails → LLM → tools → learning |
+| [🔧 AgxiomeBuilder](docs/core-concepts/agxiome-builder.md) | Complete fluent API reference |
+| [👥 Teams & Swarms](docs/teams/topologies.md) | ForestSwarm, GrokSwarm, HeavySwarm |
+| [📊 Provider Audit](docs/PROVIDER_TOOLKIT_AUDIT.md) | Real status of 350+ providers |
+| [🖥️ Demo Apps](docs/DEMO_IMPLEMENTATIONS_EXAMPLES.md) | 18 full demo applications documented |
 | [Core Concepts](docs/CORE_CONCEPTS.md) | Concetti fondamentali: Agent, Team, Workflow |
 | [Architecture](docs/ARCHITECTURE.md) | Design patterns e decisioni architetturali |
 | [Providers](docs/PROVIDERS.md) | Tutti i provider: LLM, DB, Vector, Embedder |

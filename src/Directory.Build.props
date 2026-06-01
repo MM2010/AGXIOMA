@@ -12,16 +12,17 @@
 
   <!-- ── NuGet common package metadata ── -->
   <PropertyGroup>
-    <VersionPrefix>0.0.1</VersionPrefix>
-    <VersionSuffix>beta</VersionSuffix>
-    <PackageVersion>0.0.1-beta</PackageVersion>
+    <VersionPrefix>0.0.2</VersionPrefix>
+    <VersionSuffix></VersionSuffix>
+    <PackageVersion>0.0.2-beta</PackageVersion>
     <Authors>AGXIOME Team</Authors>
     <Company>AGXIOME</Company>
-    <PackageProjectUrl>https://github.com/your-org/AGXIOMA</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/your-org/AGXIOMA</RepositoryUrl>
+    <PackageProjectUrl>https://agxiome.com</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/AGXIOME/AGXIOMA</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <PackageReadmeFile>README.NuGet.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <PackageTags>ai;agent;orchestration;llm;rag;vector-db;machine-learning;dotnet;csharp;signalr;cqrs</PackageTags>
     <Description>AGXIOME — .NET 10 agentic AI orchestration framework with CQRS, multi-model persistence, SignalR realtime, Zero Trust security, and full provider ecosystem (50+ LLM providers, 25 DB providers, 30 vector DBs).</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -33,6 +34,8 @@
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IsPackable)' == 'true' or '$(MSBuildProjectName)' == 'AGXIOME.Shared' or '$(MSBuildProjectName)' == 'AGXIOME.Core'">
-    <None Include="$(MSBuildThisFileDirectory)..\README.md" Pack="true" PackagePath="/" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)..\icon.png" Pack="true" PackagePath="/" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)..\README.NuGet.md" Pack="true" PackagePath="/" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)..\LICENSE.md" Pack="true" PackagePath="/" Visible="false" />
   </ItemGroup>
 </Project>
