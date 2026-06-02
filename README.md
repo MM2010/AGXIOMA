@@ -1,4 +1,4 @@
-# AGXIOME v0.0.2-beta
+# AGXIOME v0.0.3-beta
 
 <p align="center">
   <img src="docs/agxiome-logo.png" alt="AGXIOME" width="400"/>
@@ -6,7 +6,7 @@
 
 **Agentic Generative C# X-Linked Integrated Orchestration Memory Architecture**
 
-[![NuGet](https://img.shields.io/badge/nuget-v0.0.2--beta-blue)](https://www.nuget.org/packages/AGXIOME.Core)
+[![NuGet](https://img.shields.io/badge/nuget-v0.0.3--beta-blue)](https://www.nuget.org/packages/AGXIOME.Core)
 [![.NET](https://img.shields.io/badge/.NET-10.0-purple)](https://dotnet.microsoft.com/)
 [![License](https://img.shields.io/badge/license-Proprietary-red)](LICENSE.md)
 [![Tests](https://img.shields.io/badge/tests-3190%20passed-brightgreen)]()
